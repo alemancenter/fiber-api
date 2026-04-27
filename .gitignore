@@ -10,6 +10,9 @@ tmp/
 # Build output
 *.test
 *.out
+coverage.*
+*.coverprofile
+profile.cov
 
 # Environment files
 .env
