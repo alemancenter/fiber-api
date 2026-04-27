@@ -34,7 +34,7 @@ func (h *Handler) GetEvents(c *fiber.Ctx) error {
 	countryCode, _ := c.Locals("country_code").(string)
 
 	var events []models.Event
-	query := db.Model(&models.Event{}).Where("database = ?", countryCode)
+	query := db.Model(&models.Event{}).Where("`database` = ?", countryCode)
 
 	if start := c.Query("start"); start != "" {
 		query = query.Where("start_date >= ?", start)
@@ -144,7 +144,7 @@ func (h *Handler) PublicEvents(c *fiber.Ctx) error {
 	countryCode, _ := c.Locals("country_code").(string)
 
 	var events []models.Event
-	db.Where("database = ?", countryCode).Order("start_date ASC").Limit(20).Find(&events)
+	db.Where("`database` = ?", countryCode).Order("start_date ASC").Limit(20).Find(&events)
 
 	return utils.Success(c, "success", events)
 }

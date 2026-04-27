@@ -23,7 +23,7 @@ func (h *Handler) List(c *fiber.Ctx) error {
 	db := database.DBForCountry(countryID)
 
 	var categoryList []models.Category
-	db.Where("is_active = ?", true).Order("order ASC, name ASC").Find(&categoryList)
+	db.Where("is_active = ?", true).Order("`order` ASC, name ASC").Find(&categoryList)
 
 	return utils.Success(c, "success", categoryList)
 }
@@ -61,7 +61,7 @@ func (h *Handler) DashboardList(c *fiber.Ctx) error {
 	var total int64
 
 	db.Model(&models.Category{}).Count(&total)
-	db.Order("order ASC, name ASC").Limit(pag.PerPage).Offset(pag.Offset).Find(&categoryList)
+	db.Order("`order` ASC, name ASC").Limit(pag.PerPage).Offset(pag.Offset).Find(&categoryList)
 
 	return utils.Paginated(c, "success", categoryList, pag.BuildMeta(total))
 }

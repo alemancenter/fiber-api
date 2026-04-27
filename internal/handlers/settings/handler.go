@@ -19,7 +19,7 @@ func New() *Handler { return &Handler{} }
 func (h *Handler) GetAll(c *fiber.Ctx) error {
 	db := database.DB()
 	var settings []models.Setting
-	db.Order("group, key").Find(&settings)
+	db.Order("`group`, `key`").Find(&settings)
 
 	// Group settings by group key
 	grouped := make(map[string][]models.Setting)
@@ -107,7 +107,7 @@ func (h *Handler) UpdateRobots(c *fiber.Ctx) error {
 func (h *Handler) GetPublic(c *fiber.Ctx) error {
 	db := database.DB()
 	var settings []models.Setting
-	db.Where("group = ?", "general").Find(&settings)
+	db.Where("`group` = ?", "general").Find(&settings)
 
 	result := make(map[string]string)
 	for _, s := range settings {

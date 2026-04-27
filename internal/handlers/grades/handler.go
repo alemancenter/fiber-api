@@ -24,7 +24,7 @@ func (h *Handler) ListSchoolClasses(c *fiber.Ctx) error {
 	db := database.DBForCountry(countryID)
 
 	var classes []models.SchoolClass
-	db.Where("is_active = ?", true).Order("order ASC, name ASC").Find(&classes)
+	db.Where("is_active = ?", true).Order("`order` ASC, name ASC").Find(&classes)
 	return utils.Success(c, "success", classes)
 }
 
@@ -60,7 +60,7 @@ func (h *Handler) ListSubjects(c *fiber.Ctx) error {
 
 	var subjects []models.Subject
 	db.Where("school_class_id = ? AND is_active = ?", classID, true).
-		Order("order ASC, name ASC").
+		Order("`order` ASC, name ASC").
 		Find(&subjects)
 
 	return utils.Success(c, "success", subjects)
@@ -79,7 +79,7 @@ func (h *Handler) ListSemesters(c *fiber.Ctx) error {
 
 	var semesters []models.Semester
 	db.Where("subject_id = ? AND is_active = ?", subjectID, true).
-		Order("order ASC, name ASC").
+		Order("`order` ASC, name ASC").
 		Find(&semesters)
 
 	return utils.Success(c, "success", semesters)
@@ -92,7 +92,7 @@ func (h *Handler) FilterMeta(c *fiber.Ctx) error {
 	db := database.DBForCountry(countryID)
 
 	var classes []models.SchoolClass
-	db.Where("is_active = ?", true).Order("order ASC").Find(&classes)
+	db.Where("is_active = ?", true).Order("`order` ASC").Find(&classes)
 
 	return utils.Success(c, "success", fiber.Map{"classes": classes})
 }
@@ -161,7 +161,7 @@ func (h *Handler) DashboardListSchoolClasses(c *fiber.Ctx) error {
 	var total int64
 
 	db.Model(&models.SchoolClass{}).Count(&total)
-	db.Order("order ASC, name ASC").Limit(pag.PerPage).Offset(pag.Offset).Find(&classes)
+	db.Order("`order` ASC, name ASC").Limit(pag.PerPage).Offset(pag.Offset).Find(&classes)
 
 	return utils.Paginated(c, "success", classes, pag.BuildMeta(total))
 }
@@ -249,7 +249,7 @@ func (h *Handler) DashboardListSubjects(c *fiber.Ctx) error {
 	var total int64
 
 	db.Model(&models.Subject{}).Count(&total)
-	db.Preload("SchoolClass").Order("order ASC").Limit(pag.PerPage).Offset(pag.Offset).Find(&subjects)
+	db.Preload("SchoolClass").Order("`order` ASC").Limit(pag.PerPage).Offset(pag.Offset).Find(&subjects)
 
 	return utils.Paginated(c, "success", subjects, pag.BuildMeta(total))
 }
@@ -298,7 +298,7 @@ func (h *Handler) DashboardListSemesters(c *fiber.Ctx) error {
 	var total int64
 
 	db.Model(&models.Semester{}).Count(&total)
-	db.Preload("Subject").Order("order ASC").Limit(pag.PerPage).Offset(pag.Offset).Find(&semesters)
+	db.Preload("Subject").Order("`order` ASC").Limit(pag.PerPage).Offset(pag.Offset).Find(&semesters)
 
 	return utils.Paginated(c, "success", semesters, pag.BuildMeta(total))
 }

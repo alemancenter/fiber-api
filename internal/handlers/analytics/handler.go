@@ -34,14 +34,14 @@ func (h *Handler) VisitorAnalytics(c *fiber.Ctx) error {
 
 	var totalVisits int64
 	db.Model(&models.VisitorTracking{}).
-		Where("database = ? AND created_at >= ?", countryCode, since).
+		Where("`database` = ? AND created_at >= ?", countryCode, since).
 		Count(&totalVisits)
 
 	type UniqueCount struct{ Count int64 }
 	var uniqueResult UniqueCount
 	db.Model(&models.VisitorTracking{}).
 		Select("COUNT(DISTINCT ip_address) as count").
-		Where("database = ? AND created_at >= ?", countryCode, since).
+		Where("`database` = ? AND created_at >= ?", countryCode, since).
 		Scan(&uniqueResult)
 
 	type DailyCount struct {
@@ -51,7 +51,7 @@ func (h *Handler) VisitorAnalytics(c *fiber.Ctx) error {
 	var dailyCounts []DailyCount
 	db.Model(&models.VisitorTracking{}).
 		Select("DATE(created_at) as date, COUNT(*) as count").
-		Where("database = ? AND created_at >= ?", countryCode, since).
+		Where("`database` = ? AND created_at >= ?", countryCode, since).
 		Group("DATE(created_at)").
 		Order("date ASC").
 		Scan(&dailyCounts)
@@ -63,7 +63,7 @@ func (h *Handler) VisitorAnalytics(c *fiber.Ctx) error {
 	var topPages []PageCount
 	db.Model(&models.VisitorTracking{}).
 		Select("page, COUNT(*) as count").
-		Where("database = ? AND created_at >= ?", countryCode, since).
+		Where("`database` = ? AND created_at >= ?", countryCode, since).
 		Group("page").
 		Order("count DESC").
 		Limit(10).
@@ -95,7 +95,7 @@ func (h *Handler) PruneAnalytics(c *fiber.Ctx) error {
 	db := database.DBForCountry(countryID)
 	countryCode, _ := c.Locals("country_code").(string)
 
-	result := db.Where("database = ? AND created_at < ?", countryCode, cutoff).
+	result := db.Where("`database` = ? AND created_at < ?", countryCode, cutoff).
 		Delete(&models.VisitorTracking{})
 
 	return utils.Success(c, "تم حذف البيانات القديمة", fiber.Map{

@@ -33,6 +33,8 @@ func CORS() fiber.Handler {
 			"X-Requested-With",
 			"X-Frontend-Key",
 			"X-Country-Id",
+			"X-Country-Code",
+			"X-App-Locale",
 			"X-CSRF-Token",
 			"Cache-Control",
 		}, ","),

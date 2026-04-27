@@ -26,7 +26,7 @@ func (h *Handler) List(c *fiber.Ctx) error {
 	var total int64
 
 	query := db.Model(&models.Comment{}).Preload("User").
-		Where("database = ?", dbCode)
+		Where("`database` = ?", dbCode)
 
 	if commentableType := c.Query("type"); commentableType != "" {
 		query = query.Where("commentable_type = ?", commentableType)
