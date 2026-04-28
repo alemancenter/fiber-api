@@ -107,6 +107,13 @@ func TestArticleService_CreateArticle(t *testing.T) {
 			return nil
 		}
 
+		// Save the original logger to restore later
+		originalLogActivity := LogActivity
+		defer func() { LogActivity = originalLogActivity }()
+
+		// Mock LogActivity to prevent database calls during test
+		LogActivity = func(action string, entityType string, entityID uint, userID uint) {}
+
 		article, err := svc.CreateArticle(database.CountryJordan, newArticle, &authorID)
 
 		assert.NoError(t, err)
