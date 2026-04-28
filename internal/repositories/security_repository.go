@@ -7,6 +7,17 @@ import (
 	"github.com/alemancenter/fiber-api/internal/models"
 )
 
+type TopAttackingIP struct {
+	IPAddress string `json:"ip_address"`
+	Count     int64  `json:"count"`
+}
+
+type AnalyticRow struct {
+	Severity  string `json:"severity,omitempty"`
+	EventType string `json:"event_type,omitempty"`
+	Count     int64  `json:"count"`
+}
+
 type SecurityRepository interface {
 	GetStats() (totalLogs, criticalLogs, resolvedLogs, blockedIPs, trustedIPs int64, err error)
 	GetLogs(severity, eventType, ip, resolved string, limit, offset int) ([]models.SecurityLog, int64, error)
@@ -14,21 +25,12 @@ type SecurityRepository interface {
 	DeleteLog(id uint64) error
 	DeleteAllLogs() error
 	GetOverviewStats(last24h, last7d time.Time) (last24hCount, last7dCount, totalAttacks int64, err error)
-	GetTopAttackingIPs(limit int) ([]struct {
-		IPAddress string `json:"ip_address"`
-		Count     int64  `json:"count"`
-	}, error)
+	GetTopAttackingIPs(limit int) ([]TopAttackingIP, error)
 	GetIPLogs(ip string, limit int) ([]models.SecurityLog, int64, error)
 	GetBlockedIPs(limit, offset int) ([]models.BlockedIP, int64, error)
 	GetTrustedIPs(limit, offset int) ([]models.TrustedIP, int64, error)
-	GetAnalyticsBySeverity() ([]struct {
-		Severity string `json:"severity"`
-		Count    int64  `json:"count"`
-	}, error)
-	GetAnalyticsByEventType(limit int) ([]struct {
-		EventType string `json:"event_type"`
-		Count     int64  `json:"count"`
-	}, error)
+	GetAnalyticsBySeverity() ([]AnalyticRow, error)
+	GetAnalyticsByEventType(limit int) ([]AnalyticRow, error)
 	GetTopRoutes(limit int) ([]struct {
 		Route string `json:"route"`
 		Count int64  `json:"count"`
@@ -100,11 +102,11 @@ func (r *securityRepository) ResolveLog(id uint64) error {
 	if err := db.First(&log, id).Error; err != nil {
 		return err
 	}
-	
+
 	log.IsResolved = true
 	now := time.Now()
 	log.ResolvedAt = &now
-	
+
 	return db.Save(&log).Error
 }
 
@@ -124,14 +126,8 @@ func (r *securityRepository) GetOverviewStats(last24h, last7d time.Time) (last24
 	return
 }
 
-func (r *securityRepository) GetTopAttackingIPs(limit int) ([]struct {
-	IPAddress string `json:"ip_address"`
-	Count     int64  `json:"count"`
-}, error) {
-	var topIPs []struct {
-		IPAddress string `json:"ip_address"`
-		Count     int64  `json:"count"`
-	}
+func (r *securityRepository) GetTopAttackingIPs(limit int) ([]TopAttackingIP, error) {
+	var topIPs []TopAttackingIP
 	err := database.DB().Model(&models.SecurityLog{}).
 		Select("ip_address, COUNT(*) as count").
 		Group("ip_address").
@@ -168,14 +164,8 @@ func (r *securityRepository) GetTrustedIPs(limit, offset int) ([]models.TrustedI
 	return trusted, total, err
 }
 
-func (r *securityRepository) GetAnalyticsBySeverity() ([]struct {
-	Severity string `json:"severity"`
-	Count    int64  `json:"count"`
-}, error) {
-	var bySeverity []struct {
-		Severity string `json:"severity"`
-		Count    int64  `json:"count"`
-	}
+func (r *securityRepository) GetAnalyticsBySeverity() ([]AnalyticRow, error) {
+	var bySeverity []AnalyticRow
 	err := database.DB().Model(&models.SecurityLog{}).
 		Select("severity, COUNT(*) as count").
 		Group("severity").
@@ -183,14 +173,8 @@ func (r *securityRepository) GetAnalyticsBySeverity() ([]struct {
 	return bySeverity, err
 }
 
-func (r *securityRepository) GetAnalyticsByEventType(limit int) ([]struct {
-	EventType string `json:"event_type"`
-	Count     int64  `json:"count"`
-}, error) {
-	var byEventType []struct {
-		EventType string `json:"event_type"`
-		Count     int64  `json:"count"`
-	}
+func (r *securityRepository) GetAnalyticsByEventType(limit int) ([]AnalyticRow, error) {
+	var byEventType []AnalyticRow
 	err := database.DB().Model(&models.SecurityLog{}).
 		Select("event_type, COUNT(*) as count").
 		Group("event_type").

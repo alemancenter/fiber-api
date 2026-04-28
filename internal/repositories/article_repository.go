@@ -8,7 +8,6 @@ import (
 )
 
 type ArticleRepository interface {
-	GetDB(countryID database.CountryID) *gorm.DB
 	List(countryID database.CountryID, pag utils.Pagination, filter *models.ArticleFilter) ([]models.Article, int64, error)
 	FindByID(countryID database.CountryID, id uint64) (*models.Article, error)
 	FindByGradeLevel(countryID database.CountryID, gradeLevel string, pag utils.Pagination) ([]models.Article, int64, error)
@@ -51,11 +50,11 @@ func (r *articleRepository) List(countryID database.CountryID, pag utils.Paginat
 		if filter.GradeLevel != "" {
 			query = query.Where("grade_level = ?", filter.GradeLevel)
 		}
-		if filter.SubjectID != "" {
-			query = query.Where("subject_id = ?", filter.SubjectID)
+		if filter.SubjectID != nil {
+			query = query.Where("subject_id = ?", *filter.SubjectID)
 		}
-		if filter.SemesterID != "" {
-			query = query.Where("semester_id = ?", filter.SemesterID)
+		if filter.SemesterID != nil {
+			query = query.Where("semester_id = ?", *filter.SemesterID)
 		}
 		if filter.Query != "" {
 			query = query.Where("title LIKE ?", "%"+filter.Query+"%")

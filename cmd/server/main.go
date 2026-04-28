@@ -11,7 +11,9 @@ import (
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/middleware"
 	"github.com/alemancenter/fiber-api/internal/routes"
+	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/alemancenter/fiber-api/pkg/logger"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"go.uber.org/zap"
@@ -95,9 +97,9 @@ func main() {
 				zap.Error(err),
 			)
 
-			return c.Status(code).JSON(fiber.Map{
-				"success": false,
-				"message": message,
+			return c.Status(code).JSON(utils.APIResponse{
+				Success: false,
+				Message: message,
 			})
 		},
 	})
@@ -134,9 +136,9 @@ func main() {
 
 	// 404 handler
 	app.Use(func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"success": false,
-			"message": "المسار المطلوب غير موجود",
+		return c.Status(fiber.StatusNotFound).JSON(utils.APIResponse{
+			Success: false,
+			Message: "المسار المطلوب غير موجود",
 		})
 	})
 

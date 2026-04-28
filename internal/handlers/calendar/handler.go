@@ -24,11 +24,11 @@ func New(svc services.CalendarService) *Handler {
 // Databases returns available calendar databases (countries)
 // GET /api/dashboard/calendar/databases
 func (h *Handler) Databases(c *fiber.Ctx) error {
-	return utils.Success(c, "success", []fiber.Map{
-		{"id": 1, "code": "jo", "name": "الأردن"},
-		{"id": 2, "code": "sa", "name": "السعودية"},
-		{"id": 3, "code": "eg", "name": "مصر"},
-		{"id": 4, "code": "ps", "name": "فلسطين"},
+	return utils.Success(c, "success", []services.DatabaseInfo{
+		{ID: 1, Code: "jo", Name: "الأردن"},
+		{ID: 2, Code: "sa", Name: "السعودية"},
+		{ID: 3, Code: "eg", Name: "مصر"},
+		{ID: 4, Code: "ps", Name: "فلسطين"},
 	})
 }
 

@@ -25,6 +25,10 @@ type DashboardService interface {
 	CleanOldActivities() (int64, error)
 }
 
+type CleanActivitiesResponse struct {
+	Deleted int64 `json:"deleted"`
+}
+
 type dashboardService struct {
 	repo repositories.DashboardRepository
 }

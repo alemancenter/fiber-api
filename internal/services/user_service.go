@@ -19,6 +19,10 @@ type UserService interface {
 	UpdateStatus(ids []uint, status string) error
 }
 
+type BulkDeleteUsersResponse struct {
+	Deleted int `json:"deleted"`
+}
+
 type CreateUserRequest struct {
 	Name     string `json:"name" validate:"required,min=2,max=255"`
 	Email    string `json:"email" validate:"required,email"`

@@ -61,6 +61,31 @@ type AuthService interface {
 	DeletePushToken(userID uint, token string) error
 }
 
+type UserResponse struct {
+	ID               uint                `json:"id"`
+	Name             string              `json:"name"`
+	Email            string              `json:"email"`
+	EmailVerifiedAt  *time.Time          `json:"email_verified_at"`
+	Phone            *string             `json:"phone"`
+	JobTitle         *string             `json:"job_title"`
+	Gender           *string             `json:"gender"`
+	Country          *string             `json:"country"`
+	Bio              *string             `json:"bio"`
+	SocialLinks      *string             `json:"social_links"`
+	ProfilePhotoURL  *string             `json:"profile_photo_url"`
+	ProfilePhotoPath *string             `json:"profile_photo_path"`
+	Status           string              `json:"status"`
+	Roles            []models.Role       `json:"roles"`
+	Permissions      []models.Permission `json:"permissions"`
+}
+
+type RegisterResponse struct {
+	Success bool          `json:"success"`
+	Message string        `json:"message"`
+	Token   string        `json:"token"`
+	User    *UserResponse `json:"user"`
+}
+
 type authService struct {
 	repo    repositories.UserRepository
 	jwtSvc  *JWTService

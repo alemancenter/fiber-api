@@ -6,14 +6,139 @@ import (
 
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/repositories"
-	"github.com/gofiber/fiber/v2"
 )
 
 type AnalyticsService interface {
-	GetVisitorAnalytics(dbCode database.CountryID, days int) fiber.Map
+	GetVisitorAnalytics(dbCode database.CountryID, days int) *VisitorAnalyticsResponse
 	PruneAnalytics(dbCode database.CountryID, days int) int64
-	GetDashboardSummary(dbCode database.CountryID) fiber.Map
-	GetContentAnalytics(dbCode database.CountryID) fiber.Map
+	GetDashboardSummary(dbCode database.CountryID) *DashboardSummaryResponse
+	GetContentAnalytics(dbCode database.CountryID) *ContentAnalyticsResponse
+}
+
+type PruneAnalyticsResponse struct {
+	Deleted int64 `json:"deleted"`
+}
+
+type PerformanceSummaryResponse struct {
+	RedisInfo string    `json:"redis_info"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+type VisitorAnalyticsResponse struct {
+	VisitorStats   VisitorStatsData          `json:"visitor_stats"`
+	UserStats      UserStatsData             `json:"user_stats"`
+	CountryStats   []repositories.CountryRow `json:"country_stats"`
+	ChartData      []ChartDataRow            `json:"chart_data"`
+	DeviceStats    []DeviceStatRow           `json:"device_stats"`
+	TrafficSources []TrafficSourceRow        `json:"traffic_sources"`
+}
+
+type VisitorStatsData struct {
+	Current            int64              `json:"current"`
+	CurrentMembers     int64              `json:"current_members"`
+	CurrentGuests      int64              `json:"current_guests"`
+	TotalToday         int64              `json:"total_today"`
+	TotalCombinedToday int64              `json:"total_combined_today"`
+	Change             float64            `json:"change"`
+	History            []ChartDataRow     `json:"history"`
+	ActiveVisitors     []ActiveVisitorRow `json:"active_visitors"`
+}
+
+type ActiveVisitorRow struct {
+	IP              string `json:"ip"`
+	Country         string `json:"country"`
+	City            string `json:"city"`
+	Browser         string `json:"browser"`
+	OS              string `json:"os"`
+	UserAgent       string `json:"user_agent"`
+	CurrentPage     string `json:"current_page"`
+	CurrentPageFull string `json:"current_page_full"`
+	IsMember        bool   `json:"is_member"`
+	LastActive      string `json:"last_active"`
+	SessionStart    string `json:"session_start"`
+	UserID          *uint  `json:"user_id,omitempty"`
+	UserName        string `json:"user_name,omitempty"`
+	UserEmail       string `json:"user_email,omitempty"`
+}
+
+type UserStatsData struct {
+	Total    int64 `json:"total"`
+	Active   int64 `json:"active"`
+	NewToday int64 `json:"new_today"`
+}
+
+type ChartDataRow struct {
+	Name      string `json:"name"`
+	FullDate  string `json:"full_date"`
+	Visitors  int64  `json:"visitors"`
+	PageViews int64  `json:"pageViews"`
+}
+
+type DeviceStatRow struct {
+	Name  string  `json:"name"`
+	Value float64 `json:"value"`
+	Count int64   `json:"count"`
+	Color string  `json:"color"`
+}
+
+type TrafficSourceRow struct {
+	Source string  `json:"source"`
+	Visits int64   `json:"visits"`
+	Change float64 `json:"change"`
+}
+
+type DashboardSummaryResponse struct {
+	Totals           DashboardTotals    `json:"totals"`
+	Trends           DashboardTrends    `json:"trends"`
+	Analytics        DashboardAnalytics `json:"analytics"`
+	OnlineUsers      []interface{}      `json:"onlineUsers"`
+	RecentActivities []ActivityOut      `json:"recentActivities"`
+}
+
+type DashboardTotals struct {
+	Articles    int64 `json:"articles"`
+	News        int64 `json:"news"`
+	Users       int64 `json:"users"`
+	OnlineUsers int64 `json:"online_users"`
+}
+
+type DashboardTrends struct {
+	Articles TrendData `json:"articles"`
+	News     TrendData `json:"news"`
+	Users    TrendData `json:"users"`
+}
+
+type DashboardAnalytics struct {
+	Dates    []string `json:"dates"`
+	Articles []int    `json:"articles"`
+	News     []int    `json:"news"`
+	Comments []int    `json:"comments"`
+	Views    []int    `json:"views"`
+	Authors  []int    `json:"authors"`
+}
+
+type TrendData struct {
+	Percentage float64 `json:"percentage"`
+	Trend      string  `json:"trend"`
+}
+
+type ActivityUser struct {
+	Name string `json:"name"`
+}
+
+type ActivityOut struct {
+	ID        uint         `json:"id"`
+	Type      string       `json:"type"`
+	Title     string       `json:"title"`
+	User      ActivityUser `json:"user"`
+	CreatedAt time.Time    `json:"created_at"`
+}
+
+type ContentAnalyticsResponse struct {
+	TopArticles       []repositories.ArticleView `json:"top_articles"`
+	TopPosts          []repositories.PostView    `json:"top_posts"`
+	PublishedArticles int64                      `json:"published_articles"`
+	DraftArticles     int64                      `json:"draft_articles"`
 }
 
 type analyticsService struct {
@@ -24,7 +149,7 @@ func NewAnalyticsService(repo repositories.AnalyticsRepository) AnalyticsService
 	return &analyticsService{repo: repo}
 }
 
-func (s *analyticsService) GetVisitorAnalytics(dbCode database.CountryID, days int) fiber.Map {
+func (s *analyticsService) GetVisitorAnalytics(dbCode database.CountryID, days int) *VisitorAnalyticsResponse {
 	now := time.Now()
 	since := now.AddDate(0, 0, -days)
 	prevSince := now.AddDate(0, 0, -days*2)
@@ -92,38 +217,40 @@ func (s *analyticsService) GetVisitorAnalytics(dbCode database.CountryID, days i
 		changeVal = float64(totalToday-totalYesterday) / float64(totalYesterday) * 100
 	}
 
-	activeVisitors := make([]fiber.Map, 0, len(activeRows))
+	activeVisitors := make([]ActiveVisitorRow, 0, len(activeRows))
 	for _, r := range activeRows {
-		av := fiber.Map{
-			"ip":               r.IPAddress,
-			"country":          strVal(r.Country),
-			"city":             strVal(r.City),
-			"browser":          strVal(r.Browser),
-			"os":               strVal(r.OS),
-			"user_agent":       r.UserAgent,
-			"current_page":     strVal(r.URL),
-			"current_page_full": strVal(r.URL),
-			"is_member":        r.UserID != nil,
-			"last_active":      r.LastAct,
-			"session_start":    r.CreatedAt,
+		av := ActiveVisitorRow{
+			IP:              r.IPAddress,
+			Country:         strVal(r.Country),
+			City:            strVal(r.City),
+			Browser:         strVal(r.Browser),
+			OS:              strVal(r.OS),
+			UserAgent:       r.UserAgent,
+			CurrentPage:     strVal(r.URL),
+			CurrentPageFull: strVal(r.URL),
+			IsMember:        r.UserID != nil,
+			LastActive:      r.LastAct,
+			SessionStart:    r.CreatedAt,
 		}
 		if r.UserID != nil {
-			av["user_id"] = *r.UserID
-			av["user_name"] = strVal(r.UserName)
-			av["user_email"] = strVal(r.UserEmail)
+			av.UserID = r.UserID
+			userName := strVal(r.UserName)
+			av.UserName = userName
+			userEmail := strVal(r.UserEmail)
+			av.UserEmail = userEmail
 		}
 		activeVisitors = append(activeVisitors, av)
 	}
 
 	// ---- chart_data ----
-	chartData := make([]fiber.Map, 0, len(dailyRows))
+	chartData := make([]ChartDataRow, 0, len(dailyRows))
 	for _, r := range dailyRows {
 		t, _ := time.Parse("2006-01-02", r.Date)
-		chartData = append(chartData, fiber.Map{
-			"name":      t.Format("02 Jan"),
-			"full_date": r.Date,
-			"visitors":  r.Visitors,
-			"pageViews": r.PageViews,
+		chartData = append(chartData, ChartDataRow{
+			Name:      t.Format("02 Jan"),
+			FullDate:  r.Date,
+			Visitors:  r.Visitors,
+			PageViews: r.PageViews,
 		})
 	}
 
@@ -144,10 +271,10 @@ func (s *analyticsService) GetVisitorAnalytics(dbCode database.CountryID, days i
 		}
 	}
 	totalDevices := mobile + tablet + desktop
-	deviceStats := []fiber.Map{
-		{"name": "Desktop", "value": pct(desktop, totalDevices), "count": desktop, "color": "#63E6E2"},
-		{"name": "Mobile", "value": pct(mobile, totalDevices), "count": mobile, "color": "#0EA5E9"},
-		{"name": "Tablet", "value": pct(tablet, totalDevices), "count": tablet, "color": "#6366F1"},
+	deviceStats := []DeviceStatRow{
+		{Name: "Desktop", Value: pct(desktop, totalDevices), Count: desktop, Color: "#63E6E2"},
+		{Name: "Mobile", Value: pct(mobile, totalDevices), Count: mobile, Color: "#0EA5E9"},
+		{Name: "Tablet", Value: pct(tablet, totalDevices), Count: tablet, Color: "#6366F1"},
 	}
 
 	// ---- traffic_sources ----
@@ -159,18 +286,18 @@ func (s *analyticsService) GetVisitorAnalytics(dbCode database.CountryID, days i
 		}
 		srcMap[src] += r.Count
 	}
-	
+
 	totalCurrent := s.repo.GetTotalVisitsSince(dbCode, since)
 	changePerSource := 0.0
 	if prevTotalVisits > 0 {
 		changePerSource = float64(totalCurrent-prevTotalVisits) / float64(prevTotalVisits) * 100
 	}
-	trafficSources := make([]fiber.Map, 0, len(srcMap))
+	trafficSources := make([]TrafficSourceRow, 0, len(srcMap))
 	for src, visits := range srcMap {
-		trafficSources = append(trafficSources, fiber.Map{
-			"source": src,
-			"visits": visits,
-			"change": changePerSource,
+		trafficSources = append(trafficSources, TrafficSourceRow{
+			Source: src,
+			Visits: visits,
+			Change: changePerSource,
 		})
 	}
 
@@ -178,26 +305,26 @@ func (s *analyticsService) GetVisitorAnalytics(dbCode database.CountryID, days i
 		countryStats = []repositories.CountryRow{}
 	}
 
-	return fiber.Map{
-		"visitor_stats": fiber.Map{
-			"current":              currentActive,
-			"current_members":      currentMembers,
-			"current_guests":       currentGuests,
-			"total_today":          totalToday,
-			"total_combined_today": totalToday,
-			"change":               changeVal,
-			"history":              chartData,
-			"active_visitors":      activeVisitors,
+	return &VisitorAnalyticsResponse{
+		VisitorStats: VisitorStatsData{
+			Current:            currentActive,
+			CurrentMembers:     currentMembers,
+			CurrentGuests:      currentGuests,
+			TotalToday:         totalToday,
+			TotalCombinedToday: totalToday,
+			Change:             changeVal,
+			History:            chartData,
+			ActiveVisitors:     activeVisitors,
 		},
-		"user_stats": fiber.Map{
-			"total":     totalUsers,
-			"active":    activeUsers,
-			"new_today": newToday,
+		UserStats: UserStatsData{
+			Total:    totalUsers,
+			Active:   activeUsers,
+			NewToday: newToday,
 		},
-		"country_stats":   countryStats,
-		"chart_data":      chartData,
-		"device_stats":    deviceStats,
-		"traffic_sources": trafficSources,
+		CountryStats:   countryStats,
+		ChartData:      chartData,
+		DeviceStats:    deviceStats,
+		TrafficSources: trafficSources,
 	}
 }
 
@@ -206,7 +333,7 @@ func (s *analyticsService) PruneAnalytics(dbCode database.CountryID, days int) i
 	return s.repo.PruneVisitorTracking(dbCode, cutoff)
 }
 
-func (s *analyticsService) GetDashboardSummary(dbCode database.CountryID) fiber.Map {
+func (s *analyticsService) GetDashboardSummary(dbCode database.CountryID) *DashboardSummaryResponse {
 	fiveMinAgo := time.Now().Add(-5 * time.Minute)
 
 	var wg sync.WaitGroup
@@ -231,14 +358,7 @@ func (s *analyticsService) GetDashboardSummary(dbCode database.CountryID) fiber.
 
 	rawActivities, _ := s.repo.GetRecentActivities()
 
-	type activityOut struct {
-		ID        uint      `json:"id"`
-		Type      string    `json:"type"`
-		Title     string    `json:"title"`
-		User      fiber.Map `json:"user"`
-		CreatedAt time.Time `json:"created_at"`
-	}
-	activities := make([]activityOut, 0, len(rawActivities))
+	activities := make([]ActivityOut, 0, len(rawActivities))
 	for _, a := range rawActivities {
 		atype := "article"
 		if a.SubjectType != nil {
@@ -249,41 +369,41 @@ func (s *analyticsService) GetDashboardSummary(dbCode database.CountryID) fiber.
 				atype = "comment"
 			}
 		}
-		activities = append(activities, activityOut{
+		activities = append(activities, ActivityOut{
 			ID:        a.ID,
 			Type:      atype,
 			Title:     a.Description,
-			User:      fiber.Map{"name": a.CauserName},
+			User:      ActivityUser{Name: a.CauserName},
 			CreatedAt: a.CreatedAt,
 		})
 	}
 
-	return fiber.Map{
-		"totals": fiber.Map{
-			"articles":     articleCount,
-			"news":         newsCount,
-			"users":        userCount,
-			"online_users": onlineCount,
+	return &DashboardSummaryResponse{
+		Totals: DashboardTotals{
+			Articles:    articleCount,
+			News:        newsCount,
+			Users:       userCount,
+			OnlineUsers: onlineCount,
 		},
-		"trends": fiber.Map{
-			"articles": trendData(artTrend.LastMonth, artTrend.ThisMonth),
-			"news":     trendData(newsTrend.LastMonth, newsTrend.ThisMonth),
-			"users":    trendData(userTrend.LastMonth, userTrend.ThisMonth),
+		Trends: DashboardTrends{
+			Articles: trendData(artTrend.LastMonth, artTrend.ThisMonth),
+			News:     trendData(newsTrend.LastMonth, newsTrend.ThisMonth),
+			Users:    trendData(userTrend.LastMonth, userTrend.ThisMonth),
 		},
-		"analytics": fiber.Map{
-			"dates":    []string{},
-			"articles": []int{},
-			"news":     []int{},
-			"comments": []int{},
-			"views":    []int{},
-			"authors":  []int{},
+		Analytics: DashboardAnalytics{
+			Dates:    []string{},
+			Articles: []int{},
+			News:     []int{},
+			Comments: []int{},
+			Views:    []int{},
+			Authors:  []int{},
 		},
-		"onlineUsers":      []interface{}{},
-		"recentActivities": activities,
+		OnlineUsers:      []interface{}{},
+		RecentActivities: activities,
 	}
 }
 
-func (s *analyticsService) GetContentAnalytics(dbCode database.CountryID) fiber.Map {
+func (s *analyticsService) GetContentAnalytics(dbCode database.CountryID) *ContentAnalyticsResponse {
 	var wg sync.WaitGroup
 	var topArticles []repositories.ArticleView
 	var topPosts []repositories.PostView
@@ -305,11 +425,18 @@ func (s *analyticsService) GetContentAnalytics(dbCode database.CountryID) fiber.
 
 	wg.Wait()
 
-	return fiber.Map{
-		"top_articles":       topArticles,
-		"top_posts":          topPosts,
-		"published_articles": publishedArticles,
-		"draft_articles":     draftArticles,
+	if topArticles == nil {
+		topArticles = []repositories.ArticleView{}
+	}
+	if topPosts == nil {
+		topPosts = []repositories.PostView{}
+	}
+
+	return &ContentAnalyticsResponse{
+		TopArticles:       topArticles,
+		TopPosts:          topPosts,
+		PublishedArticles: publishedArticles,
+		DraftArticles:     draftArticles,
 	}
 }
 
@@ -358,7 +485,7 @@ func extractDomain(rawURL string) string {
 	return s
 }
 
-func trendData(prev, curr int64) fiber.Map {
+func trendData(prev, curr int64) TrendData {
 	pct := 0.0
 	dir := "up"
 	if prev > 0 {
@@ -367,5 +494,5 @@ func trendData(prev, curr int64) fiber.Map {
 	if pct < 0 {
 		dir = "down"
 	}
-	return fiber.Map{"percentage": pct, "trend": dir}
+	return TrendData{Percentage: pct, Trend: dir}
 }

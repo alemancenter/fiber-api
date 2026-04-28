@@ -94,10 +94,10 @@ func (h *Handler) ListSemesters(c *fiber.Ctx) error {
 		return utils.InternalError(c)
 	}
 
-	return utils.Success(c, "success", fiber.Map{
-		"subject":   subject,
-		"class_id":  subject.GradeLevel,
-		"semesters": semesters,
+	return utils.Success(c, "success", services.SemestersResponse{
+		Subject:   subject,
+		ClassID:   subject.GradeLevel,
+		Semesters: semesters,
 	})
 }
 
@@ -110,7 +110,7 @@ func (h *Handler) FilterMeta(c *fiber.Ctx) error {
 	if err != nil {
 		return utils.InternalError(c)
 	}
-	return utils.Success(c, "success", fiber.Map{"classes": classes})
+	return utils.Success(c, "success", services.FilterMetaResponse{Classes: classes})
 }
 
 // GetGradeArticles returns articles for a specific grade

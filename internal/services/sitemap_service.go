@@ -19,6 +19,11 @@ type SitemapService interface {
 	Delete(sitemapType, dbCode string) error
 }
 
+type SitemapStatusResponse struct {
+	Database string                 `json:"database"`
+	Sitemaps map[string]SitemapInfo `json:"sitemaps"`
+}
+
 type sitemapService struct {
 	repo repositories.SitemapRepository
 }

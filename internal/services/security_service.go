@@ -24,21 +24,12 @@ type SecurityService interface {
 	DeleteLog(id uint64) error
 	DeleteAllLogs() error
 	GetOverviewStats(last24h, last7d time.Time) (last24hCount, last7dCount, totalAttacks int64, err error)
-	GetTopAttackingIPs(limit int) ([]struct {
-		IPAddress string `json:"ip_address"`
-		Count     int64  `json:"count"`
-	}, error)
+	GetTopAttackingIPs(limit int) ([]repositories.TopAttackingIP, error)
 	GetIPLogs(ip string, limit int) ([]models.SecurityLog, int64, error)
 	GetBlockedIPs(limit, offset int) ([]models.BlockedIP, int64, error)
 	GetTrustedIPs(limit, offset int) ([]models.TrustedIP, int64, error)
-	GetAnalyticsBySeverity() ([]struct {
-		Severity string `json:"severity"`
-		Count    int64  `json:"count"`
-	}, error)
-	GetAnalyticsByEventType(limit int) ([]struct {
-		EventType string `json:"event_type"`
-		Count     int64  `json:"count"`
-	}, error)
+	GetAnalyticsBySeverity() ([]repositories.AnalyticRow, error)
+	GetAnalyticsByEventType(limit int) ([]repositories.AnalyticRow, error)
 	GetTopRoutes(limit int) ([]struct {
 		Route string `json:"route"`
 		Count int64  `json:"count"`
@@ -47,6 +38,34 @@ type SecurityService interface {
 		CountryCode string `json:"country_code"`
 		Count       int64  `json:"count"`
 	}, error)
+}
+
+type SecurityStatsResponse struct {
+	TotalLogs    int64 `json:"total_logs"`
+	CriticalLogs int64 `json:"critical_logs"`
+	ResolvedLogs int64 `json:"resolved_logs"`
+	BlockedIPs   int64 `json:"blocked_ips"`
+	TrustedIPs   int64 `json:"trusted_ips"`
+}
+
+type SecurityOverviewResponse struct {
+	Last24hEvents int64                         `json:"last_24h_events"`
+	Last7dEvents  int64                         `json:"last_7d_events"`
+	TotalAttacks  int64                         `json:"total_attacks"`
+	TopIPs        []repositories.TopAttackingIP `json:"top_ips"`
+}
+
+type IPDetailsResponse struct {
+	IP          string               `json:"ip"`
+	IsBlocked   bool                 `json:"is_blocked"`
+	IsTrusted   bool                 `json:"is_trusted"`
+	TotalEvents int64                `json:"total_events"`
+	RecentLogs  []models.SecurityLog `json:"recent_logs"`
+}
+
+type SecurityAnalyticsResponse struct {
+	BySeverity  []repositories.AnalyticRow `json:"by_severity"`
+	ByEventType []repositories.AnalyticRow `json:"by_event_type"`
 }
 
 // securityService handles security logging and IP management
@@ -186,10 +205,7 @@ func (s *securityService) GetOverviewStats(last24h, last7d time.Time) (last24hCo
 	return s.repo.GetOverviewStats(last24h, last7d)
 }
 
-func (s *securityService) GetTopAttackingIPs(limit int) ([]struct {
-	IPAddress string `json:"ip_address"`
-	Count     int64  `json:"count"`
-}, error) {
+func (s *securityService) GetTopAttackingIPs(limit int) ([]repositories.TopAttackingIP, error) {
 	return s.repo.GetTopAttackingIPs(limit)
 }
 
@@ -205,17 +221,11 @@ func (s *securityService) GetTrustedIPs(limit, offset int) ([]models.TrustedIP, 
 	return s.repo.GetTrustedIPs(limit, offset)
 }
 
-func (s *securityService) GetAnalyticsBySeverity() ([]struct {
-	Severity string `json:"severity"`
-	Count    int64  `json:"count"`
-}, error) {
+func (s *securityService) GetAnalyticsBySeverity() ([]repositories.AnalyticRow, error) {
 	return s.repo.GetAnalyticsBySeverity()
 }
 
-func (s *securityService) GetAnalyticsByEventType(limit int) ([]struct {
-	EventType string `json:"event_type"`
-	Count     int64  `json:"count"`
-}, error) {
+func (s *securityService) GetAnalyticsByEventType(limit int) ([]repositories.AnalyticRow, error) {
 	return s.repo.GetAnalyticsByEventType(limit)
 }
 
@@ -234,7 +244,7 @@ func (s *securityService) GetGeoDistribution(limit int) ([]struct {
 }
 
 // LogActivity records a user activity
-func LogActivity(description string, subjectType string, subjectID uint, causerID uint) {
+var LogActivity = func(description string, subjectType string, subjectID uint, causerID uint) {
 	log := &models.ActivityLog{
 		Description: description,
 		SubjectType: &subjectType,

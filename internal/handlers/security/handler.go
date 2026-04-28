@@ -27,12 +27,12 @@ func (h *Handler) Stats(c *fiber.Ctx) error {
 		return utils.InternalError(c)
 	}
 
-	return utils.Success(c, "success", fiber.Map{
-		"total_logs":    totalLogs,
-		"critical_logs": criticalLogs,
-		"resolved_logs": resolvedLogs,
-		"blocked_ips":   blockedIPs,
-		"trusted_ips":   trustedIPs,
+	return utils.Success(c, "success", services.SecurityStatsResponse{
+		TotalLogs:    totalLogs,
+		CriticalLogs: criticalLogs,
+		ResolvedLogs: resolvedLogs,
+		BlockedIPs:   blockedIPs,
+		TrustedIPs:   trustedIPs,
 	})
 }
 
@@ -108,11 +108,11 @@ func (h *Handler) Overview(c *fiber.Ctx) error {
 		return utils.InternalError(c)
 	}
 
-	return utils.Success(c, "success", fiber.Map{
-		"last_24h_events": last24hCount,
-		"last_7d_events":  last7dCount,
-		"total_attacks":   totalAttacks,
-		"top_ips":         topIPs,
+	return utils.Success(c, "success", services.SecurityOverviewResponse{
+		Last24hEvents: last24hCount,
+		Last7dEvents:  last7dCount,
+		TotalAttacks:  totalAttacks,
+		TopIPs:        topIPs,
 	})
 }
 
@@ -129,12 +129,12 @@ func (h *Handler) IPDetails(c *fiber.Ctx) error {
 	isBlocked := h.svc.IsBlocked(ip)
 	isTrusted := h.svc.IsTrusted(ip)
 
-	return utils.Success(c, "success", fiber.Map{
-		"ip":           ip,
-		"is_blocked":   isBlocked,
-		"is_trusted":   isTrusted,
-		"total_events": count,
-		"recent_logs":  logs,
+	return utils.Success(c, "success", services.IPDetailsResponse{
+		IP:          ip,
+		IsBlocked:   isBlocked,
+		IsTrusted:   isTrusted,
+		TotalEvents: count,
+		RecentLogs:  logs,
 	})
 }
 
@@ -243,9 +243,9 @@ func (h *Handler) Analytics(c *fiber.Ctx) error {
 		return utils.InternalError(c)
 	}
 
-	return utils.Success(c, "success", fiber.Map{
-		"by_severity":   bySeverity,
-		"by_event_type": byEventType,
+	return utils.Success(c, "success", services.SecurityAnalyticsResponse{
+		BySeverity:  bySeverity,
+		ByEventType: byEventType,
 	})
 }
 

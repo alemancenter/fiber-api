@@ -89,11 +89,11 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		return utils.InternalError(c, "فشل إنشاء الحساب")
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"success": true,
-		"message": "تم إنشاء الحساب بنجاح. يرجى التحقق من بريدك الإلكتروني.",
-		"token":   token,
-		"user":    buildUserResponse(user, h.cfg.Storage.URL),
+	return c.Status(fiber.StatusCreated).JSON(services.RegisterResponse{
+		Success: true,
+		Message: "تم إنشاء الحساب بنجاح. يرجى التحقق من بريدك الإلكتروني.",
+		Token:   token,
+		User:    buildUserResponse(user, h.cfg.Storage.URL),
 	})
 }
 
@@ -459,7 +459,7 @@ func (h *Handler) loginOrRegisterGoogleUser(c *fiber.Ctx, info *services.GoogleU
 	return utils.WithToken(c, "تم تسجيل الدخول بنجاح", buildUserResponse(user, h.cfg.Storage.URL), token)
 }
 
-func buildUserResponse(user *models.User, storageURL string) fiber.Map {
+func buildUserResponse(user *models.User, storageURL string) *services.UserResponse {
 	if user == nil {
 		return nil
 	}
@@ -470,21 +470,21 @@ func buildUserResponse(user *models.User, storageURL string) fiber.Map {
 		photoURL = &url
 	}
 
-	return fiber.Map{
-		"id":                 user.ID,
-		"name":               user.Name,
-		"email":              user.Email,
-		"email_verified_at":  user.EmailVerifiedAt,
-		"phone":              user.Phone,
-		"job_title":          user.JobTitle,
-		"gender":             user.Gender,
-		"country":            user.Country,
-		"bio":                user.Bio,
-		"social_links":       user.SocialLinks,
-		"profile_photo_url":  photoURL,
-		"profile_photo_path": user.ProfilePhotoPath,
-		"status":             user.Status,
-		"roles":              user.Roles,
-		"permissions":        user.Permissions,
+	return &services.UserResponse{
+		ID:               user.ID,
+		Name:             user.Name,
+		Email:            user.Email,
+		EmailVerifiedAt:  user.EmailVerifiedAt,
+		Phone:            user.Phone,
+		JobTitle:         user.JobTitle,
+		Gender:           user.Gender,
+		Country:          user.Country,
+		Bio:              user.Bio,
+		SocialLinks:      user.SocialLinks,
+		ProfilePhotoURL:  photoURL,
+		ProfilePhotoPath: user.ProfilePhotoPath,
+		Status:           user.Status,
+		Roles:            user.Roles,
+		Permissions:      user.Permissions,
 	}
 }

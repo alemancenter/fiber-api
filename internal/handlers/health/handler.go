@@ -20,9 +20,9 @@ func New(svc services.HealthService) *Handler {
 // Ping returns a simple health check response
 // GET /api/ping
 func (h *Handler) Ping(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{
-		"status":  "ok",
-		"message": "pong",
+	return c.JSON(services.PingResponse{
+		Status:  "ok",
+		Message: "pong",
 	})
 }
 

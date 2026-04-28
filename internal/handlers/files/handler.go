@@ -71,12 +71,12 @@ func (h *Handler) UploadImage(c *fiber.Ctx) error {
 		return utils.BadRequest(c, err.Error())
 	}
 
-	return utils.Created(c, "تم رفع الصورة بنجاح", fiber.Map{
-		"path": uploaded.Path,
-		"url":  uploaded.URL,
-		"name": uploaded.Name,
-		"size": uploaded.Size,
-		"type": uploaded.MimeType,
+	return utils.Created(c, "تم رفع الصورة بنجاح", services.UploadResponse{
+		Path: uploaded.Path,
+		URL:  uploaded.URL,
+		Name: uploaded.Name,
+		Size: uploaded.Size,
+		Type: uploaded.MimeType,
 	})
 }
 
@@ -93,12 +93,12 @@ func (h *Handler) UploadDocument(c *fiber.Ctx) error {
 		return utils.BadRequest(c, err.Error())
 	}
 
-	return utils.Created(c, "تم رفع الملف بنجاح", fiber.Map{
-		"path": uploaded.Path,
-		"url":  uploaded.URL,
-		"name": uploaded.Name,
-		"size": uploaded.Size,
-		"type": uploaded.MimeType,
+	return utils.Created(c, "تم رفع الملف بنجاح", services.UploadResponse{
+		Path: uploaded.Path,
+		URL:  uploaded.URL,
+		Name: uploaded.Name,
+		Size: uploaded.Size,
+		Type: uploaded.MimeType,
 	})
 }
 

@@ -23,6 +23,7 @@ import (
 	"github.com/alemancenter/fiber-api/internal/middleware"
 	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/alemancenter/fiber-api/internal/services"
+	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
 	fiberCompress "github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/etag"
@@ -447,20 +448,18 @@ func Setup(app *fiber.App) {
 
 func homeHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"success": true,
-			"message": "مرحباً بك في Alemancenter API",
-			"version": "2.0.0",
+		return c.JSON(utils.APIResponse{
+			Success: true,
+			Message: "مرحباً بك في Alemancenter API",
 		})
 	}
 }
 
 func legalHandler(page string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"success": true,
-			"page":    page,
-			"content": "",
+		return c.JSON(utils.APIResponse{
+			Success: true,
+			Message: page,
 		})
 	}
 }
@@ -472,7 +471,7 @@ func langChangeHandler() fiber.Handler {
 		}
 		var req LangRequest
 		c.BodyParser(&req)
-		return c.JSON(fiber.Map{"success": true, "locale": req.Locale})
+		return c.JSON(utils.APIResponse{Success: true, Message: req.Locale})
 	}
 }
 
@@ -482,69 +481,69 @@ func langCurrentHandler() fiber.Handler {
 		if len(lang) >= 2 {
 			lang = lang[:2]
 		}
-		return c.JSON(fiber.Map{"success": true, "locale": lang})
+		return c.JSON(utils.APIResponse{Success: true, Message: lang})
 	}
 }
 
 func aiGenerateHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"success": true,
-			"message": "AI generation endpoint - configure Together AI API key",
+		return c.JSON(utils.APIResponse{
+			Success: true,
+			Message: "AI generation endpoint - configure Together AI API key",
 		})
 	}
 }
 
 func blockedIPDeleteHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"success": true})
+		return c.JSON(utils.APIResponse{Success: true})
 	}
 }
 
 func blockedIPBulkDeleteHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"success": true})
+		return c.JSON(utils.APIResponse{Success: true})
 	}
 }
 
 func trustedIPCheckHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"success": true})
+		return c.JSON(utils.APIResponse{Success: true})
 	}
 }
 
 func trustedIPDeleteHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"success": true})
+		return c.JSON(utils.APIResponse{Success: true})
 	}
 }
 
 func semesterShowHandler(h *grades.Handler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"success": true})
+		return c.JSON(utils.APIResponse{Success: true})
 	}
 }
 
 func subjectShowHandler(h *grades.Handler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"success": true})
+		return c.JSON(utils.APIResponse{Success: true})
 	}
 }
 
 func subjectUpdateHandler(h *grades.Handler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"success": true})
+		return c.JSON(utils.APIResponse{Success: true})
 	}
 }
 
 func subjectDeleteHandler(h *grades.Handler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"success": true})
+		return c.JSON(utils.APIResponse{Success: true})
 	}
 }
 
 func keywordHandlerShow(h *grades.Handler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"success": true})
+		return c.JSON(utils.APIResponse{Success: true})
 	}
 }

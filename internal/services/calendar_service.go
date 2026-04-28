@@ -9,6 +9,12 @@ import (
 	"github.com/alemancenter/fiber-api/internal/utils"
 )
 
+type DatabaseInfo struct {
+	ID   int    `json:"id"`
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
 type EventInput struct {
 	Title       string `json:"title" validate:"required,min=2,max=500"`
 	Description string `json:"description"`

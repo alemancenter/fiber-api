@@ -40,10 +40,16 @@ func (h *Handler) List(c *fiber.Ctx) error {
 		filters.GradeLevel = gradeLevel
 	}
 	if subjectID := c.Query("subject_id"); subjectID != "" {
-		filters.SubjectID = subjectID
+		if id, err := strconv.ParseUint(subjectID, 10, 64); err == nil {
+			parsedID := uint(id)
+			filters.SubjectID = &parsedID
+		}
 	}
 	if semesterID := c.Query("semester_id"); semesterID != "" {
-		filters.SemesterID = semesterID
+		if id, err := strconv.ParseUint(semesterID, 10, 64); err == nil {
+			parsedID := uint(id)
+			filters.SemesterID = &parsedID
+		}
 	}
 	if q := c.Query("q"); q != "" {
 		filters.Query = q

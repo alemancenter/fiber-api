@@ -55,7 +55,7 @@ func (h *Handler) CleanActivities(c *fiber.Ctx) error {
 		return utils.InternalError(c, "فشل تنظيف السجلات")
 	}
 
-	return utils.Success(c, "تم تنظيف السجلات القديمة", fiber.Map{
-		"deleted": deletedCount,
+	return utils.Success(c, "تم تنظيف السجلات القديمة", services.CleanActivitiesResponse{
+		Deleted: deletedCount,
 	})
 }

@@ -25,9 +25,9 @@ func (h *Handler) Status(c *fiber.Ctx) error {
 
 	result := h.svc.GetStatus(dbCode)
 
-	return utils.Success(c, "success", fiber.Map{
-		"database": dbCode,
-		"sitemaps": result,
+	return utils.Success(c, "success", services.SitemapStatusResponse{
+		Database: dbCode,
+		Sitemaps: result,
 	})
 }
 

@@ -30,6 +30,11 @@ type HealthService interface {
 	GetHealthStatus() (HealthStatusResponse, int, bool)
 }
 
+type PingResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
 type healthService struct {
 	repo      repositories.HealthRepository
 	startTime time.Time

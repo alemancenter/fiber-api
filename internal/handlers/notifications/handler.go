@@ -51,9 +51,9 @@ func (h *Handler) Latest(c *fiber.Ctx) error {
 		return utils.InternalError(c)
 	}
 
-	return utils.Success(c, "success", fiber.Map{
-		"notifications": notifications,
-		"unread_count":  unreadCount,
+	return utils.Success(c, "success", services.LatestNotificationsResponse{
+		Notifications: notifications,
+		UnreadCount:   unreadCount,
 	})
 }
 
@@ -138,8 +138,8 @@ func (h *Handler) Prune(c *fiber.Ctx) error {
 		return utils.InternalError(c)
 	}
 
-	return utils.Success(c, "تم حذف الإشعارات القديمة", fiber.Map{
-		"deleted": deletedCount,
+	return utils.Success(c, "تم حذف الإشعارات القديمة", services.PruneNotificationsResponse{
+		Deleted: deletedCount,
 	})
 }
 

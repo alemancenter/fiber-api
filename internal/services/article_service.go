@@ -7,7 +7,6 @@ import (
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/alemancenter/fiber-api/internal/utils"
-	"github.com/gofiber/fiber/v2"
 )
 
 type ArticleInput struct {
@@ -21,6 +20,26 @@ type ArticleInput struct {
 	Status          *int8  `json:"status" validate:"omitempty,oneof=0 1"`
 }
 
+type ArticleDashboardCreateData struct {
+	Classes   []models.SchoolClass `json:"classes"`
+	Subjects  []models.Subject     `json:"subjects"`
+	Semesters []models.Semester    `json:"semesters"`
+}
+
+type ArticleDashboardEditData struct {
+	Data      *models.Article      `json:"data"`
+	Classes   []models.SchoolClass `json:"classes"`
+	Subjects  []models.Subject     `json:"subjects"`
+	Semesters []models.Semester    `json:"semesters"`
+}
+
+type ArticleDashboardStats struct {
+	Total     int64 `json:"total"`
+	Published int64 `json:"published"`
+	Drafts    int64 `json:"drafts"`
+	Views     int64 `json:"views"`
+}
+
 type ArticleService interface {
 	List(countryID database.CountryID, pag utils.Pagination, filter *models.ArticleFilter) ([]models.Article, int64, error)
 	GetByID(countryID database.CountryID, id uint64) (*models.Article, error)
@@ -29,13 +48,13 @@ type ArticleService interface {
 	GetFileForDownload(countryID database.CountryID, id uint64) (*models.File, string, error)
 
 	// Dashboard methods
-	GetDashboardCreateData(countryID database.CountryID) (fiber.Map, error)
-	GetDashboardEditData(countryID database.CountryID, id uint64) (fiber.Map, error)
+	GetDashboardCreateData(countryID database.CountryID) (*ArticleDashboardCreateData, error)
+	GetDashboardEditData(countryID database.CountryID, id uint64) (*ArticleDashboardEditData, error)
 	CreateArticle(countryID database.CountryID, req *ArticleInput, authorID *uint) (*models.Article, error)
 	UpdateArticle(countryID database.CountryID, id uint64, req *ArticleInput, authorID *uint) (*models.Article, error)
 	DeleteArticle(countryID database.CountryID, id uint64, authorID *uint) error
 	SetArticleStatus(countryID database.CountryID, id uint64, status int8) (*models.Article, error)
-	GetDashboardStats(countryID database.CountryID) (fiber.Map, error)
+	GetDashboardStats(countryID database.CountryID) (*ArticleDashboardStats, error)
 }
 
 type articleService struct {
@@ -80,7 +99,12 @@ func (s *articleService) GetFileForDownload(countryID database.CountryID, id uin
 		return nil, "", err
 	}
 
-	absPath := s.fileSvc.GetAbsPath(file.FilePath)
+	var absPath string
+	if s.fileSvc != nil {
+		absPath = s.fileSvc.GetAbsPath(file.FilePath)
+	} else {
+		absPath = file.FilePath
+	}
 
 	// Increment view count async
 	go func() {
@@ -90,19 +114,19 @@ func (s *articleService) GetFileForDownload(countryID database.CountryID, id uin
 	return file, absPath, nil
 }
 
-func (s *articleService) GetDashboardCreateData(countryID database.CountryID) (fiber.Map, error) {
+func (s *articleService) GetDashboardCreateData(countryID database.CountryID) (*ArticleDashboardCreateData, error) {
 	classes, err := s.repo.GetClasses(countryID)
 	if err != nil {
 		return nil, err
 	}
-	return fiber.Map{
-		"classes":   classes,
-		"subjects":  []models.Subject{},
-		"semesters": []models.Semester{},
+	return &ArticleDashboardCreateData{
+		Classes:   classes,
+		Subjects:  []models.Subject{},
+		Semesters: []models.Semester{},
 	}, nil
 }
 
-func (s *articleService) GetDashboardEditData(countryID database.CountryID, id uint64) (fiber.Map, error) {
+func (s *articleService) GetDashboardEditData(countryID database.CountryID, id uint64) (*ArticleDashboardEditData, error) {
 	article, err := s.repo.FindByID(countryID, id)
 	if err != nil {
 		return nil, err
@@ -132,11 +156,11 @@ func (s *articleService) GetDashboardEditData(countryID database.CountryID, id u
 		semesters, _ = s.repo.GetSemestersByClass(countryID, classID)
 	}
 
-	return fiber.Map{
-		"data":      article,
-		"classes":   classes,
-		"subjects":  subjects,
-		"semesters": semesters,
+	return &ArticleDashboardEditData{
+		Data:      article,
+		Classes:   classes,
+		Subjects:  subjects,
+		Semesters: semesters,
 	}, nil
 }
 
@@ -248,17 +272,17 @@ func (s *articleService) SetArticleStatus(countryID database.CountryID, id uint6
 	return article, err
 }
 
-func (s *articleService) GetDashboardStats(countryID database.CountryID) (fiber.Map, error) {
+func (s *articleService) GetDashboardStats(countryID database.CountryID) (*ArticleDashboardStats, error) {
 	total, published, drafts, views, err := s.repo.GetStats(countryID)
 	if err != nil {
 		return nil, err
 	}
 
-	return fiber.Map{
-		"total":     total,
-		"published": published,
-		"drafts":    drafts,
-		"views":     views,
+	return &ArticleDashboardStats{
+		Total:     total,
+		Published: published,
+		Drafts:    drafts,
+		Views:     views,
 	}, nil
 }
 

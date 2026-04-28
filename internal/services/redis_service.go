@@ -16,6 +16,15 @@ type RedisService interface {
 	GetInfo(ctx context.Context) (string, error)
 }
 
+type RedisKeysResponse struct {
+	Keys  []string `json:"keys"`
+	Count int      `json:"count"`
+}
+
+type RedisInfoResponse struct {
+	Info string `json:"info"`
+}
+
 type redisService struct {
 	repo repositories.RedisRepository
 }

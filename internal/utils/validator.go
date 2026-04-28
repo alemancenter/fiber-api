@@ -94,12 +94,26 @@ func SanitizeInput(input string) string {
 	return strings.TrimSpace(input)
 }
 
-// SanitizeMap sanitizes all string values in a map
-func SanitizeMap(m map[string]interface{}) map[string]interface{} {
-	for k, v := range m {
-		if s, ok := v.(string); ok {
-			m[k] = SanitizeInput(s)
+// SanitizeStruct sanitizes all string fields in a struct pointer
+func SanitizeStruct(s interface{}) {
+	v := reflect.ValueOf(s)
+	if v.Kind() != reflect.Ptr || v.IsNil() {
+		return
+	}
+	v = v.Elem()
+	if v.Kind() != reflect.Struct {
+		return
+	}
+
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		if field.Kind() == reflect.String && field.CanSet() {
+			field.SetString(SanitizeInput(field.String()))
+		} else if field.Kind() == reflect.Ptr && !field.IsNil() && field.Elem().Kind() == reflect.String && field.CanSet() {
+			sanitized := SanitizeInput(field.Elem().String())
+			field.Elem().SetString(sanitized)
+		} else if field.Kind() == reflect.Struct {
+			SanitizeStruct(field.Addr().Interface())
 		}
 	}
-	return m
 }

@@ -196,7 +196,7 @@ func (h *Handler) BulkDelete(c *fiber.Ctx) error {
 		return utils.InternalError(c, err.Error())
 	}
 
-	return utils.Success(c, "تم حذف المستخدمين المحددين", fiber.Map{"deleted": deletedCount})
+	return utils.Success(c, "تم حذف المستخدمين المحددين", services.BulkDeleteUsersResponse{Deleted: deletedCount})
 }
 
 // UpdateStatus updates status for multiple users

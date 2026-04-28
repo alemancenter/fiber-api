@@ -18,6 +18,14 @@ import (
 	"github.com/google/uuid"
 )
 
+type UploadResponse struct {
+	Path string `json:"path"`
+	URL  string `json:"url"`
+	Name string `json:"name"`
+	Size int64  `json:"size"`
+	Type string `json:"type"`
+}
+
 // FileService handles file operations like uploading, path mapping, and size calculations.
 type FileService struct {
 	cfg  config.StorageConfig

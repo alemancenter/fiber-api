@@ -31,9 +31,9 @@ func (h *Handler) ListKeys(c *fiber.Ctx) error {
 		return utils.InternalError(c, "فشل الحصول على مفاتيح Redis")
 	}
 
-	return utils.Success(c, "success", fiber.Map{
-		"keys":  keys,
-		"count": len(keys),
+	return utils.Success(c, "success", services.RedisKeysResponse{
+		Keys:  keys,
+		Count: len(keys),
 	})
 }
 
@@ -108,5 +108,5 @@ func (h *Handler) GetInfo(c *fiber.Ctx) error {
 		return utils.InternalError(c, "فشل الحصول على معلومات Redis")
 	}
 
-	return utils.Success(c, "success", fiber.Map{"info": info})
+	return utils.Success(c, "success", services.RedisInfoResponse{Info: info})
 }

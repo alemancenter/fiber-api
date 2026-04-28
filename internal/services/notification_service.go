@@ -20,6 +20,15 @@ type NotificationService interface {
 	BulkAction(action string, ids []string, userID uint) error
 }
 
+type PruneNotificationsResponse struct {
+	Deleted int64 `json:"deleted"`
+}
+
+type LatestNotificationsResponse struct {
+	Notifications []models.Notification `json:"notifications"`
+	UnreadCount   int64                 `json:"unread_count"`
+}
+
 type notificationService struct {
 	repo repositories.NotificationRepository
 }

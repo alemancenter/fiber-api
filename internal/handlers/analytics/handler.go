@@ -49,8 +49,8 @@ func (h *Handler) PruneAnalytics(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	deleted := h.svc.PruneAnalytics(countryID, req.Days)
 
-	return utils.Success(c, "تم حذف البيانات القديمة", fiber.Map{
-		"deleted": deleted,
+	return utils.Success(c, "تم حذف البيانات القديمة", services.PruneAnalyticsResponse{
+		Deleted: deleted,
 	})
 }
 
@@ -58,7 +58,7 @@ func (h *Handler) PruneAnalytics(c *fiber.Ctx) error {
 // GET /api/dashboard
 func (h *Handler) DashboardSummary(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	
+
 	data := h.svc.GetDashboardSummary(countryID)
 	return utils.Success(c, "success", data)
 }
@@ -67,7 +67,7 @@ func (h *Handler) DashboardSummary(c *fiber.Ctx) error {
 // GET /api/dashboard/content-analytics
 func (h *Handler) ContentAnalytics(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	
+
 	data := h.svc.GetContentAnalytics(countryID)
 	return utils.Success(c, "success", data)
 }
@@ -78,9 +78,8 @@ func (h *Handler) PerformanceSummary(c *fiber.Ctx) error {
 	rdb := database.Redis()
 	info, _ := rdb.GetInfo(c.Context())
 
-	return utils.Success(c, "success", fiber.Map{
-		"redis_info": info,
-		"timestamp":  time.Now(),
+	return utils.Success(c, "success", services.PerformanceSummaryResponse{
+		RedisInfo: info,
+		Timestamp: time.Now(),
 	})
 }
-

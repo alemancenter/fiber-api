@@ -58,6 +58,16 @@ type SemesterInput struct {
 	GradeLevel   uint   `json:"grade_level"`
 }
 
+type SemestersResponse struct {
+	Subject   *models.Subject   `json:"subject"`
+	ClassID   uint              `json:"class_id"`
+	Semesters []models.Semester `json:"semesters"`
+}
+
+type FilterMetaResponse struct {
+	Classes []models.SchoolClass `json:"classes"`
+}
+
 type gradeService struct {
 	repo repositories.GradeRepository
 }
