@@ -264,6 +264,63 @@ func (h *Handler) DashboardCreateSubject(c *fiber.Ctx) error {
 	return utils.Created(c, "تم إنشاء المادة بنجاح", subject)
 }
 
+// DashboardGetSubject returns a subject
+func (h *Handler) DashboardGetSubject(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return utils.BadRequest(c, "معرف غير صحيح")
+	}
+
+	countryID, _ := c.Locals("country_id").(database.CountryID)
+
+	subject, err := h.svc.GetSubject(countryID, id)
+	if err != nil {
+		return utils.NotFound(c)
+	}
+
+	return utils.Success(c, "success", subject)
+}
+
+// DashboardUpdateSubject updates a subject
+func (h *Handler) DashboardUpdateSubject(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return utils.BadRequest(c, "معرف غير صحيح")
+	}
+
+	countryID, _ := c.Locals("country_id").(database.CountryID)
+
+	var req services.SubjectInput
+	if err := c.BodyParser(&req); err != nil {
+		return utils.BadRequest(c, "بيانات غير صحيحة")
+	}
+	if errs := utils.Validate(req); errs != nil {
+		return utils.ValidationError(c, errs)
+	}
+
+	subject, err := h.svc.UpdateSubject(countryID, id, &req)
+	if err != nil {
+		return utils.NotFound(c)
+	}
+
+	return utils.Success(c, "تم تحديث المادة بنجاح", subject)
+}
+
+// DashboardDeleteSubject deletes a subject
+func (h *Handler) DashboardDeleteSubject(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return utils.BadRequest(c, "معرف غير صحيح")
+	}
+
+	countryID, _ := c.Locals("country_id").(database.CountryID)
+	if err := h.svc.DeleteSubject(countryID, id); err != nil {
+		return utils.InternalError(c, "فشل الحذف")
+	}
+
+	return utils.Success(c, "تم حذف المادة بنجاح", nil)
+}
+
 // DashboardListSemesters returns all semesters for dashboard
 func (h *Handler) DashboardListSemesters(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
@@ -292,6 +349,23 @@ func (h *Handler) DashboardCreateSemester(c *fiber.Ctx) error {
 	}
 
 	return utils.Created(c, "تم إنشاء الفصل الدراسي بنجاح", semester)
+}
+
+// DashboardGetSemester returns a semester
+func (h *Handler) DashboardGetSemester(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return utils.BadRequest(c, "معرف غير صحيح")
+	}
+
+	countryID, _ := c.Locals("country_id").(database.CountryID)
+
+	semester, err := h.svc.GetSemester(countryID, id)
+	if err != nil {
+		return utils.NotFound(c)
+	}
+
+	return utils.Success(c, "success", semester)
 }
 
 // DashboardUpdateSemester updates a semester

@@ -9,7 +9,9 @@ import (
 	"github.com/alemancenter/fiber-api/internal/config"
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/utils"
+	"github.com/alemancenter/fiber-api/pkg/logger"
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 )
 
 // FrontendGuard validates API requests are from authorized frontends.
@@ -137,7 +139,14 @@ func applyRateLimit(c *fiber.Ctx, cfg *config.Config, countryID database.Country
 
 	count, err := rdb.IncrBy(ctx, key, 1)
 	if err != nil {
-		return c.Next() // Fail open on Redis error
+		// Fail closed: Redis unavailable means rate limiting cannot be verified.
+		// Log and reject to prevent brute-force bypass during Redis outage.
+		logger.Error("rate limit Redis error — failing closed",
+			zap.String("ip", clientIP),
+			zap.String("path", path),
+			zap.Error(err),
+		)
+		return utils.TooManyRequests(c)
 	}
 
 	if count == 1 {

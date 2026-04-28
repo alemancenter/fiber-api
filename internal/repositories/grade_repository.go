@@ -22,6 +22,8 @@ type GradeRepository interface {
 	ListSubjectsByClassID(countryID database.CountryID, classID uint64) ([]models.Subject, error)
 	FindSubjectByID(countryID database.CountryID, id uint64) (*models.Subject, error)
 	CreateSubject(countryID database.CountryID, subject *models.Subject) error
+	UpdateSubject(countryID database.CountryID, subject *models.Subject) error
+	DeleteSubject(countryID database.CountryID, id uint64) error
 	CountSubjects(countryID database.CountryID) (int64, error)
 	ListSubjectsPaginated(countryID database.CountryID, limit, offset int) ([]models.Subject, error)
 
@@ -103,6 +105,14 @@ func (r *gradeRepository) FindSubjectByID(countryID database.CountryID, id uint6
 
 func (r *gradeRepository) CreateSubject(countryID database.CountryID, subject *models.Subject) error {
 	return r.GetDB(countryID).Create(subject).Error
+}
+
+func (r *gradeRepository) UpdateSubject(countryID database.CountryID, subject *models.Subject) error {
+	return r.GetDB(countryID).Save(subject).Error
+}
+
+func (r *gradeRepository) DeleteSubject(countryID database.CountryID, id uint64) error {
+	return r.GetDB(countryID).Delete(&models.Subject{}, id).Error
 }
 
 func (r *gradeRepository) CountSubjects(countryID database.CountryID) (int64, error) {

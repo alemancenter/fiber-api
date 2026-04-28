@@ -23,6 +23,7 @@ type User struct {
 	ProfilePhotoPath     *string        `gorm:"type:varchar(500)" json:"profile_photo_path,omitempty"`
 	Status               string         `gorm:"type:enum('active','inactive','banned');default:'active'" json:"status"`
 	LastActivity         *time.Time     `json:"last_activity,omitempty"`
+	LastSeen             *time.Time     `json:"last_seen,omitempty"`
 	RememberToken        *string        `gorm:"type:varchar(100)" json:"-"`
 	TwoFactorSecret      *string        `gorm:"type:text" json:"-"`
 	TwoFactorRecoveryCodes *string      `gorm:"type:text" json:"-"`

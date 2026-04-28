@@ -1,6 +1,7 @@
 package articles
 
 import (
+	"mime"
 	"strconv"
 
 	"github.com/alemancenter/fiber-api/internal/database"
@@ -141,7 +142,8 @@ func (h *Handler) DownloadFile(c *fiber.Ctx) error {
 		return utils.InternalError(c)
 	}
 
-	c.Set("Content-Disposition", "attachment; filename=\""+file.FileName+"\"")
+	disposition := mime.FormatMediaType("attachment", map[string]string{"filename": file.FileName})
+	c.Set("Content-Disposition", disposition)
 	c.Set("Content-Type", file.MimeType)
 	return c.SendFile(absPath)
 }

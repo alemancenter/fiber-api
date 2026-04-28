@@ -26,6 +26,9 @@ type AnalyticsRepository interface {
 	GetTopArticles(dbCode database.CountryID) ([]ArticleView, error)
 	GetTopPosts(dbCode database.CountryID) ([]PostView, error)
 	GetArticleCountsByStatus(dbCode database.CountryID) (published, draft int64)
+
+	GetAnalyticsData(dbCode database.CountryID, days int) (dates []string, articles, news, comments, views, authors []int)
+	GetOnlineUsers(fiveMinAgo time.Time) ([]models.User, error)
 }
 
 type analyticsRepository struct{}
@@ -196,7 +199,7 @@ func (r *analyticsRepository) GetTotals(dbCode database.CountryID, fiveMinAgo ti
 	db.Model(&models.Article{}).Where("status = ?", 1).Count(&articleCount)
 	db.Model(&models.Post{}).Where("is_active = ?", true).Count(&newsCount)
 	mainDB.Model(&models.User{}).Count(&userCount)
-	mainDB.Model(&models.User{}).Where("last_activity >= ?", fiveMinAgo).Count(&onlineCount)
+	mainDB.Model(&models.User{}).Where("last_activity >= ? OR last_seen >= ?", fiveMinAgo, fiveMinAgo).Count(&onlineCount)
 	return
 }
 
@@ -276,4 +279,87 @@ func (r *analyticsRepository) GetArticleCountsByStatus(dbCode database.CountryID
 	db.Model(&models.Article{}).Where("status = ?", 1).Count(&published)
 	db.Model(&models.Article{}).Where("status = ?", 0).Count(&draft)
 	return
+}
+
+type analyticsRow struct {
+	Date    string
+	Count   int
+	Views   int
+	Authors int
+}
+
+func (r *analyticsRepository) GetAnalyticsData(dbCode database.CountryID, days int) (dates []string, articles, news, comments, views, authors []int) {
+	db := database.DBForCountry(dbCode)
+	mainDB := database.DB()
+
+	now := time.Now()
+	startDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -days+1)
+
+	var articleRows []analyticsRow
+	db.Model(&models.Article{}).
+		Select("DATE(created_at) as date, COUNT(*) as count, COALESCE(SUM(visit_count), 0) as views, COUNT(DISTINCT author_id) as authors").
+		Where("created_at >= ?", startDate).
+		Group("DATE(created_at)").
+		Scan(&articleRows)
+
+	var newsRows []analyticsRow
+	db.Model(&models.Post{}).
+		Select("DATE(created_at) as date, COUNT(*) as count, COALESCE(SUM(views), 0) as views, COUNT(DISTINCT author_id) as authors").
+		Where("created_at >= ?", startDate).
+		Group("DATE(created_at)").
+		Scan(&newsRows)
+
+	var commentRows []analyticsRow
+	mainDB.Model(&models.Comment{}).
+		Select("DATE(created_at) as date, COUNT(*) as count").
+		Where("created_at >= ?", startDate).
+		Group("DATE(created_at)").
+		Scan(&commentRows)
+
+	// Map data by date string
+	artMap := make(map[string]analyticsRow)
+	for _, r := range articleRows {
+		artMap[r.Date[:10]] = r // take YYYY-MM-DD
+	}
+	newsMap := make(map[string]analyticsRow)
+	for _, r := range newsRows {
+		newsMap[r.Date[:10]] = r
+	}
+	commentMap := make(map[string]int)
+	for _, r := range commentRows {
+		commentMap[r.Date[:10]] = r.Count
+	}
+
+	dates = make([]string, days)
+	articles = make([]int, days)
+	news = make([]int, days)
+	comments = make([]int, days)
+	views = make([]int, days)
+	authors = make([]int, days)
+
+	for i := 0; i < days; i++ {
+		d := startDate.AddDate(0, 0, i).Format("2006-01-02")
+		dates[i] = d
+
+		art := artMap[d]
+		nws := newsMap[d]
+
+		articles[i] = art.Count
+		news[i] = nws.Count
+		comments[i] = commentMap[d]
+		views[i] = art.Views + nws.Views
+		authors[i] = art.Authors + nws.Authors
+	}
+
+	return
+}
+
+func (r *analyticsRepository) GetOnlineUsers(fiveMinAgo time.Time) ([]models.User, error) {
+	mainDB := database.DB()
+	var users []models.User
+	err := mainDB.Where("last_activity >= ? OR last_seen >= ?", fiveMinAgo, fiveMinAgo).
+		Select("id, name, profile_photo_path, last_activity, last_seen").
+		Limit(5).
+		Find(&users).Error
+	return users, err
 }

@@ -1,13 +1,16 @@
 package middleware
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/utils"
+	"github.com/alemancenter/fiber-api/pkg/logger"
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 )
 
 // activityCache is an in-process write-dedup map: userID → last DB write time.
@@ -52,10 +55,25 @@ func UpdateLastActivity() fiber.Handler {
 			return nil
 		}
 
-		go database.DB().Exec(
-			"UPDATE users SET last_activity = ?, updated_at = ? WHERE id = ?",
-			now, now, user.ID,
-		)
+		// Capture values before goroutine — c is reused after handler returns
+		countryID, _ := c.Locals("country_id").(database.CountryID)
+		userID := user.ID
+
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			db := database.DBForCountry(countryID).WithContext(ctx)
+			if err := db.Exec(
+				"UPDATE users SET last_activity = ?, updated_at = ? WHERE id = ?",
+				now, now, userID,
+			).Error; err != nil {
+				logger.Error("activity update failed",
+					zap.Uint("user_id", userID),
+					zap.Error(err),
+				)
+			}
+		}()
 
 		return nil
 	}
@@ -84,28 +102,40 @@ func TrackVisitor() fiber.Handler {
 			countryCode = "jo"
 		}
 
-		var userID *uint
-		if user, ok := c.Locals("user").(*models.User); ok && user != nil {
-			uid := user.ID
-			userID = &uid
+		var trackUserID *uint
+		if u, ok := c.Locals("user").(*models.User); ok && u != nil {
+			uid := u.ID
+			trackUserID = &uid
 		}
 
+		// Capture all request values before the goroutine
+		path := c.Path()
+		userAgent := c.Get("User-Agent")
+		referer := c.Get("Referer")
+
 		go func() {
-			db := database.GetManager().GetByCode(countryCode)
-			path := c.Path()
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			db := database.GetManager().GetByCode(countryCode).WithContext(ctx)
 			now := time.Now()
 			tracking := models.VisitorTracking{
 				IPAddress:    clientIP,
-				UserAgent:    c.Get("User-Agent"),
+				UserAgent:    userAgent,
 				URL:          &path,
-				UserID:       userID,
+				UserID:       trackUserID,
 				LastActivity: now,
 				CreatedAt:    now,
 			}
-			if ref := c.Get("Referer"); ref != "" {
-				tracking.Referer = &ref
+			if referer != "" {
+				tracking.Referer = &referer
 			}
-			db.Create(&tracking)
+			if err := db.Create(&tracking).Error; err != nil {
+				logger.Error("visitor tracking failed",
+					zap.String("ip", clientIP),
+					zap.Error(err),
+				)
+			}
 		}()
 
 		return nil

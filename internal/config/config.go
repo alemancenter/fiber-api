@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
@@ -31,14 +32,15 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Name     string
-	Env      string
-	Debug    bool
-	Host     string
-	Port     int
-	URL      string
-	Timezone string
-	Locale   string
+	Name           string
+	Env            string
+	Debug          bool
+	Host           string
+	Port           int
+	URL            string
+	Timezone       string
+	Locale         string
+	TrustedProxies []string
 }
 
 type JWTConfig struct {
@@ -177,6 +179,7 @@ func Load() *Config {
 		v.SetDefault("REDIS_CACHE_DB", 1)
 		v.SetDefault("REDIS_QUEUE_DB", 2)
 		v.SetDefault("REDIS_PREFIX", "alemancenter")
+		v.SetDefault("TRUSTED_PROXIES", "127.0.0.1")
 		v.SetDefault("FRONTEND_RATE_LIMIT", true)
 		v.SetDefault("FRONTEND_RATE_LIMIT_MAX", 100)
 		v.SetDefault("FRONTEND_RATE_LIMIT_WINDOW", 60)
@@ -199,16 +202,23 @@ func Load() *Config {
 
 		_ = v.ReadInConfig()
 
+		jwtSecret := v.GetString("JWT_SECRET")
+		if len(jwtSecret) < 32 {
+			fmt.Fprintf(os.Stderr, "FATAL: JWT_SECRET must be at least 32 characters (got %d). Set a strong secret in .env\n", len(jwtSecret))
+			os.Exit(1)
+		}
+
 		cfg = &Config{
 			App: AppConfig{
-				Name:     v.GetString("APP_NAME"),
-				Env:      v.GetString("APP_ENV"),
-				Debug:    v.GetBool("APP_DEBUG"),
-				Host:     v.GetString("APP_HOST"),
-				Port:     v.GetInt("APP_PORT"),
-				URL:      v.GetString("APP_URL"),
-				Timezone: v.GetString("APP_TIMEZONE"),
-				Locale:   v.GetString("APP_LOCALE"),
+				Name:           v.GetString("APP_NAME"),
+				Env:            v.GetString("APP_ENV"),
+				Debug:          v.GetBool("APP_DEBUG"),
+				Host:           v.GetString("APP_HOST"),
+				Port:           v.GetInt("APP_PORT"),
+				URL:            v.GetString("APP_URL"),
+				Timezone:       v.GetString("APP_TIMEZONE"),
+				Locale:         v.GetString("APP_LOCALE"),
+				TrustedProxies: strings.Split(v.GetString("TRUSTED_PROXIES"), ","),
 			},
 			JWT: JWTConfig{
 				Secret:       v.GetString("JWT_SECRET"),

@@ -14,9 +14,9 @@ type DashboardStatsData struct {
 }
 
 type DashboardHomeData struct {
-	Stats          DashboardStatsData   `json:"stats"`
-	RecentActivity []models.ActivityLog `json:"recent_activity"`
-	RecentUsers    []models.User        `json:"recent_users"`
+	Stats            DashboardStatsData `json:"stats"`
+	RecentActivities []ActivityOut      `json:"recentActivities"`
+	RecentUsers      []models.User      `json:"recent_users"`
 }
 
 type DashboardService interface {
@@ -43,9 +43,35 @@ func (s *dashboardService) GetHomeData(countryID database.CountryID) (*Dashboard
 		return nil, err
 	}
 
-	recentActivity, err := s.repo.GetRecentActivity(10)
+	recentActivitiesRaw, err := s.repo.GetRecentActivity(10)
 	if err != nil {
 		return nil, err
+	}
+
+	activities := make([]ActivityOut, 0, len(recentActivitiesRaw))
+	for _, a := range recentActivitiesRaw {
+		atype := "article"
+		if a.SubjectType != nil {
+			switch *a.SubjectType {
+			case "Post":
+				atype = "news"
+			case "Comment":
+				atype = "comment"
+			}
+		}
+		
+		// Attempt to parse causer_name from properties or use a default if not available
+		// The exact user name logic depends on how activity_log is populated
+		// For now we'll use a placeholder or empty string if not explicitly stored in log
+		userName := "مستخدم"
+		
+		activities = append(activities, ActivityOut{
+			ID:        a.ID,
+			Type:      atype,
+			Title:     a.Description,
+			User:      ActivityUser{Name: userName},
+			CreatedAt: a.CreatedAt,
+		})
 	}
 
 	recentUsers, err := s.repo.GetRecentUsers(5)
@@ -64,8 +90,8 @@ func (s *dashboardService) GetHomeData(countryID database.CountryID) (*Dashboard
 			DashboardStats: *stats,
 			OnlineUsers:    onlineCount,
 		},
-		RecentActivity: recentActivity,
-		RecentUsers:    recentUsers,
+		RecentActivities: activities,
+		RecentUsers:      recentUsers,
 	}, nil
 }
 

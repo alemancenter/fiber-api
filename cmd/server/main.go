@@ -73,7 +73,7 @@ func main() {
 		CompressedFileSuffix:    ".fiber.gz",
 		ProxyHeader:             "X-Forwarded-For",
 		EnableTrustedProxyCheck: true,
-		TrustedProxies:          []string{"0.0.0.0/0"},
+		TrustedProxies:          cfg.App.TrustedProxies,
 		EnableIPValidation:      true,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError

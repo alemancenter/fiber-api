@@ -26,11 +26,15 @@ type GradeService interface {
 
 	// Subjects
 	ListSubjects(countryID database.CountryID, classID uint64) ([]models.Subject, error)
+	GetSubject(countryID database.CountryID, id uint64) (*models.Subject, error)
 	CreateSubject(countryID database.CountryID, req *SubjectInput) (*models.Subject, error)
+	UpdateSubject(countryID database.CountryID, id uint64, req *SubjectInput) (*models.Subject, error)
+	DeleteSubject(countryID database.CountryID, id uint64) error
 	ListSubjectsDashboard(countryID database.CountryID, limit, offset int) ([]models.Subject, int64, error)
 
 	// Semesters
 	ListSemesters(countryID database.CountryID, subjectID uint64) ([]models.Semester, *models.Subject, error)
+	GetSemester(countryID database.CountryID, id uint64) (*models.Semester, error)
 	CreateSemester(countryID database.CountryID, req *SemesterInput) (*models.Semester, error)
 	UpdateSemester(countryID database.CountryID, id uint64, req *SemesterInput) (*models.Semester, error)
 	DeleteSemester(countryID database.CountryID, id uint64) error
@@ -187,6 +191,49 @@ func (s *gradeService) CreateSubject(countryID database.CountryID, req *SubjectI
 	return subject, nil
 }
 
+func (s *gradeService) GetSubject(countryID database.CountryID, id uint64) (*models.Subject, error) {
+	return s.repo.FindSubjectByID(countryID, id)
+}
+
+func (s *gradeService) UpdateSubject(countryID database.CountryID, id uint64, req *SubjectInput) (*models.Subject, error) {
+	subject, err := s.repo.FindSubjectByID(countryID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	subject.SubjectName = req.SubjectName
+	subject.GradeLevel = req.GradeLevel
+
+	if err := s.repo.UpdateSubject(countryID, subject); err != nil {
+		return nil, err
+	}
+
+	cc := database.CountryCode(countryID)
+	InvalidateCache(
+		database.Redis().CountryKey(cc, "subjects", strconv.FormatUint(uint64(subject.GradeLevel), 10)),
+		filterKey(cc),
+	)
+	return subject, nil
+}
+
+func (s *gradeService) DeleteSubject(countryID database.CountryID, id uint64) error {
+	subject, err := s.repo.FindSubjectByID(countryID, id)
+	if err != nil {
+		return err
+	}
+
+	if err := s.repo.DeleteSubject(countryID, id); err != nil {
+		return err
+	}
+
+	cc := database.CountryCode(countryID)
+	InvalidateCache(
+		database.Redis().CountryKey(cc, "subjects", strconv.FormatUint(uint64(subject.GradeLevel), 10)),
+		filterKey(cc),
+	)
+	return nil
+}
+
 func (s *gradeService) ListSubjectsDashboard(countryID database.CountryID, limit, offset int) ([]models.Subject, int64, error) {
 	total, err := s.repo.CountSubjects(countryID)
 	if err != nil {
@@ -211,6 +258,10 @@ func (s *gradeService) ListSemesters(countryID database.CountryID, subjectID uin
 	})
 
 	return semesters, subject, err
+}
+
+func (s *gradeService) GetSemester(countryID database.CountryID, id uint64) (*models.Semester, error) {
+	return s.repo.FindSemesterByID(countryID, id)
 }
 
 func (s *gradeService) CreateSemester(countryID database.CountryID, req *SemesterInput) (*models.Semester, error) {

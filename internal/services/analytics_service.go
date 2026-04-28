@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/alemancenter/fiber-api/internal/database"
+	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/repositories"
 )
 
@@ -340,7 +341,11 @@ func (s *analyticsService) GetDashboardSummary(dbCode database.CountryID) *Dashb
 	var articleCount, newsCount, userCount, onlineCount int64
 	var artTrend, newsTrend, userTrend repositories.TrendRow
 
-	wg.Add(2)
+	var dates []string
+	var articlesArr, newsArr, commentsArr, viewsArr, authorsArr []int
+	var onlineUsers []models.User
+
+	wg.Add(4)
 	go func() {
 		defer wg.Done()
 		articleCount, newsCount, userCount, onlineCount = s.repo.GetTotals(dbCode, fiveMinAgo)
@@ -352,6 +357,16 @@ func (s *analyticsService) GetDashboardSummary(dbCode database.CountryID) *Dashb
 		thisMonthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 		lastMonthStart := thisMonthStart.AddDate(0, -1, 0)
 		artTrend, newsTrend, userTrend = s.repo.GetTrends(dbCode, thisMonthStart, lastMonthStart)
+	}()
+
+	go func() {
+		defer wg.Done()
+		dates, articlesArr, newsArr, commentsArr, viewsArr, authorsArr = s.repo.GetAnalyticsData(dbCode, 7)
+	}()
+
+	go func() {
+		defer wg.Done()
+		onlineUsers, _ = s.repo.GetOnlineUsers(fiveMinAgo)
 	}()
 
 	wg.Wait()
@@ -378,6 +393,30 @@ func (s *analyticsService) GetDashboardSummary(dbCode database.CountryID) *Dashb
 		})
 	}
 
+	// Map online users
+	var onlineUsersOut []interface{}
+	for _, u := range onlineUsers {
+		status := "online" // Since they were active in the last 5 mins
+
+		// Fallback to last_seen when last_activity is nil
+		var lastAct *time.Time
+		if u.LastActivity != nil {
+			lastAct = u.LastActivity
+		} else if u.LastSeen != nil {
+			lastAct = u.LastSeen
+		}
+
+		onlineUsersOut = append(onlineUsersOut, map[string]interface{}{
+			"id":                 u.ID,
+			"name":               u.Name,
+			"profile_photo_path": u.ProfilePhotoPath,
+			"last_activity":      u.LastActivity,
+			"last_seen":          u.LastSeen,
+			"status":             status,
+			"lastAct":            lastAct,
+		})
+	}
+
 	return &DashboardSummaryResponse{
 		Totals: DashboardTotals{
 			Articles:    articleCount,
@@ -391,14 +430,14 @@ func (s *analyticsService) GetDashboardSummary(dbCode database.CountryID) *Dashb
 			Users:    trendData(userTrend.LastMonth, userTrend.ThisMonth),
 		},
 		Analytics: DashboardAnalytics{
-			Dates:    []string{},
-			Articles: []int{},
-			News:     []int{},
-			Comments: []int{},
-			Views:    []int{},
-			Authors:  []int{},
+			Dates:    dates,
+			Articles: articlesArr,
+			News:     newsArr,
+			Comments: commentsArr,
+			Views:    viewsArr,
+			Authors:  authorsArr,
 		},
-		OnlineUsers:      []interface{}{},
+		OnlineUsers:      onlineUsersOut,
 		RecentActivities: activities,
 	}
 }

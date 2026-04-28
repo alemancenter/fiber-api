@@ -72,6 +72,9 @@ type Keyword struct {
 	Keyword   string    `gorm:"column:keyword;type:varchar(255);unique;not null" json:"keyword"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+
+	Articles []Article `gorm:"many2many:article_keyword;" json:"articles,omitempty"`
+	Posts    []Post    `gorm:"many2many:post_keyword;" json:"posts,omitempty"`
 }
 
 func (Keyword) TableName() string { return "keywords" }
