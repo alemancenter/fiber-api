@@ -12,7 +12,7 @@ type CategoryRepository interface {
 	FindByID(countryID database.CountryID, id uint64) (*models.Category, error)
 	ListPaginated(countryID database.CountryID, limit, offset int) ([]models.Category, int64, error)
 	Create(countryID database.CountryID, category *models.Category) error
-	Update(countryID database.CountryID, category *models.Category, updates map[string]interface{}) error
+	Update(countryID database.CountryID, category *models.Category) error
 	Delete(countryID database.CountryID, id uint64) error
 	BulkDelete(countryID database.CountryID, ids []uint) error
 	UpdateStatus(countryID database.CountryID, ids []uint, isActive bool) error
@@ -64,9 +64,9 @@ func (r *categoryRepository) Create(countryID database.CountryID, category *mode
 	return db.Create(category).Error
 }
 
-func (r *categoryRepository) Update(countryID database.CountryID, category *models.Category, updates map[string]interface{}) error {
+func (r *categoryRepository) Update(countryID database.CountryID, category *models.Category) error {
 	db := r.GetDB(countryID)
-	return db.Model(category).Updates(updates).Error
+	return db.Save(category).Error
 }
 
 func (r *categoryRepository) Delete(countryID database.CountryID, id uint64) error {

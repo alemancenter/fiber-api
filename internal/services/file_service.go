@@ -200,13 +200,26 @@ func (s *FileService) CreateRecord(countryID database.CountryID, uploaded *Uploa
 	return file, nil
 }
 
-func (s *FileService) UpdateRecord(countryID database.CountryID, id uint64, updates map[string]interface{}) (*models.File, error) {
+// UpdateFileInput represents allowed file updates
+type UpdateFileInput struct {
+	FileName  string `json:"file_name"`
+	ArticleID *uint  `json:"article_id"`
+}
+
+func (s *FileService) UpdateRecord(countryID database.CountryID, id uint64, req *UpdateFileInput) (*models.File, error) {
 	file, err := s.repo.FindByID(countryID, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.repo.Update(countryID, file, updates); err != nil {
+	if req.FileName != "" {
+		file.FileName = req.FileName
+	}
+	if req.ArticleID != nil {
+		file.ArticleID = req.ArticleID
+	}
+
+	if err := s.repo.Update(countryID, file); err != nil {
 		return nil, err
 	}
 

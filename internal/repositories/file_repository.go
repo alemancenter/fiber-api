@@ -11,7 +11,7 @@ type FileRepository interface {
 	FindByID(countryID database.CountryID, id uint64) (*models.File, error)
 	IncrementView(countryID database.CountryID, id uint64) error
 	Create(countryID database.CountryID, file *models.File) error
-	Update(countryID database.CountryID, file *models.File, updates map[string]interface{}) error
+	Update(countryID database.CountryID, file *models.File) error
 	Delete(countryID database.CountryID, file *models.File) error
 }
 
@@ -64,9 +64,9 @@ func (r *fileRepository) Create(countryID database.CountryID, file *models.File)
 	return db.Create(file).Error
 }
 
-func (r *fileRepository) Update(countryID database.CountryID, file *models.File, updates map[string]interface{}) error {
+func (r *fileRepository) Update(countryID database.CountryID, file *models.File) error {
 	db := r.GetDB(countryID)
-	return db.Model(file).Updates(updates).Error
+	return db.Save(file).Error
 }
 
 func (r *fileRepository) Delete(countryID database.CountryID, file *models.File) error {

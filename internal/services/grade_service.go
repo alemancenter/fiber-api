@@ -18,21 +18,21 @@ type GradeService interface {
 	// School Classes
 	ListSchoolClasses(countryID database.CountryID) ([]models.SchoolClass, error)
 	GetSchoolClass(countryID database.CountryID, id uint64) (*models.SchoolClass, error)
-	CreateSchoolClass(countryID database.CountryID, class *models.SchoolClass) error
-	UpdateSchoolClass(countryID database.CountryID, id uint64, updates map[string]interface{}) (*models.SchoolClass, error)
+	CreateSchoolClass(countryID database.CountryID, req *SchoolClassInput) (*models.SchoolClass, error)
+	UpdateSchoolClass(countryID database.CountryID, id uint64, req *SchoolClassInput) (*models.SchoolClass, error)
 	DeleteSchoolClass(countryID database.CountryID, id uint64) error
 	ListSchoolClassesDashboard(countryID database.CountryID, limit, offset int) ([]models.SchoolClass, int64, error)
 	InvalidateClassCache(countryID database.CountryID)
 
 	// Subjects
 	ListSubjects(countryID database.CountryID, classID uint64) ([]models.Subject, error)
-	CreateSubject(countryID database.CountryID, subject *models.Subject) error
+	CreateSubject(countryID database.CountryID, req *SubjectInput) (*models.Subject, error)
 	ListSubjectsDashboard(countryID database.CountryID, limit, offset int) ([]models.Subject, int64, error)
 
 	// Semesters
 	ListSemesters(countryID database.CountryID, subjectID uint64) ([]models.Semester, *models.Subject, error)
-	CreateSemester(countryID database.CountryID, semester *models.Semester) error
-	UpdateSemester(countryID database.CountryID, id uint64, updates map[string]interface{}) (*models.Semester, error)
+	CreateSemester(countryID database.CountryID, req *SemesterInput) (*models.Semester, error)
+	UpdateSemester(countryID database.CountryID, id uint64, req *SemesterInput) (*models.Semester, error)
 	DeleteSemester(countryID database.CountryID, id uint64) error
 	ListSemestersDashboard(countryID database.CountryID, limit, offset int) ([]models.Semester, int64, error)
 
@@ -41,6 +41,21 @@ type GradeService interface {
 
 	// Grade Articles
 	ListGradeArticles(countryID database.CountryID, subjectID uint64, limit, offset int) ([]models.Article, int64, error)
+}
+
+type SchoolClassInput struct {
+	GradeName  string `json:"grade_name" validate:"required,min=2,max=255"`
+	GradeLevel int    `json:"grade_level"`
+}
+
+type SubjectInput struct {
+	SubjectName string `json:"subject_name" validate:"required,min=2,max=255"`
+	GradeLevel  uint   `json:"grade_level" validate:"required"`
+}
+
+type SemesterInput struct {
+	SemesterName string `json:"semester_name" validate:"required,min=2,max=255"`
+	GradeLevel   uint   `json:"grade_level"`
 }
 
 type gradeService struct {
@@ -81,21 +96,33 @@ func (s *gradeService) GetSchoolClass(countryID database.CountryID, id uint64) (
 	return s.repo.FindSchoolClassByID(countryID, id)
 }
 
-func (s *gradeService) CreateSchoolClass(countryID database.CountryID, class *models.SchoolClass) error {
+func (s *gradeService) CreateSchoolClass(countryID database.CountryID, req *SchoolClassInput) (*models.SchoolClass, error) {
+	class := &models.SchoolClass{
+		GradeName:  req.GradeName,
+		GradeLevel: req.GradeLevel,
+	}
+
 	if err := s.repo.CreateSchoolClass(countryID, class); err != nil {
-		return err
+		return nil, err
 	}
 	s.InvalidateClassCache(countryID)
-	return nil
+	return class, nil
 }
 
-func (s *gradeService) UpdateSchoolClass(countryID database.CountryID, id uint64, updates map[string]interface{}) (*models.SchoolClass, error) {
+func (s *gradeService) UpdateSchoolClass(countryID database.CountryID, id uint64, req *SchoolClassInput) (*models.SchoolClass, error) {
 	class, err := s.repo.FindSchoolClassByID(countryID, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.repo.UpdateSchoolClass(countryID, class, updates); err != nil {
+	if req.GradeName != "" {
+		class.GradeName = req.GradeName
+	}
+	if req.GradeLevel > 0 {
+		class.GradeLevel = req.GradeLevel
+	}
+
+	if err := s.repo.UpdateSchoolClass(countryID, class); err != nil {
 		return nil, err
 	}
 
@@ -131,9 +158,14 @@ func (s *gradeService) ListSubjects(countryID database.CountryID, classID uint64
 	})
 }
 
-func (s *gradeService) CreateSubject(countryID database.CountryID, subject *models.Subject) error {
+func (s *gradeService) CreateSubject(countryID database.CountryID, req *SubjectInput) (*models.Subject, error) {
+	subject := &models.Subject{
+		SubjectName: req.SubjectName,
+		GradeLevel:  req.GradeLevel,
+	}
+
 	if err := s.repo.CreateSubject(countryID, subject); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Invalidate subjects cache for this class
@@ -142,7 +174,7 @@ func (s *gradeService) CreateSubject(countryID database.CountryID, subject *mode
 		database.Redis().CountryKey(cc, "subjects", strconv.FormatUint(uint64(subject.GradeLevel), 10)),
 		filterKey(cc),
 	)
-	return nil
+	return subject, nil
 }
 
 func (s *gradeService) ListSubjectsDashboard(countryID database.CountryID, limit, offset int) ([]models.Subject, int64, error) {
@@ -171,24 +203,36 @@ func (s *gradeService) ListSemesters(countryID database.CountryID, subjectID uin
 	return semesters, subject, err
 }
 
-func (s *gradeService) CreateSemester(countryID database.CountryID, semester *models.Semester) error {
+func (s *gradeService) CreateSemester(countryID database.CountryID, req *SemesterInput) (*models.Semester, error) {
+	semester := &models.Semester{
+		SemesterName: req.SemesterName,
+		GradeLevel:   req.GradeLevel,
+	}
+
 	if err := s.repo.CreateSemester(countryID, semester); err != nil {
-		return err
+		return nil, err
 	}
 
 	InvalidateCache(
 		database.Redis().CountryKey(database.CountryCode(countryID), "semesters", strconv.FormatUint(uint64(semester.GradeLevel), 10)),
 	)
-	return nil
+	return semester, nil
 }
 
-func (s *gradeService) UpdateSemester(countryID database.CountryID, id uint64, updates map[string]interface{}) (*models.Semester, error) {
+func (s *gradeService) UpdateSemester(countryID database.CountryID, id uint64, req *SemesterInput) (*models.Semester, error) {
 	semester, err := s.repo.FindSemesterByID(countryID, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.repo.UpdateSemester(countryID, semester, updates); err != nil {
+	if req.SemesterName != "" {
+		semester.SemesterName = req.SemesterName
+	}
+	if req.GradeLevel > 0 {
+		semester.GradeLevel = req.GradeLevel
+	}
+
+	if err := s.repo.UpdateSemester(countryID, semester); err != nil {
 		return nil, err
 	}
 

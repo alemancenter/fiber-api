@@ -1,16 +1,25 @@
 package services
 
 import (
+	"time"
+
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/repositories"
+	"github.com/alemancenter/fiber-api/internal/utils"
 )
+
+type EventInput struct {
+	Title       string `json:"title" validate:"required,min=2,max=500"`
+	Description string `json:"description"`
+	EventDate   string `json:"event_date" validate:"required"`
+}
 
 type CalendarService interface {
 	ListEvents(countryID database.CountryID, start, end string) ([]models.Event, error)
 	GetEvent(countryID database.CountryID, id uint64) (*models.Event, error)
-	CreateEvent(countryID database.CountryID, event *models.Event) error
-	UpdateEvent(countryID database.CountryID, id uint64, updates map[string]interface{}) (*models.Event, error)
+	CreateEvent(countryID database.CountryID, req *EventInput) (*models.Event, error)
+	UpdateEvent(countryID database.CountryID, id uint64, req *EventInput) (*models.Event, error)
 	DeleteEvent(countryID database.CountryID, id uint64) error
 	ListPublicEvents(countryID database.CountryID, limit int) ([]models.Event, error)
 }
@@ -31,17 +40,47 @@ func (s *calendarService) GetEvent(countryID database.CountryID, id uint64) (*mo
 	return s.repo.FindEventByID(countryID, id)
 }
 
-func (s *calendarService) CreateEvent(countryID database.CountryID, event *models.Event) error {
-	return s.repo.CreateEvent(countryID, event)
+func (s *calendarService) CreateEvent(countryID database.CountryID, req *EventInput) (*models.Event, error) {
+	eventDate, err := time.Parse("2006-01-02", req.EventDate)
+	if err != nil {
+		return nil, err
+	}
+
+	event := &models.Event{
+		Title:     utils.SanitizeInput(req.Title),
+		EventDate: eventDate,
+	}
+
+	if req.Description != "" {
+		event.Description = &req.Description
+	}
+
+	err = s.repo.CreateEvent(countryID, event)
+	return event, err
 }
 
-func (s *calendarService) UpdateEvent(countryID database.CountryID, id uint64, updates map[string]interface{}) (*models.Event, error) {
+func (s *calendarService) UpdateEvent(countryID database.CountryID, id uint64, req *EventInput) (*models.Event, error) {
 	event, err := s.repo.FindEventByID(countryID, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.repo.UpdateEvent(countryID, event, updates); err != nil {
+	if req.Title != "" {
+		event.Title = utils.SanitizeInput(req.Title)
+	}
+
+	if req.Description != "" {
+		event.Description = &req.Description
+	}
+
+	if req.EventDate != "" {
+		eventDate, err := time.Parse("2006-01-02", req.EventDate)
+		if err == nil {
+			event.EventDate = eventDate
+		}
+	}
+
+	if err := s.repo.UpdateEvent(countryID, event); err != nil {
 		return nil, err
 	}
 

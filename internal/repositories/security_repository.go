@@ -95,14 +95,17 @@ func (r *securityRepository) GetLogs(severity, eventType, ip, resolved string, l
 }
 
 func (r *securityRepository) ResolveLog(id uint64) error {
-	result := database.DB().Model(&models.SecurityLog{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"is_resolved": true,
-		"resolved_at": time.Now(),
-	})
-	if result.RowsAffected == 0 {
-		return database.DB().Error // Could be customized if needed
+	db := database.DB()
+	var log models.SecurityLog
+	if err := db.First(&log, id).Error; err != nil {
+		return err
 	}
-	return result.Error
+	
+	log.IsResolved = true
+	now := time.Now()
+	log.ResolvedAt = &now
+	
+	return db.Save(&log).Error
 }
 
 func (r *securityRepository) DeleteLog(id uint64) error {

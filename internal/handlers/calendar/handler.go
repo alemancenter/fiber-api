@@ -2,10 +2,8 @@ package calendar
 
 import (
 	"strconv"
-	"time"
 
 	"github.com/alemancenter/fiber-api/internal/database"
-	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -52,13 +50,7 @@ func (h *Handler) GetEvents(c *fiber.Ctx) error {
 // CreateEvent creates a calendar event
 // POST /api/dashboard/calendar/events
 func (h *Handler) CreateEvent(c *fiber.Ctx) error {
-	type CreateRequest struct {
-		Title       string `json:"title" validate:"required,min=2,max=500"`
-		Description string `json:"description"`
-		EventDate   string `json:"event_date" validate:"required"`
-	}
-
-	var req CreateRequest
+	var req services.EventInput
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
@@ -69,21 +61,8 @@ func (h *Handler) CreateEvent(c *fiber.Ctx) error {
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
-	eventDate, err := time.Parse("2006-01-02", req.EventDate)
+	event, err := h.svc.CreateEvent(countryID, &req)
 	if err != nil {
-		return utils.BadRequest(c, "صيغة التاريخ غير صحيحة")
-	}
-
-	event := models.Event{
-		Title:     utils.SanitizeInput(req.Title),
-		EventDate: eventDate,
-	}
-
-	if req.Description != "" {
-		event.Description = &req.Description
-	}
-
-	if err := h.svc.CreateEvent(countryID, &event); err != nil {
 		return utils.InternalError(c, "فشل إنشاء الحدث")
 	}
 
@@ -100,12 +79,12 @@ func (h *Handler) UpdateEvent(c *fiber.Ctx) error {
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
-	var updates map[string]interface{}
-	if err := c.BodyParser(&updates); err != nil {
+	var req services.EventInput
+	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
 
-	event, err := h.svc.UpdateEvent(countryID, id, updates)
+	event, err := h.svc.UpdateEvent(countryID, id, &req)
 	if err != nil {
 		return utils.NotFound(c)
 	}

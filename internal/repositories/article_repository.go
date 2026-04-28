@@ -9,12 +9,12 @@ import (
 
 type ArticleRepository interface {
 	GetDB(countryID database.CountryID) *gorm.DB
-	List(countryID database.CountryID, pag utils.Pagination, filters map[string]interface{}) ([]models.Article, int64, error)
+	List(countryID database.CountryID, pag utils.Pagination, filter *models.ArticleFilter) ([]models.Article, int64, error)
 	FindByID(countryID database.CountryID, id uint64) (*models.Article, error)
 	FindByGradeLevel(countryID database.CountryID, gradeLevel string, pag utils.Pagination) ([]models.Article, int64, error)
 	FindByKeyword(countryID database.CountryID, keyword string, pag utils.Pagination) ([]models.Article, int64, error)
 	Create(countryID database.CountryID, article *models.Article) error
-	Update(countryID database.CountryID, article *models.Article, updates map[string]interface{}) error
+	Update(countryID database.CountryID, article *models.Article) error
 	Delete(countryID database.CountryID, article *models.Article) error
 	GetFileByID(countryID database.CountryID, id uint64) (*models.File, error)
 	IncrementViewCount(countryID database.CountryID, articleID uint64) error
@@ -36,42 +36,42 @@ func (r *articleRepository) GetDB(countryID database.CountryID) *gorm.DB {
 	return database.DBForCountry(countryID)
 }
 
-func (r *articleRepository) List(countryID database.CountryID, pag utils.Pagination, filters map[string]interface{}) ([]models.Article, int64, error) {
+func (r *articleRepository) List(countryID database.CountryID, pag utils.Pagination, filter *models.ArticleFilter) ([]models.Article, int64, error) {
 	db := r.GetDB(countryID)
 	var articles []models.Article
 	var total int64
 
 	query := db.Model(&models.Article{}).Preload("Subject").Preload("Semester").Preload("Files")
 
-	if status, ok := filters["status"]; ok {
-		query = query.Where("status = ?", status)
-	} else {
-		// By default only published in List?
-		// Actually, we pass status=1 from List and no status or specific status from DashboardList.
-	}
+	if filter != nil {
+		if filter.Status != nil {
+			query = query.Where("status = ?", *filter.Status)
+		}
 
-	if gradeLevel, ok := filters["grade_level"]; ok && gradeLevel != "" {
-		query = query.Where("grade_level = ?", gradeLevel)
-	}
-	if subjectID, ok := filters["subject_id"]; ok && subjectID != "" {
-		query = query.Where("subject_id = ?", subjectID)
-	}
-	if semesterID, ok := filters["semester_id"]; ok && semesterID != "" {
-		query = query.Where("semester_id = ?", semesterID)
-	}
-	if q, ok := filters["q"]; ok && q != "" {
-		query = query.Where("title LIKE ?", "%"+q.(string)+"%")
+		if filter.GradeLevel != "" {
+			query = query.Where("grade_level = ?", filter.GradeLevel)
+		}
+		if filter.SubjectID != "" {
+			query = query.Where("subject_id = ?", filter.SubjectID)
+		}
+		if filter.SemesterID != "" {
+			query = query.Where("semester_id = ?", filter.SemesterID)
+		}
+		if filter.Query != "" {
+			query = query.Where("title LIKE ?", "%"+filter.Query+"%")
+		}
+
+		if filter.Order != "" {
+			query = query.Order(filter.Order)
+		} else {
+			query = query.Order("published_at DESC, created_at DESC")
+		}
+	} else {
+		query = query.Order("published_at DESC, created_at DESC")
 	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
-	}
-
-	// Handle custom order if provided, else default to published_at DESC, created_at DESC
-	if order, ok := filters["order"]; ok {
-		query = query.Order(order)
-	} else {
-		query = query.Order("published_at DESC, created_at DESC")
 	}
 
 	err := query.Limit(pag.PerPage).Offset(pag.Offset).Find(&articles).Error
@@ -133,8 +133,8 @@ func (r *articleRepository) Create(countryID database.CountryID, article *models
 	return r.GetDB(countryID).Create(article).Error
 }
 
-func (r *articleRepository) Update(countryID database.CountryID, article *models.Article, updates map[string]interface{}) error {
-	return r.GetDB(countryID).Model(article).Updates(updates).Error
+func (r *articleRepository) Update(countryID database.CountryID, article *models.Article) error {
+	return r.GetDB(countryID).Save(article).Error
 }
 
 func (r *articleRepository) Delete(countryID database.CountryID, article *models.Article) error {

@@ -30,24 +30,25 @@ func (h *Handler) List(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	pag := utils.GetPagination(c)
 
-	filters := map[string]interface{}{
-		"status": 1,
+	status := 1
+	filters := &models.ArticleFilter{
+		Status: &status,
 	}
 
 	// Filters
 	if gradeLevel := c.Query("grade_level"); gradeLevel != "" {
-		filters["grade_level"] = gradeLevel
+		filters.GradeLevel = gradeLevel
 	}
 	if subjectID := c.Query("subject_id"); subjectID != "" {
-		filters["subject_id"] = subjectID
+		filters.SubjectID = subjectID
 	}
 	if semesterID := c.Query("semester_id"); semesterID != "" {
-		filters["semester_id"] = semesterID
+		filters.SemesterID = semesterID
 	}
 	if q := c.Query("q"); q != "" {
-		filters["q"] = q
+		filters.Query = q
 	} else if search := c.Query("search"); search != "" {
-		filters["q"] = search
+		filters.Query = search
 	}
 
 	articles, total, err := h.svc.List(countryID, pag, filters)
@@ -147,16 +148,19 @@ func (h *Handler) DashboardList(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	pag := utils.GetPagination(c)
 
-	filters := map[string]interface{}{}
-	filters["order"] = "created_at DESC"
+	filters := &models.ArticleFilter{
+		Order: "created_at DESC",
+	}
 
 	if status := c.Query("status"); status != "" {
-		filters["status"] = status
+		if s, err := strconv.Atoi(status); err == nil {
+			filters.Status = &s
+		}
 	}
 	if q := c.Query("q"); q != "" {
-		filters["q"] = q
+		filters.Query = q
 	} else if search := c.Query("search"); search != "" {
-		filters["q"] = search
+		filters.Query = search
 	}
 
 	articles, total, err := h.svc.List(countryID, pag, filters)
@@ -204,18 +208,7 @@ func (h *Handler) DashboardEditData(c *fiber.Ctx) error {
 // DashboardCreate creates a new article
 // POST /api/dashboard/articles
 func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
-	type CreateRequest struct {
-		Title           string `json:"title" validate:"required,min=3,max=500"`
-		Content         string `json:"content" validate:"required"`
-		GradeLevel      string `json:"grade_level"`
-		SubjectID       uint   `json:"subject_id"`
-		SemesterID      uint   `json:"semester_id"`
-		MetaDescription string `json:"meta_description" validate:"omitempty,max=500"`
-		Keywords        string `json:"keywords"`
-		Status          int8   `json:"status" validate:"oneof=0 1"`
-	}
-
-	var req CreateRequest
+	var req services.ArticleInput
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
@@ -227,35 +220,13 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 	user := middleware.GetUser(c)
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
-	article := models.Article{
-		Title:   utils.SanitizeInput(req.Title),
-		Content: req.Content,
-		Status:  req.Status,
-	}
-
-	if req.GradeLevel != "" {
-		article.GradeLevel = &req.GradeLevel
-	}
-	if req.SubjectID > 0 {
-		article.SubjectID = &req.SubjectID
-	}
-	if req.SemesterID > 0 {
-		article.SemesterID = &req.SemesterID
-	}
-	if req.MetaDescription != "" {
-		article.MetaDescription = &req.MetaDescription
-	}
-	if req.Keywords != "" {
-		article.Keywords = &req.Keywords
-	}
-
 	var authorID *uint
 	if user != nil {
 		authorID = &user.ID
-		article.AuthorID = authorID
 	}
 
-	if err := h.svc.CreateArticle(countryID, &article, authorID); err != nil {
+	article, err := h.svc.CreateArticle(countryID, &req, authorID)
+	if err != nil {
 		return utils.InternalError(c, "فشل إنشاء المقالة")
 	}
 
@@ -272,45 +243,9 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
-	type UpdateRequest struct {
-		Title           string `json:"title"`
-		Content         string `json:"content"`
-		GradeLevel      string `json:"grade_level"`
-		SubjectID       *uint  `json:"subject_id"`
-		SemesterID      *uint  `json:"semester_id"`
-		MetaDescription string `json:"meta_description"`
-		Keywords        string `json:"keywords"`
-		Status          *int8  `json:"status"`
-	}
-	var req UpdateRequest
+	var req services.ArticleInput
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
-	}
-
-	updates := map[string]interface{}{}
-	if req.Title != "" {
-		updates["title"] = utils.SanitizeInput(req.Title)
-	}
-	if req.Content != "" {
-		updates["content"] = req.Content
-	}
-	if req.GradeLevel != "" {
-		updates["grade_level"] = req.GradeLevel
-	}
-	if req.SubjectID != nil {
-		updates["subject_id"] = req.SubjectID
-	}
-	if req.SemesterID != nil {
-		updates["semester_id"] = req.SemesterID
-	}
-	if req.MetaDescription != "" {
-		updates["meta_description"] = req.MetaDescription
-	}
-	if req.Keywords != "" {
-		updates["keywords"] = req.Keywords
-	}
-	if req.Status != nil {
-		updates["status"] = *req.Status
 	}
 
 	user := middleware.GetUser(c)
@@ -319,7 +254,7 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 		authorID = &user.ID
 	}
 
-	article, err := h.svc.UpdateArticle(countryID, id, updates, authorID)
+	article, err := h.svc.UpdateArticle(countryID, id, &req, authorID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return utils.NotFound(c)

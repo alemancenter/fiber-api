@@ -172,12 +172,12 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
-	var updates map[string]interface{}
-	if err := c.BodyParser(&updates); err != nil {
+	var req services.UpdateFileInput
+	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
 
-	file, err := h.svc.UpdateRecord(countryID, id, updates)
+	file, err := h.svc.UpdateRecord(countryID, id, &req)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return utils.NotFound(c)

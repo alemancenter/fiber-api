@@ -16,13 +16,13 @@ import (
 type MockArticleRepository struct {
 	repositories.ArticleRepository // embed to satisfy interface
 
-	ListFunc          func(countryID database.CountryID, pag utils.Pagination, filters map[string]interface{}) ([]models.Article, int64, error)
+	ListFunc          func(countryID database.CountryID, pag utils.Pagination, filters *models.ArticleFilter) ([]models.Article, int64, error)
 	FindByIDFunc      func(countryID database.CountryID, id uint64) (*models.Article, error)
 	IncrementViewFunc func(countryID database.CountryID, id uint64) error
 	CreateFunc        func(countryID database.CountryID, article *models.Article) error
 }
 
-func (m *MockArticleRepository) List(countryID database.CountryID, pag utils.Pagination, filters map[string]interface{}) ([]models.Article, int64, error) {
+func (m *MockArticleRepository) List(countryID database.CountryID, pag utils.Pagination, filters *models.ArticleFilter) ([]models.Article, int64, error) {
 	if m.ListFunc != nil {
 		return m.ListFunc(countryID, pag, filters)
 	}
@@ -96,7 +96,7 @@ func TestArticleService_CreateArticle(t *testing.T) {
 	svc := NewArticleService(mockRepo, nil)
 
 	t.Run("Success", func(t *testing.T) {
-		newArticle := &models.Article{
+		newArticle := &ArticleInput{
 			Title: "New Article",
 		}
 		var authorID uint = 10
@@ -107,14 +107,15 @@ func TestArticleService_CreateArticle(t *testing.T) {
 			return nil
 		}
 
-		err := svc.CreateArticle(database.CountryJordan, newArticle, &authorID)
+		article, err := svc.CreateArticle(database.CountryJordan, newArticle, &authorID)
 
 		assert.NoError(t, err)
-		assert.Equal(t, uint(5), newArticle.ID)
+		assert.NotNil(t, article)
+		assert.Equal(t, uint(5), article.ID)
 	})
 
 	t.Run("DatabaseError", func(t *testing.T) {
-		newArticle := &models.Article{
+		newArticle := &ArticleInput{
 			Title: "New Article",
 		}
 
@@ -123,9 +124,10 @@ func TestArticleService_CreateArticle(t *testing.T) {
 			return expectedErr
 		}
 
-		err := svc.CreateArticle(database.CountryJordan, newArticle, nil)
+		article, err := svc.CreateArticle(database.CountryJordan, newArticle, nil)
 
 		assert.Error(t, err)
+		assert.Nil(t, article)
 		assert.Equal(t, expectedErr, err)
 	})
 }

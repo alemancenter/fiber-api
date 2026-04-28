@@ -184,7 +184,7 @@ func (s *sitemapService) GenerateAll(dbCode string) []error {
 		if err == nil {
 			for _, cl := range classes {
 				set.URLs = append(set.URLs, urlEntry{
-					Loc:        fmt.Sprintf("%s/%s/lesson/%s", base, cc, cl.GradeLevel),
+					Loc:        fmt.Sprintf("%s/%s/lesson/%d", base, cc, cl.GradeLevel),
 					LastMod:    cl.UpdatedAt.UTC().Format(time.RFC3339),
 					ChangeFreq: "weekly",
 					Priority:   "0.7",

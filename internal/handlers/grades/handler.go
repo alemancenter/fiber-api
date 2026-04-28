@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/alemancenter/fiber-api/internal/database"
-	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -177,12 +176,7 @@ func (h *Handler) DashboardListSchoolClasses(c *fiber.Ctx) error {
 // DashboardCreateSchoolClass creates a school class
 // POST /api/dashboard/school-classes
 func (h *Handler) DashboardCreateSchoolClass(c *fiber.Ctx) error {
-	type CreateRequest struct {
-		GradeName  string `json:"grade_name" validate:"required,min=2,max=255"`
-		GradeLevel int    `json:"grade_level"`
-	}
-
-	var req CreateRequest
+	var req services.SchoolClassInput
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
@@ -192,8 +186,8 @@ func (h *Handler) DashboardCreateSchoolClass(c *fiber.Ctx) error {
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
-	class := models.SchoolClass{GradeName: req.GradeName, GradeLevel: req.GradeLevel}
-	if err := h.svc.CreateSchoolClass(countryID, &class); err != nil {
+	class, err := h.svc.CreateSchoolClass(countryID, &req)
+	if err != nil {
 		return utils.InternalError(c, "فشل إنشاء الصف")
 	}
 
@@ -210,22 +204,10 @@ func (h *Handler) DashboardUpdateSchoolClass(c *fiber.Ctx) error {
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
-	type UpdateRequest struct {
-		GradeName  string `json:"grade_name"`
-		GradeLevel int    `json:"grade_level"`
-	}
-	var req UpdateRequest
+	var req services.SchoolClassInput
 	c.BodyParser(&req)
 
-	updates := map[string]interface{}{}
-	if req.GradeName != "" {
-		updates["grade_name"] = req.GradeName
-	}
-	if req.GradeLevel > 0 {
-		updates["grade_level"] = req.GradeLevel
-	}
-
-	class, err := h.svc.UpdateSchoolClass(countryID, id, updates)
+	class, err := h.svc.UpdateSchoolClass(countryID, id, &req)
 	if err != nil {
 		return utils.NotFound(c)
 	}
@@ -264,12 +246,7 @@ func (h *Handler) DashboardListSubjects(c *fiber.Ctx) error {
 
 // DashboardCreateSubject creates a subject
 func (h *Handler) DashboardCreateSubject(c *fiber.Ctx) error {
-	type CreateRequest struct {
-		SubjectName string `json:"subject_name" validate:"required,min=2,max=255"`
-		GradeLevel  uint   `json:"grade_level" validate:"required"`
-	}
-
-	var req CreateRequest
+	var req services.SubjectInput
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
@@ -279,8 +256,8 @@ func (h *Handler) DashboardCreateSubject(c *fiber.Ctx) error {
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
-	subject := models.Subject{SubjectName: req.SubjectName, GradeLevel: req.GradeLevel}
-	if err := h.svc.CreateSubject(countryID, &subject); err != nil {
+	subject, err := h.svc.CreateSubject(countryID, &req)
+	if err != nil {
 		return utils.InternalError(c, "فشل إنشاء المادة")
 	}
 
@@ -302,20 +279,15 @@ func (h *Handler) DashboardListSemesters(c *fiber.Ctx) error {
 
 // DashboardCreateSemester creates a semester
 func (h *Handler) DashboardCreateSemester(c *fiber.Ctx) error {
-	type CreateRequest struct {
-		SemesterName string `json:"semester_name" validate:"required,min=2,max=255"`
-		GradeLevel   uint   `json:"grade_level"`
-	}
-
-	var req CreateRequest
+	var req services.SemesterInput
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
-	semester := models.Semester{SemesterName: req.SemesterName, GradeLevel: req.GradeLevel}
-	if err := h.svc.CreateSemester(countryID, &semester); err != nil {
+	semester, err := h.svc.CreateSemester(countryID, &req)
+	if err != nil {
 		return utils.InternalError(c, "فشل إنشاء الفصل الدراسي")
 	}
 
@@ -331,22 +303,10 @@ func (h *Handler) DashboardUpdateSemester(c *fiber.Ctx) error {
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
-	type UpdateRequest struct {
-		SemesterName string `json:"semester_name"`
-		GradeLevel   uint   `json:"grade_level"`
-	}
-	var req UpdateRequest
+	var req services.SemesterInput
 	c.BodyParser(&req)
 
-	updates := map[string]interface{}{}
-	if req.SemesterName != "" {
-		updates["semester_name"] = req.SemesterName
-	}
-	if req.GradeLevel > 0 {
-		updates["grade_level"] = req.GradeLevel
-	}
-
-	semester, err := h.svc.UpdateSemester(countryID, id, updates)
+	semester, err := h.svc.UpdateSemester(countryID, id, &req)
 	if err != nil {
 		return utils.NotFound(c)
 	}

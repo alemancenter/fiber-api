@@ -20,7 +20,7 @@ type MockUserRepository struct {
 	FindByIDFunc              func(id uint64) (*models.User, error)
 	FindByGoogleIDFunc        func(googleID string) (*models.User, error)
 	FindByEmailOrGoogleIDFunc func(email, googleID string) (*models.User, error)
-	UpdateFunc                func(user *models.User, updates map[string]interface{}) error
+	UpdateFunc                func(user *models.User) error
 	DeleteFunc                func(user *models.User) error
 	UpsertPushTokenFunc       func(pushToken *models.PushToken) error
 	DeletePushTokenFunc       func(userID uint, token string) error
@@ -54,9 +54,9 @@ func (m *MockUserRepository) FindByID(id uint64) (*models.User, error) {
 	return nil, gorm.ErrRecordNotFound
 }
 
-func (m *MockUserRepository) Update(user *models.User, updates map[string]interface{}) error {
+func (m *MockUserRepository) Update(user *models.User) error {
 	if m.UpdateFunc != nil {
-		return m.UpdateFunc(user, updates)
+		return m.UpdateFunc(user)
 	}
 	return nil
 }
@@ -127,7 +127,7 @@ func TestAuthService_Login(t *testing.T) {
 		mockRepo.FindByEmailFunc = func(email string) (*models.User, error) {
 			return testUser, nil
 		}
-		mockRepo.UpdateFunc = func(user *models.User, updates map[string]interface{}) error {
+		mockRepo.UpdateFunc = func(user *models.User) error {
 			return nil
 		}
 

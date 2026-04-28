@@ -159,17 +159,7 @@ func (h *Handler) Me(c *fiber.Ctx) error {
 func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
 
-	type UpdateProfileRequest struct {
-		Name        string `json:"name" validate:"omitempty,min=2,max=255"`
-		Phone       string `json:"phone" validate:"omitempty"`
-		JobTitle    string `json:"job_title" validate:"omitempty,max=255"`
-		Gender      string `json:"gender" validate:"omitempty,oneof=male female other"`
-		Country     string `json:"country" validate:"omitempty,max=100"`
-		Bio         string `json:"bio" validate:"omitempty"`
-		SocialLinks string `json:"social_links" validate:"omitempty"`
-	}
-
-	var req UpdateProfileRequest
+	var req services.UpdateProfileInput
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
@@ -178,28 +168,16 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 		return utils.ValidationError(c, errs)
 	}
 
-	updates := map[string]interface{}{}
-
 	if req.Name != "" {
-		updates["name"] = utils.SanitizeInput(req.Name)
+		req.Name = utils.SanitizeInput(req.Name)
 	}
-	if req.Phone != "" {
-		updates["phone"] = req.Phone
+	if req.JobTitle != nil && *req.JobTitle != "" {
+		sanitized := utils.SanitizeInput(*req.JobTitle)
+		req.JobTitle = &sanitized
 	}
-	if req.JobTitle != "" {
-		updates["job_title"] = utils.SanitizeInput(req.JobTitle)
-	}
-	if req.Gender != "" {
-		updates["gender"] = req.Gender
-	}
-	if req.Country != "" {
-		updates["country"] = req.Country
-	}
-	if req.Bio != "" {
-		updates["bio"] = utils.SanitizeInput(req.Bio)
-	}
-	if req.SocialLinks != "" {
-		updates["social_links"] = req.SocialLinks
+	if req.Bio != nil && *req.Bio != "" {
+		sanitized := utils.SanitizeInput(*req.Bio)
+		req.Bio = &sanitized
 	}
 
 	// Handle profile photo upload
@@ -214,10 +192,10 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 		if user.ProfilePhotoPath != nil {
 			fileSvc.Delete(*user.ProfilePhotoPath)
 		}
-		updates["profile_photo_path"] = uploaded.Path
+		req.ProfilePhotoPath = &uploaded.Path
 	}
 
-	updatedUser, err := h.svc.UpdateProfile(user, updates)
+	updatedUser, err := h.svc.UpdateProfile(user, &req)
 	if err != nil {
 		return utils.InternalError(c, "فشل تحديث الملف الشخصي")
 	}

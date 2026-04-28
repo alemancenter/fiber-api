@@ -8,13 +8,13 @@ import (
 
 type CalendarRepository interface {
 	GetDB(countryID database.CountryID) *gorm.DB
-	
+
 	ListEvents(countryID database.CountryID, start, end string) ([]models.Event, error)
 	FindEventByID(countryID database.CountryID, id uint64) (*models.Event, error)
 	CreateEvent(countryID database.CountryID, event *models.Event) error
-	UpdateEvent(countryID database.CountryID, event *models.Event, updates map[string]interface{}) error
+	UpdateEvent(countryID database.CountryID, event *models.Event) error
 	DeleteEvent(countryID database.CountryID, id uint64) error
-	
+
 	ListPublicEvents(countryID database.CountryID, limit int) ([]models.Event, error)
 }
 
@@ -53,8 +53,8 @@ func (r *calendarRepository) CreateEvent(countryID database.CountryID, event *mo
 	return r.GetDB(countryID).Create(event).Error
 }
 
-func (r *calendarRepository) UpdateEvent(countryID database.CountryID, event *models.Event, updates map[string]interface{}) error {
-	return r.GetDB(countryID).Model(event).Updates(updates).Error
+func (r *calendarRepository) UpdateEvent(countryID database.CountryID, event *models.Event) error {
+	return r.GetDB(countryID).Save(event).Error
 }
 
 func (r *calendarRepository) DeleteEvent(countryID database.CountryID, id uint64) error {

@@ -95,35 +95,32 @@ func (s *categoryService) Update(countryID database.CountryID, id uint64, req *U
 		return nil, err
 	}
 
-	updates := map[string]interface{}{}
 	if req.Name != "" {
-		updates["name"] = req.Name
+		category.Name = req.Name
 	}
 	if req.Slug != "" {
-		updates["slug"] = req.Slug
+		category.Slug = req.Slug
 	}
 	if req.IsActive != nil {
-		updates["is_active"] = *req.IsActive
+		category.IsActive = *req.IsActive
 	}
 	if req.ParentID != nil {
-		updates["parent_id"] = *req.ParentID
+		category.ParentID = req.ParentID
 	}
 	if req.Icon != "" {
-		updates["icon"] = req.Icon
+		category.Icon = &req.Icon
 	}
 	if req.Image != "" {
-		updates["image"] = req.Image
+		category.Image = &req.Image
 	}
 	if req.Depth != nil {
-		updates["depth"] = *req.Depth
+		category.Depth = *req.Depth
 	}
 
-	if len(updates) > 0 {
-		if err := s.repo.Update(countryID, category, updates); err != nil {
-			return nil, err
-		}
-		s.invalidateCache(countryID)
+	if err := s.repo.Update(countryID, category); err != nil {
+		return nil, err
 	}
+	s.invalidateCache(countryID)
 
 	return category, nil
 }

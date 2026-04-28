@@ -105,32 +105,31 @@ func (s *userService) Update(id uint64, req *UpdateUserRequest, callerID uint) (
 		return nil, err
 	}
 
-	updates := map[string]interface{}{}
 	if req.Name != "" {
-		updates["name"] = req.Name
+		user.Name = req.Name
 	}
 	if req.Phone != "" {
-		updates["phone"] = req.Phone
+		user.Phone = &req.Phone
 	}
 	if req.JobTitle != "" {
-		updates["job_title"] = req.JobTitle
+		user.JobTitle = &req.JobTitle
 	}
 	if req.Gender != "" {
-		updates["gender"] = req.Gender
+		user.Gender = &req.Gender
 	}
 	if req.Country != "" {
-		updates["country"] = req.Country
+		user.Country = &req.Country
 	}
 	if req.Status != "" {
-		updates["status"] = req.Status
+		user.Status = req.Status
 	}
 	if req.Password != "" {
 		if err := user.HashPassword(req.Password); err == nil {
-			updates["password"] = user.Password
+			// Password hashed and set in user model
 		}
 	}
 
-	if err := s.repo.Update(user, updates); err != nil {
+	if err := s.repo.Update(user); err != nil {
 		return nil, errors.New("فشل تحديث المستخدم")
 	}
 

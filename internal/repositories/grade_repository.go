@@ -8,12 +8,12 @@ import (
 
 type GradeRepository interface {
 	GetDB(countryID database.CountryID) *gorm.DB
-	
+
 	// School Classes
 	ListSchoolClasses(countryID database.CountryID) ([]models.SchoolClass, error)
 	FindSchoolClassByID(countryID database.CountryID, id uint64) (*models.SchoolClass, error)
 	CreateSchoolClass(countryID database.CountryID, class *models.SchoolClass) error
-	UpdateSchoolClass(countryID database.CountryID, class *models.SchoolClass, updates map[string]interface{}) error
+	UpdateSchoolClass(countryID database.CountryID, class *models.SchoolClass) error
 	DeleteSchoolClass(countryID database.CountryID, id uint64) error
 	CountSchoolClasses(countryID database.CountryID) (int64, error)
 	ListSchoolClassesPaginated(countryID database.CountryID, limit, offset int) ([]models.SchoolClass, error)
@@ -29,7 +29,7 @@ type GradeRepository interface {
 	ListSemestersByGradeLevel(countryID database.CountryID, gradeLevel uint) ([]models.Semester, error)
 	FindSemesterByID(countryID database.CountryID, id uint64) (*models.Semester, error)
 	CreateSemester(countryID database.CountryID, semester *models.Semester) error
-	UpdateSemester(countryID database.CountryID, semester *models.Semester, updates map[string]interface{}) error
+	UpdateSemester(countryID database.CountryID, semester *models.Semester) error
 	DeleteSemester(countryID database.CountryID, id uint64) error
 	CountSemesters(countryID database.CountryID) (int64, error)
 	ListSemestersPaginated(countryID database.CountryID, limit, offset int) ([]models.Semester, error)
@@ -67,8 +67,8 @@ func (r *gradeRepository) CreateSchoolClass(countryID database.CountryID, class 
 	return r.GetDB(countryID).Create(class).Error
 }
 
-func (r *gradeRepository) UpdateSchoolClass(countryID database.CountryID, class *models.SchoolClass, updates map[string]interface{}) error {
-	return r.GetDB(countryID).Model(class).Updates(updates).Error
+func (r *gradeRepository) UpdateSchoolClass(countryID database.CountryID, class *models.SchoolClass) error {
+	return r.GetDB(countryID).Save(class).Error
 }
 
 func (r *gradeRepository) DeleteSchoolClass(countryID database.CountryID, id uint64) error {
@@ -135,8 +135,8 @@ func (r *gradeRepository) CreateSemester(countryID database.CountryID, semester 
 	return r.GetDB(countryID).Create(semester).Error
 }
 
-func (r *gradeRepository) UpdateSemester(countryID database.CountryID, semester *models.Semester, updates map[string]interface{}) error {
-	return r.GetDB(countryID).Model(semester).Updates(updates).Error
+func (r *gradeRepository) UpdateSemester(countryID database.CountryID, semester *models.Semester) error {
+	return r.GetDB(countryID).Save(semester).Error
 }
 
 func (r *gradeRepository) DeleteSemester(countryID database.CountryID, id uint64) error {

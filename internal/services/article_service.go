@@ -10,8 +10,19 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+type ArticleInput struct {
+	Title           string `json:"title" validate:"required,min=3,max=500"`
+	Content         string `json:"content" validate:"required"`
+	GradeLevel      string `json:"grade_level"`
+	SubjectID       *uint  `json:"subject_id"`
+	SemesterID      *uint  `json:"semester_id"`
+	MetaDescription string `json:"meta_description" validate:"omitempty,max=500"`
+	Keywords        string `json:"keywords"`
+	Status          *int8  `json:"status" validate:"omitempty,oneof=0 1"`
+}
+
 type ArticleService interface {
-	List(countryID database.CountryID, pag utils.Pagination, filters map[string]interface{}) ([]models.Article, int64, error)
+	List(countryID database.CountryID, pag utils.Pagination, filter *models.ArticleFilter) ([]models.Article, int64, error)
 	GetByID(countryID database.CountryID, id uint64) (*models.Article, error)
 	GetByGradeLevel(countryID database.CountryID, gradeLevel string, pag utils.Pagination) ([]models.Article, int64, error)
 	GetByKeyword(countryID database.CountryID, keyword string, pag utils.Pagination) ([]models.Article, int64, error)
@@ -20,8 +31,8 @@ type ArticleService interface {
 	// Dashboard methods
 	GetDashboardCreateData(countryID database.CountryID) (fiber.Map, error)
 	GetDashboardEditData(countryID database.CountryID, id uint64) (fiber.Map, error)
-	CreateArticle(countryID database.CountryID, article *models.Article, authorID *uint) error
-	UpdateArticle(countryID database.CountryID, id uint64, updates map[string]interface{}, authorID *uint) (*models.Article, error)
+	CreateArticle(countryID database.CountryID, req *ArticleInput, authorID *uint) (*models.Article, error)
+	UpdateArticle(countryID database.CountryID, id uint64, req *ArticleInput, authorID *uint) (*models.Article, error)
 	DeleteArticle(countryID database.CountryID, id uint64, authorID *uint) error
 	SetArticleStatus(countryID database.CountryID, id uint64, status int8) (*models.Article, error)
 	GetDashboardStats(countryID database.CountryID) (fiber.Map, error)
@@ -39,8 +50,8 @@ func NewArticleService(repo repositories.ArticleRepository, fileSvc *FileService
 	}
 }
 
-func (s *articleService) List(countryID database.CountryID, pag utils.Pagination, filters map[string]interface{}) ([]models.Article, int64, error) {
-	return s.repo.List(countryID, pag, filters)
+func (s *articleService) List(countryID database.CountryID, pag utils.Pagination, filter *models.ArticleFilter) ([]models.Article, int64, error) {
+	return s.repo.List(countryID, pag, filter)
 }
 
 func (s *articleService) GetByID(countryID database.CountryID, id uint64) (*models.Article, error) {
@@ -129,21 +140,78 @@ func (s *articleService) GetDashboardEditData(countryID database.CountryID, id u
 	}, nil
 }
 
-func (s *articleService) CreateArticle(countryID database.CountryID, article *models.Article, authorID *uint) error {
+func (s *articleService) CreateArticle(countryID database.CountryID, req *ArticleInput, authorID *uint) (*models.Article, error) {
+	article := &models.Article{
+		Title:   utils.SanitizeInput(req.Title),
+		Content: req.Content,
+	}
+
+	if req.Status != nil {
+		article.Status = *req.Status
+	}
+
+	if req.GradeLevel != "" {
+		article.GradeLevel = &req.GradeLevel
+	}
+	if req.SubjectID != nil && *req.SubjectID > 0 {
+		article.SubjectID = req.SubjectID
+	}
+	if req.SemesterID != nil && *req.SemesterID > 0 {
+		article.SemesterID = req.SemesterID
+	}
+	if req.MetaDescription != "" {
+		article.MetaDescription = &req.MetaDescription
+	}
+	if req.Keywords != "" {
+		article.Keywords = &req.Keywords
+	}
+
+	if authorID != nil {
+		article.AuthorID = authorID
+	}
+
 	err := s.repo.Create(countryID, article)
-	if err == nil && authorID != nil {
+	if err != nil {
+		return nil, err
+	}
+	if authorID != nil {
 		LogActivity("أنشأ مقالة: "+article.Title, "Article", article.ID, *authorID)
 	}
-	return err
+	return article, nil
 }
 
-func (s *articleService) UpdateArticle(countryID database.CountryID, id uint64, updates map[string]interface{}, authorID *uint) (*models.Article, error) {
+func (s *articleService) UpdateArticle(countryID database.CountryID, id uint64, req *ArticleInput, authorID *uint) (*models.Article, error) {
 	article, err := s.repo.FindByID(countryID, id)
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.repo.Update(countryID, article, updates)
+	if req.Title != "" {
+		article.Title = utils.SanitizeInput(req.Title)
+	}
+	if req.Content != "" {
+		article.Content = req.Content
+	}
+	if req.GradeLevel != "" {
+		article.GradeLevel = &req.GradeLevel
+	}
+	if req.SubjectID != nil {
+		article.SubjectID = req.SubjectID
+	}
+	if req.SemesterID != nil {
+		article.SemesterID = req.SemesterID
+	}
+	if req.MetaDescription != "" {
+		article.MetaDescription = &req.MetaDescription
+	}
+	if req.Keywords != "" {
+		article.Keywords = &req.Keywords
+	}
+	if req.Status != nil {
+		article.Status = *req.Status
+	}
+
+	err = s.repo.Update(countryID, article)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +243,8 @@ func (s *articleService) SetArticleStatus(countryID database.CountryID, id uint6
 		return nil, err
 	}
 
-	err = s.repo.Update(countryID, article, map[string]interface{}{"status": status})
+	article.Status = status
+	err = s.repo.Update(countryID, article)
 	return article, err
 }
 

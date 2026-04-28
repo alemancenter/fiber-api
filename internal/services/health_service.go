@@ -8,8 +8,26 @@ import (
 	"github.com/alemancenter/fiber-api/internal/repositories"
 )
 
+type HealthStatusResponse struct {
+	Status    string          `json:"status"`
+	AppName   string          `json:"app_name"`
+	Env       string          `json:"env"`
+	Uptime    string          `json:"uptime"`
+	Databases map[string]bool `json:"databases"`
+	Redis     map[string]bool `json:"redis"`
+	Memory    MemoryStats     `json:"memory"`
+	Timestamp time.Time       `json:"timestamp"`
+}
+
+type MemoryStats struct {
+	AllocMB    uint64 `json:"alloc_mb"`
+	SysMB      uint64 `json:"sys_mb"`
+	NumGC      uint32 `json:"num_gc"`
+	Goroutines int    `json:"goroutines"`
+}
+
 type HealthService interface {
-	GetHealthStatus() (map[string]interface{}, int, bool)
+	GetHealthStatus() (HealthStatusResponse, int, bool)
 }
 
 type healthService struct {
@@ -21,7 +39,7 @@ func NewHealthService(repo repositories.HealthRepository) HealthService {
 	return &healthService{repo: repo, startTime: time.Now()}
 }
 
-func (s *healthService) GetHealthStatus() (map[string]interface{}, int, bool) {
+func (s *healthService) GetHealthStatus() (HealthStatusResponse, int, bool) {
 	cfg := config.Get()
 	dbHealth := s.repo.CheckDatabases()
 	redisHealth := s.repo.CheckRedis()
@@ -50,19 +68,19 @@ func (s *healthService) GetHealthStatus() (map[string]interface{}, int, bool) {
 		httpStatus = 503 // fiber.StatusServiceUnavailable
 	}
 
-	return map[string]interface{}{
-		"status":    status,
-		"app_name":  cfg.App.Name,
-		"env":       cfg.App.Env,
-		"uptime":    time.Since(s.startTime).String(),
-		"databases": dbHealth,
-		"redis":     redisHealth,
-		"memory": map[string]interface{}{
-			"alloc_mb":   memStats.Alloc / 1024 / 1024,
-			"sys_mb":     memStats.Sys / 1024 / 1024,
-			"num_gc":     memStats.NumGC,
-			"goroutines": runtime.NumGoroutine(),
+	return HealthStatusResponse{
+		Status:    status,
+		AppName:   cfg.App.Name,
+		Env:       cfg.App.Env,
+		Uptime:    time.Since(s.startTime).String(),
+		Databases: dbHealth,
+		Redis:     redisHealth,
+		Memory: MemoryStats{
+			AllocMB:    memStats.Alloc / 1024 / 1024,
+			SysMB:      memStats.Sys / 1024 / 1024,
+			NumGC:      memStats.NumGC,
+			Goroutines: runtime.NumGoroutine(),
 		},
-		"timestamp": time.Now().UTC(),
+		Timestamp: time.Now().UTC(),
 	}, httpStatus, allHealthy
 }

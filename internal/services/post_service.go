@@ -96,34 +96,31 @@ func (s *postService) Update(countryID database.CountryID, id uint64, req *Updat
 		return nil, err
 	}
 
-	updates := map[string]interface{}{}
 	if req.CategoryID != nil {
-		updates["category_id"] = req.CategoryID
+		post.CategoryID = req.CategoryID
 	}
 	if req.Title != "" {
-		updates["title"] = utils.SanitizeInput(req.Title)
-		updates["slug"] = utils.GenerateSlug(req.Title)
+		post.Title = utils.SanitizeInput(req.Title)
+		post.Slug = utils.GenerateSlug(req.Title)
 	}
 	if req.Content != "" {
-		updates["content"] = req.Content
+		post.Content = req.Content
 	}
 	if req.IsActive != nil {
-		updates["is_active"] = *req.IsActive
+		post.IsActive = *req.IsActive
 	}
 	if req.IsFeatured != nil {
-		updates["is_featured"] = *req.IsFeatured
+		post.IsFeatured = *req.IsFeatured
 	}
 	if req.Keywords != "" {
-		updates["keywords"] = req.Keywords
+		post.Keywords = &req.Keywords
 	}
 	if req.MetaDescription != "" {
-		updates["meta_description"] = req.MetaDescription
+		post.MetaDescription = &req.MetaDescription
 	}
 
-	if len(updates) > 0 {
-		if err := s.repo.Update(countryID, post, updates); err != nil {
-			return nil, err
-		}
+	if err := s.repo.Update(countryID, post); err != nil {
+		return nil, err
 	}
 
 	return post, nil

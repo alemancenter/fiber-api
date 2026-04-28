@@ -33,12 +33,23 @@ type GoogleUserInfo struct {
 	VerifiedEmail bool   `json:"verified_email"`
 }
 
+type UpdateProfileInput struct {
+	Name             string  `json:"name"`
+	Phone            *string `json:"phone"`
+	JobTitle         *string `json:"job_title"`
+	Gender           *string `json:"gender"`
+	Country          *string `json:"country"`
+	Bio              *string `json:"bio"`
+	SocialLinks      *string `json:"social_links"`
+	ProfilePhotoPath *string `json:"profile_photo_path"`
+}
+
 // AuthService handles business logic for authentication
 type AuthService interface {
 	Register(name, email, password string) (*models.User, string, error)
 	Login(email, password, ip, userAgent, method, path string) (*models.User, string, error)
 	Logout(tokenStr string, user *models.User) error
-	UpdateProfile(user *models.User, updates map[string]interface{}) (*models.User, error)
+	UpdateProfile(user *models.User, req *UpdateProfileInput) (*models.User, error)
 	ForgotPassword(email string) error
 	ResetPassword(token, email, newPassword string) error
 	VerifyEmail(id string, hash string) error
@@ -137,7 +148,8 @@ func (s *authService) Login(email, password, ip, userAgent, method, path string)
 
 	// Update last activity
 	now := time.Now()
-	_ = s.repo.Update(user, map[string]interface{}{"last_activity": now})
+	user.LastActivity = &now
+	_ = s.repo.Update(user)
 
 	return user, token, nil
 }
@@ -160,8 +172,33 @@ func (s *authService) Logout(tokenStr string, user *models.User) error {
 	return nil
 }
 
-func (s *authService) UpdateProfile(user *models.User, updates map[string]interface{}) (*models.User, error) {
-	if err := s.repo.Update(user, updates); err != nil {
+func (s *authService) UpdateProfile(user *models.User, req *UpdateProfileInput) (*models.User, error) {
+	if req.Name != "" {
+		user.Name = req.Name
+	}
+	if req.Phone != nil {
+		user.Phone = req.Phone
+	}
+	if req.JobTitle != nil {
+		user.JobTitle = req.JobTitle
+	}
+	if req.Gender != nil {
+		user.Gender = req.Gender
+	}
+	if req.Country != nil {
+		user.Country = req.Country
+	}
+	if req.Bio != nil {
+		user.Bio = req.Bio
+	}
+	if req.SocialLinks != nil {
+		user.SocialLinks = req.SocialLinks
+	}
+	if req.ProfilePhotoPath != nil {
+		user.ProfilePhotoPath = req.ProfilePhotoPath
+	}
+
+	if err := s.repo.Update(user); err != nil {
 		return nil, err
 	}
 
@@ -222,7 +259,7 @@ func (s *authService) ResetPassword(token, email, newPassword string) error {
 		return err
 	}
 
-	if err := s.repo.Update(user, map[string]interface{}{"password": user.Password}); err != nil {
+	if err := s.repo.Update(user); err != nil {
 		return err
 	}
 
@@ -252,7 +289,8 @@ func (s *authService) VerifyEmail(id string, hash string) error {
 	}
 
 	now := time.Now()
-	return s.repo.Update(user, map[string]interface{}{"email_verified_at": now})
+	user.EmailVerifiedAt = &now
+	return s.repo.Update(user)
 }
 
 func (s *authService) ResendVerification(user *models.User) error {
@@ -304,8 +342,9 @@ func (s *authService) LoginOrRegisterGoogleUser(info *GoogleUserInfo) (*models.U
 		return nil, "", err
 	} else {
 		// Update Google ID if not set
-		if user.GoogleID == nil {
-			_ = s.repo.Update(user, map[string]interface{}{"google_id": info.ID})
+		if user.GoogleID == nil || *user.GoogleID != info.ID {
+			user.GoogleID = &info.ID
+			_ = s.repo.Update(user)
 		}
 	}
 

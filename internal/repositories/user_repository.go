@@ -17,7 +17,7 @@ type UserRepository interface {
 	FindByID(id uint64) (*models.User, error)
 	FindByGoogleID(googleID string) (*models.User, error)
 	FindByEmailOrGoogleID(email string, googleID string) (*models.User, error)
-	Update(user *models.User, updates map[string]interface{}) error
+	Update(user *models.User) error
 	Delete(user *models.User) error
 	BulkDelete(ids []uint) error
 	UpdateStatus(ids []uint, status string) error
@@ -129,9 +129,9 @@ func (r *userRepository) FindByEmailOrGoogleID(email string, googleID string) (*
 	return &user, nil
 }
 
-func (r *userRepository) Update(user *models.User, updates map[string]interface{}) error {
+func (r *userRepository) Update(user *models.User) error {
 	db := r.GetDB()
-	return db.Model(&models.User{}).Where("id = ?", user.ID).Updates(updates).Error
+	return db.Save(user).Error
 }
 
 func (r *userRepository) Delete(user *models.User) error {

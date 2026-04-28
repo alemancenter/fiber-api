@@ -12,7 +12,7 @@ type PostRepository interface {
 	FindByID(countryID database.CountryID, id uint64) (*models.Post, error)
 	IncrementView(countryID database.CountryID, id uint64) error
 	Create(countryID database.CountryID, post *models.Post) error
-	Update(countryID database.CountryID, post *models.Post, updates map[string]interface{}) error
+	Update(countryID database.CountryID, post *models.Post) error
 	Delete(countryID database.CountryID, id uint64) error
 }
 
@@ -76,9 +76,9 @@ func (r *postRepository) Create(countryID database.CountryID, post *models.Post)
 	return db.Create(post).Error
 }
 
-func (r *postRepository) Update(countryID database.CountryID, post *models.Post, updates map[string]interface{}) error {
+func (r *postRepository) Update(countryID database.CountryID, post *models.Post) error {
 	db := r.GetDB(countryID)
-	return db.Model(post).Updates(updates).Error
+	return db.Save(post).Error
 }
 
 func (r *postRepository) Delete(countryID database.CountryID, id uint64) error {
