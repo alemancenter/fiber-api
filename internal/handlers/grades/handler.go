@@ -2,33 +2,47 @@ package grades
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
+)
+
+const (
+	classesAndFilterTTL = time.Hour
 )
 
 // Handler handles school classes, subjects, semesters, and grade-based content
-type Handler struct{}
+type Handler struct {
+	svc     services.GradeService
+	fileSvc *services.FileService
+}
 
 // New creates a new grades Handler
-func New() *Handler { return &Handler{} }
+func New(svc services.GradeService, fileSvc *services.FileService) *Handler {
+	return &Handler{
+		svc:     svc,
+		fileSvc: fileSvc,
+	}
+}
 
-// ListSchoolClasses returns all school classes
+// ListSchoolClasses returns all school classes.
+// Result is cached per country for 1 hour — this data changes only via admin dashboard.
 // GET /api/school-classes
 func (h *Handler) ListSchoolClasses(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var classes []models.SchoolClass
-	db.Where("is_active = ?", true).Order("`order` ASC, name ASC").Find(&classes)
+	classes, err := h.svc.ListSchoolClasses(countryID)
+	if err != nil {
+		return utils.InternalError(c)
+	}
 	return utils.Success(c, "success", classes)
 }
 
-// GetSchoolClass returns a single school class
+// GetSchoolClass returns a single school class with its subjects
 // GET /api/school-classes/:id
 func (h *Handler) GetSchoolClass(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
@@ -37,10 +51,9 @@ func (h *Handler) GetSchoolClass(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var class models.SchoolClass
-	if err := db.Preload("Subjects").First(&class, id).Error; err != nil {
+	class, err := h.svc.GetSchoolClass(countryID, id)
+	if err != nil {
 		return utils.NotFound(c)
 	}
 
@@ -56,17 +69,15 @@ func (h *Handler) ListSubjects(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var subjects []models.Subject
-	db.Where("school_class_id = ? AND is_active = ?", classID, true).
-		Order("`order` ASC, name ASC").
-		Find(&subjects)
-
+	subjects, err := h.svc.ListSubjects(countryID, classID)
+	if err != nil {
+		return utils.InternalError(c)
+	}
 	return utils.Success(c, "success", subjects)
 }
 
-// ListSemesters returns semesters for a subject
+// ListSemesters returns semesters for a subject's grade level
 // GET /api/filter/semesters/:subjectId
 func (h *Handler) ListSemesters(c *fiber.Ctx) error {
 	subjectID, err := strconv.ParseUint(c.Params("subjectId"), 10, 64)
@@ -75,25 +86,31 @@ func (h *Handler) ListSemesters(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var semesters []models.Semester
-	db.Where("subject_id = ? AND is_active = ?", subjectID, true).
-		Order("`order` ASC, name ASC").
-		Find(&semesters)
+	semesters, subject, err := h.svc.ListSemesters(countryID, subjectID)
+	if err != nil {
+		if subject == nil {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c)
+	}
 
-	return utils.Success(c, "success", semesters)
+	return utils.Success(c, "success", fiber.Map{
+		"subject":   subject,
+		"class_id":  subject.GradeLevel,
+		"semesters": semesters,
+	})
 }
 
-// FilterMeta returns top-level filter metadata (classes, subjects, semesters)
+// FilterMeta returns top-level filter metadata (cached per country).
 // GET /api/filter
 func (h *Handler) FilterMeta(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var classes []models.SchoolClass
-	db.Where("is_active = ?", true).Order("`order` ASC").Find(&classes)
-
+	classes, err := h.svc.FilterMeta(countryID)
+	if err != nil {
+		return utils.InternalError(c)
+	}
 	return utils.Success(c, "success", fiber.Map{"classes": classes})
 }
 
@@ -106,20 +123,12 @@ func (h *Handler) GetGradeArticles(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 	pag := utils.GetPagination(c)
 
-	var articles []models.Article
-	var total int64
-
-	db.Model(&models.Article{}).
-		Where("subject_id = ? AND status = ?", id, 1).
-		Count(&total)
-	db.Preload("Subject").Preload("Semester").Preload("Files").
-		Where("subject_id = ? AND status = ?", id, 1).
-		Order("published_at DESC").
-		Limit(pag.PerPage).Offset(pag.Offset).
-		Find(&articles)
+	articles, total, err := h.svc.ListGradeArticles(countryID, id, pag.PerPage, pag.Offset)
+	if err != nil {
+		return utils.InternalError(c)
+	}
 
 	return utils.Paginated(c, "success", articles, pag.BuildMeta(total))
 }
@@ -133,35 +142,34 @@ func (h *Handler) DownloadGradeFile(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var file models.File
-	if err := db.First(&file, id).Error; err != nil {
+	file, err := h.fileSvc.FindByID(countryID, id)
+	if err != nil {
 		return utils.NotFound(c)
 	}
 
-	fileSvc := services.NewFileService()
-	absPath := fileSvc.GetAbsPath(file.FilePath)
+	absPath := h.fileSvc.GetAbsPath(file.FilePath)
 
-	go db.Model(&file).UpdateColumn("view_count", gorm.Expr("view_count + 1"))
+	// Increment view count
+	go h.fileSvc.IncrementViewCount(countryID, id)
 
 	c.Set("Content-Disposition", "attachment; filename=\""+file.FileName+"\"")
 	c.Set("Content-Type", file.MimeType)
 	return c.SendFile(absPath)
 }
 
+// ── Dashboard ────────────────────────────────────────────────────────────────
+
 // DashboardListSchoolClasses returns all classes for dashboard
 // GET /api/dashboard/school-classes
 func (h *Handler) DashboardListSchoolClasses(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 	pag := utils.GetPagination(c)
 
-	var classes []models.SchoolClass
-	var total int64
-
-	db.Model(&models.SchoolClass{}).Count(&total)
-	db.Order("`order` ASC, name ASC").Limit(pag.PerPage).Offset(pag.Offset).Find(&classes)
+	classes, total, err := h.svc.ListSchoolClassesDashboard(countryID, pag.PerPage, pag.Offset)
+	if err != nil {
+		return utils.InternalError(c)
+	}
 
 	return utils.Paginated(c, "success", classes, pag.BuildMeta(total))
 }
@@ -170,31 +178,22 @@ func (h *Handler) DashboardListSchoolClasses(c *fiber.Ctx) error {
 // POST /api/dashboard/school-classes
 func (h *Handler) DashboardCreateSchoolClass(c *fiber.Ctx) error {
 	type CreateRequest struct {
-		Name       string `json:"name" validate:"required,min=2,max=255"`
-		GradeLevel string `json:"grade_level"`
-		Order      int    `json:"order"`
+		GradeName  string `json:"grade_name" validate:"required,min=2,max=255"`
+		GradeLevel int    `json:"grade_level"`
 	}
 
 	var req CreateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
-
 	if errs := utils.Validate(req); errs != nil {
 		return utils.ValidationError(c, errs)
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	class := models.SchoolClass{
-		Name:       req.Name,
-		GradeLevel: req.GradeLevel,
-		Order:      req.Order,
-		IsActive:   true,
-	}
-
-	if err := db.Create(&class).Error; err != nil {
+	class := models.SchoolClass{GradeName: req.GradeName, GradeLevel: req.GradeLevel}
+	if err := h.svc.CreateSchoolClass(countryID, &class); err != nil {
 		return utils.InternalError(c, "فشل إنشاء الصف")
 	}
 
@@ -210,16 +209,26 @@ func (h *Handler) DashboardUpdateSchoolClass(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var class models.SchoolClass
-	if err := db.First(&class, id).Error; err != nil {
-		return utils.NotFound(c)
+	type UpdateRequest struct {
+		GradeName  string `json:"grade_name"`
+		GradeLevel int    `json:"grade_level"`
+	}
+	var req UpdateRequest
+	c.BodyParser(&req)
+
+	updates := map[string]interface{}{}
+	if req.GradeName != "" {
+		updates["grade_name"] = req.GradeName
+	}
+	if req.GradeLevel > 0 {
+		updates["grade_level"] = req.GradeLevel
 	}
 
-	var updates map[string]interface{}
-	c.BodyParser(&updates)
-	db.Model(&class).Updates(updates)
+	class, err := h.svc.UpdateSchoolClass(countryID, id, updates)
+	if err != nil {
+		return utils.NotFound(c)
+	}
 
 	return utils.Success(c, "تم تحديث الصف بنجاح", class)
 }
@@ -233,8 +242,9 @@ func (h *Handler) DashboardDeleteSchoolClass(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
-	db.Delete(&models.SchoolClass{}, id)
+	if err := h.svc.DeleteSchoolClass(countryID, id); err != nil {
+		return utils.InternalError(c, "فشل الحذف")
+	}
 
 	return utils.Success(c, "تم حذف الصف بنجاح", nil)
 }
@@ -242,14 +252,12 @@ func (h *Handler) DashboardDeleteSchoolClass(c *fiber.Ctx) error {
 // DashboardListSubjects returns all subjects for dashboard
 func (h *Handler) DashboardListSubjects(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 	pag := utils.GetPagination(c)
 
-	var subjects []models.Subject
-	var total int64
-
-	db.Model(&models.Subject{}).Count(&total)
-	db.Preload("SchoolClass").Order("`order` ASC").Limit(pag.PerPage).Offset(pag.Offset).Find(&subjects)
+	subjects, total, err := h.svc.ListSubjectsDashboard(countryID, pag.PerPage, pag.Offset)
+	if err != nil {
+		return utils.InternalError(c)
+	}
 
 	return utils.Paginated(c, "success", subjects, pag.BuildMeta(total))
 }
@@ -257,31 +265,22 @@ func (h *Handler) DashboardListSubjects(c *fiber.Ctx) error {
 // DashboardCreateSubject creates a subject
 func (h *Handler) DashboardCreateSubject(c *fiber.Ctx) error {
 	type CreateRequest struct {
-		Name          string `json:"name" validate:"required,min=2,max=255"`
-		SchoolClassID uint   `json:"school_class_id" validate:"required"`
-		Order         int    `json:"order"`
+		SubjectName string `json:"subject_name" validate:"required,min=2,max=255"`
+		GradeLevel  uint   `json:"grade_level" validate:"required"`
 	}
 
 	var req CreateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
-
 	if errs := utils.Validate(req); errs != nil {
 		return utils.ValidationError(c, errs)
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	subject := models.Subject{
-		Name:          req.Name,
-		SchoolClassID: &req.SchoolClassID,
-		Order:         req.Order,
-		IsActive:      true,
-	}
-
-	if err := db.Create(&subject).Error; err != nil {
+	subject := models.Subject{SubjectName: req.SubjectName, GradeLevel: req.GradeLevel}
+	if err := h.svc.CreateSubject(countryID, &subject); err != nil {
 		return utils.InternalError(c, "فشل إنشاء المادة")
 	}
 
@@ -291,14 +290,12 @@ func (h *Handler) DashboardCreateSubject(c *fiber.Ctx) error {
 // DashboardListSemesters returns all semesters for dashboard
 func (h *Handler) DashboardListSemesters(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 	pag := utils.GetPagination(c)
 
-	var semesters []models.Semester
-	var total int64
-
-	db.Model(&models.Semester{}).Count(&total)
-	db.Preload("Subject").Order("`order` ASC").Limit(pag.PerPage).Offset(pag.Offset).Find(&semesters)
+	semesters, total, err := h.svc.ListSemestersDashboard(countryID, pag.PerPage, pag.Offset)
+	if err != nil {
+		return utils.InternalError(c)
+	}
 
 	return utils.Paginated(c, "success", semesters, pag.BuildMeta(total))
 }
@@ -306,9 +303,8 @@ func (h *Handler) DashboardListSemesters(c *fiber.Ctx) error {
 // DashboardCreateSemester creates a semester
 func (h *Handler) DashboardCreateSemester(c *fiber.Ctx) error {
 	type CreateRequest struct {
-		Name      string `json:"name" validate:"required,min=2,max=255"`
-		SubjectID uint   `json:"subject_id"`
-		Order     int    `json:"order"`
+		SemesterName string `json:"semester_name" validate:"required,min=2,max=255"`
+		GradeLevel   uint   `json:"grade_level"`
 	}
 
 	var req CreateRequest
@@ -317,18 +313,9 @@ func (h *Handler) DashboardCreateSemester(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	semester := models.Semester{
-		Name:     req.Name,
-		Order:    req.Order,
-		IsActive: true,
-	}
-	if req.SubjectID > 0 {
-		semester.SubjectID = &req.SubjectID
-	}
-
-	if err := db.Create(&semester).Error; err != nil {
+	semester := models.Semester{SemesterName: req.SemesterName, GradeLevel: req.GradeLevel}
+	if err := h.svc.CreateSemester(countryID, &semester); err != nil {
 		return utils.InternalError(c, "فشل إنشاء الفصل الدراسي")
 	}
 
@@ -343,16 +330,26 @@ func (h *Handler) DashboardUpdateSemester(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var semester models.Semester
-	if err := db.First(&semester, id).Error; err != nil {
-		return utils.NotFound(c)
+	type UpdateRequest struct {
+		SemesterName string `json:"semester_name"`
+		GradeLevel   uint   `json:"grade_level"`
+	}
+	var req UpdateRequest
+	c.BodyParser(&req)
+
+	updates := map[string]interface{}{}
+	if req.SemesterName != "" {
+		updates["semester_name"] = req.SemesterName
+	}
+	if req.GradeLevel > 0 {
+		updates["grade_level"] = req.GradeLevel
 	}
 
-	var updates map[string]interface{}
-	c.BodyParser(&updates)
-	db.Model(&semester).Updates(updates)
+	semester, err := h.svc.UpdateSemester(countryID, id, updates)
+	if err != nil {
+		return utils.NotFound(c)
+	}
 
 	return utils.Success(c, "تم تحديث الفصل الدراسي بنجاح", semester)
 }
@@ -365,8 +362,10 @@ func (h *Handler) DashboardDeleteSemester(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
-	db.Delete(&models.Semester{}, id)
+
+	if err := h.svc.DeleteSemester(countryID, id); err != nil {
+		return utils.InternalError(c, "فشل الحذف")
+	}
 
 	return utils.Success(c, "تم حذف الفصل الدراسي بنجاح", nil)
 }

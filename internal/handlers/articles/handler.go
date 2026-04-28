@@ -13,46 +13,47 @@ import (
 )
 
 // Handler contains articles route handlers
-type Handler struct{}
+type Handler struct {
+	svc services.ArticleService
+}
 
 // New creates a new articles Handler
-func New() *Handler { return &Handler{} }
+func New(svc services.ArticleService) *Handler {
+	return &Handler{
+		svc: svc,
+	}
+}
 
 // List returns a paginated list of published articles
 // GET /api/articles
 func (h *Handler) List(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 	pag := utils.GetPagination(c)
 
-	var articles []models.Article
-	var total int64
-
-	query := db.Model(&models.Article{}).
-		Preload("Subject").
-		Preload("Semester").
-		Preload("Files").
-		Where("status = ?", 1)
+	filters := map[string]interface{}{
+		"status": 1,
+	}
 
 	// Filters
 	if gradeLevel := c.Query("grade_level"); gradeLevel != "" {
-		query = query.Where("grade_level = ?", gradeLevel)
+		filters["grade_level"] = gradeLevel
 	}
 	if subjectID := c.Query("subject_id"); subjectID != "" {
-		query = query.Where("subject_id = ?", subjectID)
+		filters["subject_id"] = subjectID
 	}
 	if semesterID := c.Query("semester_id"); semesterID != "" {
-		query = query.Where("semester_id = ?", semesterID)
+		filters["semester_id"] = semesterID
 	}
-	if search := c.Query("search"); search != "" {
-		query = query.Where("title LIKE ? OR content LIKE ?", "%"+search+"%", "%"+search+"%")
+	if q := c.Query("q"); q != "" {
+		filters["q"] = q
+	} else if search := c.Query("search"); search != "" {
+		filters["q"] = search
 	}
 
-	query.Count(&total)
-	query.Order("published_at DESC, created_at DESC").
-		Limit(pag.PerPage).
-		Offset(pag.Offset).
-		Find(&articles)
+	articles, total, err := h.svc.List(countryID, pag, filters)
+	if err != nil {
+		return utils.InternalError(c)
+	}
 
 	return utils.Paginated(c, "success", articles, pag.BuildMeta(total))
 }
@@ -66,25 +67,18 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var article models.Article
-	if err := db.
-		Preload("Subject").
-		Preload("Semester").
-		Preload("Files").
-		Preload("Comments.User").
-		Preload("KeywordsRel").
-		Where("id = ? AND status = ?", id, 1).
-		First(&article).Error; err != nil {
+	article, err := h.svc.GetByID(countryID, id)
+	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c)
 	}
 
-	// Increment view count (async)
-	go db.Model(&article).UpdateColumn("visit_count", gorm.Expr("visit_count + 1"))
+	if article.Status != 1 {
+		return utils.NotFound(c)
+	}
 
 	return utils.Success(c, "success", article)
 }
@@ -94,18 +88,12 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 func (h *Handler) ByClass(c *fiber.Ctx) error {
 	gradeLevel := c.Params("grade_level")
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 	pag := utils.GetPagination(c)
 
-	var articles []models.Article
-	var total int64
-
-	db.Model(&models.Article{}).Where("grade_level = ? AND status = ?", gradeLevel, 1).Count(&total)
-	db.Preload("Subject").Preload("Semester").
-		Where("grade_level = ? AND status = ?", gradeLevel, 1).
-		Order("published_at DESC").
-		Limit(pag.PerPage).Offset(pag.Offset).
-		Find(&articles)
+	articles, total, err := h.svc.GetByGradeLevel(countryID, gradeLevel, pag)
+	if err != nil {
+		return utils.InternalError(c)
+	}
 
 	return utils.Paginated(c, "success", articles, pag.BuildMeta(total))
 }
@@ -115,26 +103,15 @@ func (h *Handler) ByClass(c *fiber.Ctx) error {
 func (h *Handler) ByKeyword(c *fiber.Ctx) error {
 	keyword := c.Params("keyword")
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 	pag := utils.GetPagination(c)
 
-	var articles []models.Article
-	var total int64
-
-	// Find keyword ID first
-	var kw models.Keyword
-	if err := db.Where("name = ? OR slug = ?", keyword, keyword).First(&kw).Error; err != nil {
-		return utils.Paginated(c, "success", []models.Article{}, pag.BuildMeta(0))
+	articles, total, err := h.svc.GetByKeyword(countryID, keyword, pag)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.Paginated(c, "success", []models.Article{}, pag.BuildMeta(0))
+		}
+		return utils.InternalError(c)
 	}
-
-	subQuery := db.Table("article_keyword").Select("article_id").Where("keyword_id = ?", kw.ID)
-	query := db.Model(&models.Article{}).Where("id IN (?) AND status = ?", subQuery, 1)
-
-	query.Count(&total)
-	query.Preload("Subject").Preload("Semester").
-		Order("published_at DESC").
-		Limit(pag.PerPage).Offset(pag.Offset).
-		Find(&articles)
 
 	return utils.Paginated(c, "success", articles, pag.BuildMeta(total))
 }
@@ -148,18 +125,14 @@ func (h *Handler) DownloadFile(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var file models.File
-	if err := db.First(&file, id).Error; err != nil {
-		return utils.NotFound(c)
+	file, absPath, err := h.svc.GetFileForDownload(countryID, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c)
 	}
-
-	fileSvc := services.NewFileService()
-	absPath := fileSvc.GetAbsPath(file.FilePath)
-
-	// Increment view count
-	go db.Model(&file).UpdateColumn("view_count", gorm.Expr("view_count + 1"))
 
 	c.Set("Content-Disposition", "attachment; filename=\""+file.FileName+"\"")
 	c.Set("Content-Type", file.MimeType)
@@ -172,25 +145,60 @@ func (h *Handler) DownloadFile(c *fiber.Ctx) error {
 // GET /api/dashboard/articles
 func (h *Handler) DashboardList(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 	pag := utils.GetPagination(c)
 
-	var articles []models.Article
-	var total int64
-
-	query := db.Model(&models.Article{}).Preload("Subject").Preload("Semester")
+	filters := map[string]interface{}{}
+	filters["order"] = "created_at DESC"
 
 	if status := c.Query("status"); status != "" {
-		query = query.Where("status = ?", status)
+		filters["status"] = status
 	}
-	if search := c.Query("search"); search != "" {
-		query = query.Where("title LIKE ?", "%"+search+"%")
+	if q := c.Query("q"); q != "" {
+		filters["q"] = q
+	} else if search := c.Query("search"); search != "" {
+		filters["q"] = search
 	}
 
-	query.Count(&total)
-	query.Order("created_at DESC").Limit(pag.PerPage).Offset(pag.Offset).Find(&articles)
+	articles, total, err := h.svc.List(countryID, pag, filters)
+	if err != nil {
+		return utils.InternalError(c)
+	}
 
 	return utils.Paginated(c, "success", articles, pag.BuildMeta(total))
+}
+
+// DashboardCreateData returns metadata needed by the create article form.
+// GET /api/dashboard/articles/create
+func (h *Handler) DashboardCreateData(c *fiber.Ctx) error {
+	countryID, _ := c.Locals("country_id").(database.CountryID)
+
+	data, err := h.svc.GetDashboardCreateData(countryID)
+	if err != nil {
+		return utils.InternalError(c, "فشل تحميل بيانات إنشاء المقالة")
+	}
+
+	return utils.Success(c, "success", data)
+}
+
+// DashboardEditData returns the article with auxiliary lists for the edit form.
+// GET /api/dashboard/articles/:id/edit
+func (h *Handler) DashboardEditData(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return utils.BadRequest(c, "معرف غير صحيح")
+	}
+
+	countryID, _ := c.Locals("country_id").(database.CountryID)
+
+	data, err := h.svc.GetDashboardEditData(countryID, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c, "فشل تحميل بيانات المقالة")
+	}
+
+	return utils.Success(c, "success", data)
 }
 
 // DashboardCreate creates a new article
@@ -218,7 +226,6 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 
 	user := middleware.GetUser(c)
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
 	article := models.Article{
 		Title:   utils.SanitizeInput(req.Title),
@@ -241,16 +248,15 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 	if req.Keywords != "" {
 		article.Keywords = &req.Keywords
 	}
+
+	var authorID *uint
 	if user != nil {
-		article.AuthorID = &user.ID
+		authorID = &user.ID
+		article.AuthorID = authorID
 	}
 
-	if err := db.Create(&article).Error; err != nil {
+	if err := h.svc.CreateArticle(countryID, &article, authorID); err != nil {
 		return utils.InternalError(c, "فشل إنشاء المقالة")
-	}
-
-	if user != nil {
-		services.LogActivity("أنشأ مقالة: "+article.Title, "Article", article.ID, user.ID)
 	}
 
 	return utils.Created(c, "تم إنشاء المقالة بنجاح", article)
@@ -265,25 +271,60 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var article models.Article
-	if err := db.First(&article, id).Error; err != nil {
-		return utils.NotFound(c)
+	type UpdateRequest struct {
+		Title           string `json:"title"`
+		Content         string `json:"content"`
+		GradeLevel      string `json:"grade_level"`
+		SubjectID       *uint  `json:"subject_id"`
+		SemesterID      *uint  `json:"semester_id"`
+		MetaDescription string `json:"meta_description"`
+		Keywords        string `json:"keywords"`
+		Status          *int8  `json:"status"`
 	}
-
-	var updates map[string]interface{}
-	if err := c.BodyParser(&updates); err != nil {
+	var req UpdateRequest
+	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
 
-	if err := db.Model(&article).Updates(updates).Error; err != nil {
-		return utils.InternalError(c, "فشل تحديث المقالة")
+	updates := map[string]interface{}{}
+	if req.Title != "" {
+		updates["title"] = utils.SanitizeInput(req.Title)
+	}
+	if req.Content != "" {
+		updates["content"] = req.Content
+	}
+	if req.GradeLevel != "" {
+		updates["grade_level"] = req.GradeLevel
+	}
+	if req.SubjectID != nil {
+		updates["subject_id"] = req.SubjectID
+	}
+	if req.SemesterID != nil {
+		updates["semester_id"] = req.SemesterID
+	}
+	if req.MetaDescription != "" {
+		updates["meta_description"] = req.MetaDescription
+	}
+	if req.Keywords != "" {
+		updates["keywords"] = req.Keywords
+	}
+	if req.Status != nil {
+		updates["status"] = *req.Status
 	}
 
 	user := middleware.GetUser(c)
+	var authorID *uint
 	if user != nil {
-		services.LogActivity("حدّث مقالة: "+article.Title, "Article", article.ID, user.ID)
+		authorID = &user.ID
+	}
+
+	article, err := h.svc.UpdateArticle(countryID, id, updates, authorID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c, "فشل تحديث المقالة")
 	}
 
 	return utils.Success(c, "تم تحديث المقالة بنجاح", article)
@@ -298,20 +339,17 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
-
-	var article models.Article
-	if err := db.First(&article, id).Error; err != nil {
-		return utils.NotFound(c)
-	}
-
-	if err := db.Delete(&article).Error; err != nil {
-		return utils.InternalError(c, "فشل حذف المقالة")
-	}
-
 	user := middleware.GetUser(c)
+	var authorID *uint
 	if user != nil {
-		services.LogActivity("حذف مقالة: "+article.Title, "Article", article.ID, user.ID)
+		authorID = &user.ID
+	}
+
+	if err := h.svc.DeleteArticle(countryID, id, authorID); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c, "فشل حذف المقالة")
 	}
 
 	return utils.Success(c, "تم حذف المقالة بنجاح", nil)
@@ -336,14 +374,15 @@ func (h *Handler) setArticleStatus(c *fiber.Ctx, status int8, message string) er
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var article models.Article
-	if err := db.First(&article, id).Error; err != nil {
-		return utils.NotFound(c)
+	article, err := h.svc.SetArticleStatus(countryID, id, status)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c)
 	}
 
-	db.Model(&article).Update("status", status)
 	return utils.Success(c, message, article)
 }
 
@@ -351,16 +390,11 @@ func (h *Handler) setArticleStatus(c *fiber.Ctx, status int8, message string) er
 // GET /api/dashboard/articles/stats
 func (h *Handler) DashboardStats(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var total, published, draft int64
-	db.Model(&models.Article{}).Count(&total)
-	db.Model(&models.Article{}).Where("status = ?", 1).Count(&published)
-	db.Model(&models.Article{}).Where("status = ?", 0).Count(&draft)
+	stats, err := h.svc.GetDashboardStats(countryID)
+	if err != nil {
+		return utils.InternalError(c)
+	}
 
-	return utils.Success(c, "success", fiber.Map{
-		"total":     total,
-		"published": published,
-		"draft":     draft,
-	})
+	return utils.Success(c, "success", stats)
 }

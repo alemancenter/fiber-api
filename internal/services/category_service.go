@@ -1,0 +1,159 @@
+package services
+
+import (
+	"context"
+	"time"
+
+	"github.com/alemancenter/fiber-api/internal/database"
+	"github.com/alemancenter/fiber-api/internal/models"
+	"github.com/alemancenter/fiber-api/internal/repositories"
+	"github.com/alemancenter/fiber-api/internal/utils"
+)
+
+const categoriesCacheTTL = 15 * time.Minute
+
+type CategoryService interface {
+	GetActiveCategories(countryID database.CountryID) ([]models.Category, error)
+	GetByID(countryID database.CountryID, id uint64) (*models.Category, error)
+	ListDashboard(countryID database.CountryID, limit, offset int) ([]models.Category, int64, error)
+	Create(countryID database.CountryID, req *CreateCategoryRequest) (*models.Category, error)
+	Update(countryID database.CountryID, id uint64, req *UpdateCategoryRequest) (*models.Category, error)
+	Delete(countryID database.CountryID, id uint64) error
+	BulkDelete(countryID database.CountryID, ids []uint) error
+	UpdateStatus(countryID database.CountryID, ids []uint, isActive bool) error
+}
+
+type CreateCategoryRequest struct {
+	Name string `json:"name" validate:"required,min=2,max=255"`
+	Slug string `json:"slug"`
+}
+
+type UpdateCategoryRequest struct {
+	Name     string `json:"name"`
+	Slug     string `json:"slug"`
+	IsActive *bool  `json:"is_active"`
+	ParentID *uint  `json:"parent_id"`
+	Icon     string `json:"icon"`
+	Image    string `json:"image"`
+	Depth    *int   `json:"depth"`
+}
+
+type categoryService struct {
+	repo repositories.CategoryRepository
+}
+
+func NewCategoryService(repo repositories.CategoryRepository) CategoryService {
+	return &categoryService{repo: repo}
+}
+
+func categoriesKey(countryID database.CountryID) string {
+	return database.Redis().CountryKey(database.CountryCode(countryID), "categories")
+}
+
+func (s *categoryService) invalidateCache(countryID database.CountryID) {
+	InvalidateCache(categoriesKey(countryID))
+}
+
+func (s *categoryService) GetActiveCategories(countryID database.CountryID) ([]models.Category, error) {
+	cats, err := GetOrSet[[]models.Category](context.Background(), categoriesKey(countryID), categoriesCacheTTL, func() ([]models.Category, error) {
+		return s.repo.FindAllActive(countryID)
+	})
+	return cats, err
+}
+
+func (s *categoryService) GetByID(countryID database.CountryID, id uint64) (*models.Category, error) {
+	return s.repo.FindByID(countryID, id)
+}
+
+func (s *categoryService) ListDashboard(countryID database.CountryID, limit, offset int) ([]models.Category, int64, error) {
+	return s.repo.ListPaginated(countryID, limit, offset)
+}
+
+func (s *categoryService) Create(countryID database.CountryID, req *CreateCategoryRequest) (*models.Category, error) {
+	slug := req.Slug
+	if slug == "" {
+		slug = utils.GenerateSlug(req.Name)
+	}
+
+	category := &models.Category{
+		Name:     req.Name,
+		Slug:     slug,
+		IsActive: true,
+	}
+
+	if err := s.repo.Create(countryID, category); err != nil {
+		return nil, err
+	}
+
+	s.invalidateCache(countryID)
+	return category, nil
+}
+
+func (s *categoryService) Update(countryID database.CountryID, id uint64, req *UpdateCategoryRequest) (*models.Category, error) {
+	category, err := s.repo.FindByID(countryID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	updates := map[string]interface{}{}
+	if req.Name != "" {
+		updates["name"] = req.Name
+	}
+	if req.Slug != "" {
+		updates["slug"] = req.Slug
+	}
+	if req.IsActive != nil {
+		updates["is_active"] = *req.IsActive
+	}
+	if req.ParentID != nil {
+		updates["parent_id"] = *req.ParentID
+	}
+	if req.Icon != "" {
+		updates["icon"] = req.Icon
+	}
+	if req.Image != "" {
+		updates["image"] = req.Image
+	}
+	if req.Depth != nil {
+		updates["depth"] = *req.Depth
+	}
+
+	if len(updates) > 0 {
+		if err := s.repo.Update(countryID, category, updates); err != nil {
+			return nil, err
+		}
+		s.invalidateCache(countryID)
+	}
+
+	return category, nil
+}
+
+func (s *categoryService) Delete(countryID database.CountryID, id uint64) error {
+	if err := s.repo.Delete(countryID, id); err != nil {
+		return err
+	}
+	s.invalidateCache(countryID)
+	return nil
+}
+
+func (s *categoryService) BulkDelete(countryID database.CountryID, ids []uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	if err := s.repo.BulkDelete(countryID, ids); err != nil {
+		return err
+	}
+	s.invalidateCache(countryID)
+	return nil
+}
+
+func (s *categoryService) UpdateStatus(countryID database.CountryID, ids []uint, isActive bool) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	if err := s.repo.UpdateStatus(countryID, ids, isActive); err != nil {
+		return err
+	}
+	s.invalidateCache(countryID)
+	return nil
+}

@@ -1,7 +1,9 @@
 package services
 
 import (
+	"crypto/rand"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/alemancenter/fiber-api/internal/config"
@@ -17,9 +19,9 @@ type JWTClaims struct {
 
 // JWTService handles token generation and validation
 type JWTService struct {
-	secret        []byte
-	expireHours   int
-	refreshHours  int
+	secret       []byte
+	expireHours  int
+	refreshHours int
 }
 
 // NewJWTService creates a new JWTService
@@ -85,4 +87,13 @@ func (s *JWTService) ValidateToken(tokenStr string) (*JWTClaims, error) {
 	}
 
 	return claims, nil
+}
+
+// GenerateRandomString creates a cryptographically secure random string
+func (s *JWTService) GenerateRandomString(n int) string {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", b)
 }

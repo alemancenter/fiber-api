@@ -4,24 +4,29 @@ import (
 	"context"
 	"time"
 
-	"github.com/alemancenter/fiber-api/internal/database"
+	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
 
 // Handler contains Redis management route handlers
-type Handler struct{}
+type Handler struct {
+	svc services.RedisService
+}
 
 // New creates a new Redis Handler
-func New() *Handler { return &Handler{} }
+func New(svc services.RedisService) *Handler {
+	return &Handler{
+		svc: svc,
+	}
+}
 
 // ListKeys lists Redis keys matching a pattern
 // GET /api/dashboard/redis/keys
 func (h *Handler) ListKeys(c *fiber.Ctx) error {
 	pattern := c.Query("pattern", "*")
-	rdb := database.Redis()
 
-	keys, err := rdb.ListKeys(context.Background(), pattern)
+	keys, err := h.svc.ListKeys(context.Background(), pattern)
 	if err != nil {
 		return utils.InternalError(c, "فشل الحصول على مفاتيح Redis")
 	}
@@ -50,13 +55,12 @@ func (h *Handler) SetKey(c *fiber.Ctx) error {
 		return utils.ValidationError(c, errs)
 	}
 
-	rdb := database.Redis()
 	ttl := time.Duration(req.TTL) * time.Second
 	if req.TTL == 0 {
 		ttl = 0 // No expiry
 	}
 
-	if err := rdb.Default().Set(context.Background(), req.Key, req.Value, ttl).Err(); err != nil {
+	if err := h.svc.SetKey(context.Background(), req.Key, req.Value, ttl); err != nil {
 		return utils.InternalError(c, "فشل تعيين المفتاح")
 	}
 
@@ -67,9 +71,8 @@ func (h *Handler) SetKey(c *fiber.Ctx) error {
 // DELETE /api/dashboard/redis/:key
 func (h *Handler) DeleteKey(c *fiber.Ctx) error {
 	key := c.Params("key")
-	rdb := database.Redis()
 
-	if err := rdb.Default().Del(context.Background(), key).Err(); err != nil {
+	if err := h.svc.DeleteKey(context.Background(), key); err != nil {
 		return utils.InternalError(c, "فشل حذف المفتاح")
 	}
 
@@ -79,20 +82,16 @@ func (h *Handler) DeleteKey(c *fiber.Ctx) error {
 // CleanExpired removes expired keys
 // DELETE /api/dashboard/redis/expired/clean
 func (h *Handler) CleanExpired(c *fiber.Ctx) error {
-	// Redis automatically removes expired keys; this is a manual scan for near-expired ones
+	if err := h.svc.CleanExpired(context.Background()); err != nil {
+		return utils.InternalError(c)
+	}
 	return utils.Success(c, "تم تنظيف المفاتيح المنتهية", nil)
 }
 
 // TestConnection tests the Redis connection
 // GET /api/dashboard/redis/test
 func (h *Handler) TestConnection(c *fiber.Ctx) error {
-	health := database.Redis().HealthCheck()
-	allOk := true
-	for _, ok := range health {
-		if !ok {
-			allOk = false
-		}
-	}
+	health, allOk := h.svc.TestConnection()
 
 	if !allOk {
 		return utils.InternalError(c, "فشل الاتصال بـ Redis")
@@ -104,7 +103,7 @@ func (h *Handler) TestConnection(c *fiber.Ctx) error {
 // GetInfo returns Redis server information
 // GET /api/dashboard/redis/info
 func (h *Handler) GetInfo(c *fiber.Ctx) error {
-	info, err := database.Redis().GetInfo(context.Background())
+	info, err := h.svc.GetInfo(context.Background())
 	if err != nil {
 		return utils.InternalError(c, "فشل الحصول على معلومات Redis")
 	}

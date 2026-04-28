@@ -7,6 +7,7 @@ import (
 	"github.com/alemancenter/fiber-api/internal/handlers/calendar"
 	"github.com/alemancenter/fiber-api/internal/handlers/categories"
 	"github.com/alemancenter/fiber-api/internal/handlers/comments"
+	"github.com/alemancenter/fiber-api/internal/handlers/dashboard"
 	"github.com/alemancenter/fiber-api/internal/handlers/files"
 	"github.com/alemancenter/fiber-api/internal/handlers/grades"
 	"github.com/alemancenter/fiber-api/internal/handlers/health"
@@ -17,8 +18,11 @@ import (
 	"github.com/alemancenter/fiber-api/internal/handlers/roles"
 	"github.com/alemancenter/fiber-api/internal/handlers/security"
 	"github.com/alemancenter/fiber-api/internal/handlers/settings"
+	"github.com/alemancenter/fiber-api/internal/handlers/sitemap"
 	"github.com/alemancenter/fiber-api/internal/handlers/users"
 	"github.com/alemancenter/fiber-api/internal/middleware"
+	"github.com/alemancenter/fiber-api/internal/repositories"
+	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/gofiber/fiber/v2"
 	fiberCompress "github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/etag"
@@ -26,24 +30,83 @@ import (
 
 // Setup registers all API routes on the given Fiber app
 func Setup(app *fiber.App) {
+	// Initialize Dependencies
+	fileRepo := repositories.NewFileRepository()
+	fileSvc := services.NewFileService(fileRepo)
+	articleRepo := repositories.NewArticleRepository()
+	articleSvc := services.NewArticleService(articleRepo, fileSvc)
+
+	userRepo := repositories.NewUserRepository()
+	jwtSvc := services.NewJWTService()
+	mailSvc := services.NewMailService()
+	authSvc := services.NewAuthService(userRepo, jwtSvc, mailSvc)
+	userSvc := services.NewUserService(userRepo)
+
+	categoryRepo := repositories.NewCategoryRepository()
+	categorySvc := services.NewCategoryService(categoryRepo)
+
+	commentRepo := repositories.NewCommentRepository()
+	commentSvc := services.NewCommentService(commentRepo)
+	postRepo := repositories.NewPostRepository()
+	postSvc := services.NewPostService(postRepo)
+
+	gradeRepo := repositories.NewGradeRepository()
+	gradeSvc := services.NewGradeService(gradeRepo)
+
+	calendarRepo := repositories.NewCalendarRepository()
+	calendarSvc := services.NewCalendarService(calendarRepo)
+
+	dashboardRepo := repositories.NewDashboardRepository()
+	dashboardSvc := services.NewDashboardService(dashboardRepo)
+
+	healthRepo := repositories.NewHealthRepository()
+	healthSvc := services.NewHealthService(healthRepo)
+
+	messageRepo := repositories.NewMessageRepository()
+	messageSvc := services.NewMessageService(messageRepo)
+
+	notificationRepo := repositories.NewNotificationRepository()
+	notificationSvc := services.NewNotificationService(notificationRepo)
+
+	redisRepo := repositories.NewRedisRepository()
+	redisSvc := services.NewRedisService(redisRepo)
+
+	roleRepo := repositories.NewRoleRepository()
+	roleSvc := services.NewRoleService(roleRepo)
+
+	securityRepo := repositories.NewSecurityRepository()
+	securitySvc := services.NewSecurityService(securityRepo)
+
+	settingRepo := repositories.NewSettingRepository()
+	settingSvc := services.NewSettingService(settingRepo)
+
+	sitemapRepo := repositories.NewSitemapRepository()
+	sitemapSvc := services.NewSitemapService(sitemapRepo)
+
+	analyticsRepo := repositories.NewAnalyticsRepository()
+	analyticsSvc := services.NewAnalyticsService(analyticsRepo)
+
 	// Initialize handlers
-	authH         := auth.New()
-	articleH      := articles.New()
-	postH         := posts.New()
-	userH         := users.New()
-	fileH         := files.New()
-	commentH      := comments.New()
-	categoryH     := categories.New()
-	gradeH        := grades.New()
-	calendarH     := calendar.New()
-	notifH        := notifications.New()
-	msgH          := messages.New()
-	secH          := security.New()
-	settingsH     := settings.New()
-	analyticsH    := analytics.New()
-	rolesH        := roles.New()
-	redisH        := redisHandler.New()
-	healthH       := health.New()
+	dashboardHandler := dashboard.New(dashboardSvc)
+	_ = dashboardHandler // avoid unused variable error
+	authH := auth.New(authSvc)
+	articleH := articles.New(articleSvc)
+	postH := posts.New(postSvc)
+	userH := users.New(userSvc)
+	fileH := files.New(fileSvc)
+	commentH := comments.New(commentSvc)
+	categoryH := categories.New(categorySvc)
+	gradeH := grades.New(gradeSvc, fileSvc)
+	calendarH := calendar.New(calendarSvc)
+	notifH := notifications.New(notificationSvc)
+	msgH := messages.New(messageSvc)
+	secH := security.New(securitySvc)
+	settingsH := settings.New(settingSvc)
+	sitemapH := sitemap.New(sitemapSvc)
+	analyticsH := analytics.New(analyticsSvc)
+	rolesH := roles.New(roleSvc)
+	redisH := redisHandler.New(redisSvc)
+	healthH := health.New(healthSvc)
 
 	// Global middleware
 	app.Use(middleware.SecurityHeaders())
@@ -185,13 +248,12 @@ func Setup(app *fiber.App) {
 	)
 
 	// Dashboard home
-	dash.Get("", dashboardHomeHandler(analyticsH))
+	dash.Get("", dashboardHandler.Home)
 	dash.Get("/content-analytics", analyticsH.ContentAnalytics)
 
 	// Activities
-	dash.Get("/activities", activitiesListHandler())
-	dash.Get("/activities/load-more", activitiesLoadMoreHandler())
-	dash.Delete("/activities/clean", activitiesCleanHandler())
+	dash.Get("/activities", dashboardHandler.Activities)
+	dash.Delete("/activities/clean", dashboardHandler.CleanActivities)
 
 	// Visitor Analytics (requires monitoring permission)
 	dashMonitor := dash.Group("", middleware.Can("manage monitoring"))
@@ -203,7 +265,9 @@ func Setup(app *fiber.App) {
 	dashArticles := dash.Group("/articles", middleware.Can("manage articles"))
 	dashArticles.Get("/stats", articleH.DashboardStats)
 	dashArticles.Get("", articleH.DashboardList)
+	dashArticles.Get("/create", articleH.DashboardCreateData)
 	dashArticles.Post("", articleH.DashboardCreate)
+	dashArticles.Get("/:id/edit", articleH.DashboardEditData)
 	dashArticles.Get("/:id", articleH.Show)
 	dashArticles.Put("/:id", articleH.DashboardUpdate)
 	dashArticles.Delete("/:id", articleH.DashboardDelete)
@@ -266,6 +330,12 @@ func Setup(app *fiber.App) {
 	dashSettings.Post("/settings/smtp/test", settingsH.TestSMTP)
 	dashSettings.Post("/settings/smtp/send-test", settingsH.SendTestEmail)
 	dashSettings.Post("/settings/robots", settingsH.UpdateRobots)
+
+	// Sitemap
+	dashSitemap := dash.Group("", middleware.Can("manage sitemap"))
+	dashSitemap.Get("/sitemap/status", sitemapH.Status)
+	dashSitemap.Post("/sitemap/generate", sitemapH.GenerateAll)
+	dashSitemap.Delete("/sitemap/delete/:type/:database", sitemapH.Delete)
 
 	// Security
 	dashSecurity := dash.Group("/security")
@@ -422,30 +492,6 @@ func aiGenerateHandler() fiber.Handler {
 			"success": true,
 			"message": "AI generation endpoint - configure Together AI API key",
 		})
-	}
-}
-
-func dashboardHomeHandler(analyticsH *analytics.Handler) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		return analyticsH.ContentAnalytics(c)
-	}
-}
-
-func activitiesListHandler() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"success": true, "data": []interface{}{}})
-	}
-}
-
-func activitiesLoadMoreHandler() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"success": true, "data": []interface{}{}})
-	}
-}
-
-func activitiesCleanHandler() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"success": true, "message": "تم تنظيف السجلات القديمة"})
 	}
 }
 

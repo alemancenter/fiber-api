@@ -2,8 +2,6 @@ package models
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // Post represents a forum/news post
@@ -24,7 +22,6 @@ type Post struct {
 	AuthorID        *uint          `gorm:"index" json:"author_id,omitempty"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
-	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// Relationships
 	Category    *Category  `gorm:"foreignKey:CategoryID" json:"category,omitempty"`

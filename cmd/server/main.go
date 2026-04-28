@@ -9,6 +9,7 @@ import (
 
 	"github.com/alemancenter/fiber-api/internal/config"
 	"github.com/alemancenter/fiber-api/internal/database"
+	"github.com/alemancenter/fiber-api/internal/middleware"
 	"github.com/alemancenter/fiber-api/internal/routes"
 	"github.com/alemancenter/fiber-api/pkg/logger"
 	"github.com/gofiber/fiber/v2"
@@ -55,23 +56,23 @@ func main() {
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
-		AppName:               cfg.App.Name + " v2.0.0",
-		ServerHeader:          "",               // Don't expose server info
-		StrictRouting:         false,
-		CaseSensitive:         false,
-		Immutable:             false,
-		UnescapePath:          true,
-		BodyLimit:             100 * 1024 * 1024, // 100MB
-		ReadTimeout:           30 * time.Second,
-		WriteTimeout:          30 * time.Second,
-		IdleTimeout:           120 * time.Second,
-		ReadBufferSize:        8192,
-		WriteBufferSize:       8192,
-		CompressedFileSuffix:  ".fiber.gz",
-		ProxyHeader:           "X-Forwarded-For",
+		AppName:                 cfg.App.Name + " v2.0.0",
+		ServerHeader:            "", // Don't expose server info
+		StrictRouting:           false,
+		CaseSensitive:           false,
+		Immutable:               false,
+		UnescapePath:            true,
+		BodyLimit:               100 * 1024 * 1024, // 100MB
+		ReadTimeout:             30 * time.Second,
+		WriteTimeout:            30 * time.Second,
+		IdleTimeout:             120 * time.Second,
+		ReadBufferSize:          8192,
+		WriteBufferSize:         8192,
+		CompressedFileSuffix:    ".fiber.gz",
+		ProxyHeader:             "X-Forwarded-For",
 		EnableTrustedProxyCheck: true,
-		TrustedProxies:        []string{"0.0.0.0/0"},
-		EnableIPValidation:    true,
+		TrustedProxies:          []string{"0.0.0.0/0"},
+		EnableIPValidation:      true,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
 			message := "حدث خطأ داخلي في الخادم"
@@ -111,6 +112,22 @@ func main() {
 			)
 		},
 	}))
+
+	// Method Override (Laravel style _method for PUT/PATCH/DELETE in POST forms)
+	app.Use(middleware.MethodOverride())
+
+	// Serve static storage files (uploads, settings images, etc.)
+	// Next.js rewrites /storage/:path* → backend /storage/:path*
+	storageRoot := cfg.Storage.Path
+	if storageRoot == "" {
+		storageRoot = "./storage"
+	}
+	app.Static("/storage", storageRoot, fiber.Static{
+		Compress:  true,
+		ByteRange: true,
+		Browse:    false,
+		MaxAge:    86400,
+	})
 
 	// Register all routes
 	routes.Setup(app)

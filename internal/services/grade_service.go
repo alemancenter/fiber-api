@@ -1,0 +1,254 @@
+package services
+
+import (
+	"context"
+	"strconv"
+	"time"
+
+	"github.com/alemancenter/fiber-api/internal/database"
+	"github.com/alemancenter/fiber-api/internal/models"
+	"github.com/alemancenter/fiber-api/internal/repositories"
+)
+
+const (
+	classesAndFilterTTL = time.Hour
+)
+
+type GradeService interface {
+	// School Classes
+	ListSchoolClasses(countryID database.CountryID) ([]models.SchoolClass, error)
+	GetSchoolClass(countryID database.CountryID, id uint64) (*models.SchoolClass, error)
+	CreateSchoolClass(countryID database.CountryID, class *models.SchoolClass) error
+	UpdateSchoolClass(countryID database.CountryID, id uint64, updates map[string]interface{}) (*models.SchoolClass, error)
+	DeleteSchoolClass(countryID database.CountryID, id uint64) error
+	ListSchoolClassesDashboard(countryID database.CountryID, limit, offset int) ([]models.SchoolClass, int64, error)
+	InvalidateClassCache(countryID database.CountryID)
+
+	// Subjects
+	ListSubjects(countryID database.CountryID, classID uint64) ([]models.Subject, error)
+	CreateSubject(countryID database.CountryID, subject *models.Subject) error
+	ListSubjectsDashboard(countryID database.CountryID, limit, offset int) ([]models.Subject, int64, error)
+
+	// Semesters
+	ListSemesters(countryID database.CountryID, subjectID uint64) ([]models.Semester, *models.Subject, error)
+	CreateSemester(countryID database.CountryID, semester *models.Semester) error
+	UpdateSemester(countryID database.CountryID, id uint64, updates map[string]interface{}) (*models.Semester, error)
+	DeleteSemester(countryID database.CountryID, id uint64) error
+	ListSemestersDashboard(countryID database.CountryID, limit, offset int) ([]models.Semester, int64, error)
+
+	// Meta / Filter
+	FilterMeta(countryID database.CountryID) ([]models.SchoolClass, error)
+
+	// Grade Articles
+	ListGradeArticles(countryID database.CountryID, subjectID uint64, limit, offset int) ([]models.Article, int64, error)
+}
+
+type gradeService struct {
+	repo repositories.GradeRepository
+}
+
+func NewGradeService(repo repositories.GradeRepository) GradeService {
+	return &gradeService{repo: repo}
+}
+
+// ── Cache Keys ──────────────────────────────────────────────────────────────
+
+func classesKey(country string) string {
+	return database.Redis().CountryKey(country, "school-classes")
+}
+
+func filterKey(country string) string {
+	return database.Redis().CountryKey(country, "filter-meta")
+}
+
+// InvalidateClassCache removes school class and filter caches for a country.
+func (s *gradeService) InvalidateClassCache(countryID database.CountryID) {
+	cc := database.CountryCode(countryID)
+	InvalidateCache(classesKey(cc), filterKey(cc))
+}
+
+// ── School Classes ──────────────────────────────────────────────────────────
+
+func (s *gradeService) ListSchoolClasses(countryID database.CountryID) ([]models.SchoolClass, error) {
+	key := classesKey(database.CountryCode(countryID))
+
+	return GetOrSet[[]models.SchoolClass](context.Background(), key, classesAndFilterTTL, func() ([]models.SchoolClass, error) {
+		return s.repo.ListSchoolClasses(countryID)
+	})
+}
+
+func (s *gradeService) GetSchoolClass(countryID database.CountryID, id uint64) (*models.SchoolClass, error) {
+	return s.repo.FindSchoolClassByID(countryID, id)
+}
+
+func (s *gradeService) CreateSchoolClass(countryID database.CountryID, class *models.SchoolClass) error {
+	if err := s.repo.CreateSchoolClass(countryID, class); err != nil {
+		return err
+	}
+	s.InvalidateClassCache(countryID)
+	return nil
+}
+
+func (s *gradeService) UpdateSchoolClass(countryID database.CountryID, id uint64, updates map[string]interface{}) (*models.SchoolClass, error) {
+	class, err := s.repo.FindSchoolClassByID(countryID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.repo.UpdateSchoolClass(countryID, class, updates); err != nil {
+		return nil, err
+	}
+
+	s.InvalidateClassCache(countryID)
+	return class, nil
+}
+
+func (s *gradeService) DeleteSchoolClass(countryID database.CountryID, id uint64) error {
+	if err := s.repo.DeleteSchoolClass(countryID, id); err != nil {
+		return err
+	}
+	s.InvalidateClassCache(countryID)
+	return nil
+}
+
+func (s *gradeService) ListSchoolClassesDashboard(countryID database.CountryID, limit, offset int) ([]models.SchoolClass, int64, error) {
+	total, err := s.repo.CountSchoolClasses(countryID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	classes, err := s.repo.ListSchoolClassesPaginated(countryID, limit, offset)
+	return classes, total, err
+}
+
+// ── Subjects ────────────────────────────────────────────────────────────────
+
+func (s *gradeService) ListSubjects(countryID database.CountryID, classID uint64) ([]models.Subject, error) {
+	key := database.Redis().CountryKey(database.CountryCode(countryID), "subjects", strconv.FormatUint(classID, 10))
+
+	return GetOrSet[[]models.Subject](context.Background(), key, classesAndFilterTTL, func() ([]models.Subject, error) {
+		return s.repo.ListSubjectsByClassID(countryID, classID)
+	})
+}
+
+func (s *gradeService) CreateSubject(countryID database.CountryID, subject *models.Subject) error {
+	if err := s.repo.CreateSubject(countryID, subject); err != nil {
+		return err
+	}
+
+	// Invalidate subjects cache for this class
+	cc := database.CountryCode(countryID)
+	InvalidateCache(
+		database.Redis().CountryKey(cc, "subjects", strconv.FormatUint(uint64(subject.GradeLevel), 10)),
+		filterKey(cc),
+	)
+	return nil
+}
+
+func (s *gradeService) ListSubjectsDashboard(countryID database.CountryID, limit, offset int) ([]models.Subject, int64, error) {
+	total, err := s.repo.CountSubjects(countryID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	subjects, err := s.repo.ListSubjectsPaginated(countryID, limit, offset)
+	return subjects, total, err
+}
+
+// ── Semesters ───────────────────────────────────────────────────────────────
+
+func (s *gradeService) ListSemesters(countryID database.CountryID, subjectID uint64) ([]models.Semester, *models.Subject, error) {
+	subject, err := s.repo.FindSubjectByID(countryID, subjectID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	key := database.Redis().CountryKey(database.CountryCode(countryID), "semesters", strconv.FormatUint(uint64(subject.GradeLevel), 10))
+	semesters, err := GetOrSet[[]models.Semester](context.Background(), key, classesAndFilterTTL, func() ([]models.Semester, error) {
+		return s.repo.ListSemestersByGradeLevel(countryID, subject.GradeLevel)
+	})
+
+	return semesters, subject, err
+}
+
+func (s *gradeService) CreateSemester(countryID database.CountryID, semester *models.Semester) error {
+	if err := s.repo.CreateSemester(countryID, semester); err != nil {
+		return err
+	}
+
+	InvalidateCache(
+		database.Redis().CountryKey(database.CountryCode(countryID), "semesters", strconv.FormatUint(uint64(semester.GradeLevel), 10)),
+	)
+	return nil
+}
+
+func (s *gradeService) UpdateSemester(countryID database.CountryID, id uint64, updates map[string]interface{}) (*models.Semester, error) {
+	semester, err := s.repo.FindSemesterByID(countryID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.repo.UpdateSemester(countryID, semester, updates); err != nil {
+		return nil, err
+	}
+
+	InvalidateCache(
+		database.Redis().CountryKey(database.CountryCode(countryID), "semesters", strconv.FormatUint(uint64(semester.GradeLevel), 10)),
+	)
+	return semester, nil
+}
+
+func (s *gradeService) DeleteSemester(countryID database.CountryID, id uint64) error {
+	semester, err := s.repo.FindSemesterByID(countryID, id)
+	if err != nil {
+		return err
+	}
+
+	if err := s.repo.DeleteSemester(countryID, id); err != nil {
+		return err
+	}
+
+	InvalidateCache(
+		database.Redis().CountryKey(database.CountryCode(countryID), "semesters", strconv.FormatUint(uint64(semester.GradeLevel), 10)),
+	)
+	return nil
+}
+
+func (s *gradeService) ListSemestersDashboard(countryID database.CountryID, limit, offset int) ([]models.Semester, int64, error) {
+	total, err := s.repo.CountSemesters(countryID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	semesters, err := s.repo.ListSemestersPaginated(countryID, limit, offset)
+	return semesters, total, err
+}
+
+// ── Meta / Filter ───────────────────────────────────────────────────────────
+
+type filterResult struct {
+	Classes []models.SchoolClass `json:"classes"`
+}
+
+func (s *gradeService) FilterMeta(countryID database.CountryID) ([]models.SchoolClass, error) {
+	key := filterKey(database.CountryCode(countryID))
+
+	result, err := GetOrSet[filterResult](context.Background(), key, classesAndFilterTTL, func() (filterResult, error) {
+		classes, err := s.repo.ListSchoolClasses(countryID)
+		return filterResult{Classes: classes}, err
+	})
+
+	return result.Classes, err
+}
+
+// ── Grade Articles ──────────────────────────────────────────────────────────
+
+func (s *gradeService) ListGradeArticles(countryID database.CountryID, subjectID uint64, limit, offset int) ([]models.Article, int64, error) {
+	total, err := s.repo.CountGradeArticles(countryID, subjectID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	articles, err := s.repo.ListGradeArticlesPaginated(countryID, subjectID, limit, offset)
+	return articles, total, err
+}

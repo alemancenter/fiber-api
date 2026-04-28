@@ -5,38 +5,34 @@ import (
 
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
+	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
 
 // Handler contains comments and reactions route handlers
-type Handler struct{}
+type Handler struct {
+	svc services.CommentService
+}
 
 // New creates a new comments Handler
-func New() *Handler { return &Handler{} }
+func New(svc services.CommentService) *Handler {
+	return &Handler{svc: svc}
+}
 
 // List returns comments for a given country database
 // GET /api/comments/:database
 func (h *Handler) List(c *fiber.Ctx) error {
 	dbCode := c.Params("database")
-	db := database.GetManager().GetByCode(dbCode)
 	pag := utils.GetPagination(c)
 
-	var commentList []models.Comment
-	var total int64
+	commentableType := c.Query("type")
+	commentableID := c.Query("id")
 
-	query := db.Model(&models.Comment{}).Preload("User").
-		Where("`database` = ?", dbCode)
-
-	if commentableType := c.Query("type"); commentableType != "" {
-		query = query.Where("commentable_type = ?", commentableType)
+	commentList, total, err := h.svc.List(dbCode, commentableType, commentableID, pag.PerPage, pag.Offset)
+	if err != nil {
+		return utils.InternalError(c)
 	}
-	if commentableID := c.Query("id"); commentableID != "" {
-		query = query.Where("commentable_id = ?", commentableID)
-	}
-
-	query.Count(&total)
-	query.Order("created_at DESC").Limit(pag.PerPage).Offset(pag.Offset).Find(&commentList)
 
 	return utils.Paginated(c, "success", commentList, pag.BuildMeta(total))
 }
@@ -44,12 +40,7 @@ func (h *Handler) List(c *fiber.Ctx) error {
 // CreateReaction creates an emoji reaction on a comment
 // POST /api/reactions
 func (h *Handler) CreateReaction(c *fiber.Ctx) error {
-	type ReactionRequest struct {
-		CommentID uint   `json:"comment_id" validate:"required"`
-		Emoji     string `json:"emoji" validate:"required,max=20"`
-	}
-
-	var req ReactionRequest
+	var req services.ReactionRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
@@ -64,17 +55,11 @@ func (h *Handler) CreateReaction(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	// Upsert reaction
-	reaction := models.Reaction{
-		CommentID: req.CommentID,
-		UserID:    user.ID,
-		Emoji:     req.Emoji,
+	reaction, err := h.svc.CreateReaction(countryID, user.ID, &req)
+	if err != nil {
+		return utils.InternalError(c, "فشل إضافة التفاعل")
 	}
-	db.Where(models.Reaction{CommentID: req.CommentID, UserID: user.ID}).
-		Assign(reaction).
-		FirstOrCreate(&reaction)
 
 	return utils.Created(c, "تم إضافة التفاعل بنجاح", reaction)
 }
@@ -93,8 +78,10 @@ func (h *Handler) DeleteReaction(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
-	db.Where("comment_id = ? AND user_id = ?", commentID, user.ID).Delete(&models.Reaction{})
+
+	if err := h.svc.DeleteReaction(countryID, commentID, user.ID); err != nil {
+		return utils.InternalError(c, "فشل حذف التفاعل")
+	}
 
 	return utils.Success(c, "تم حذف التفاعل بنجاح", nil)
 }
@@ -108,10 +95,11 @@ func (h *Handler) GetReactions(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var reactions []models.Reaction
-	db.Preload("User").Where("comment_id = ?", commentID).Find(&reactions)
+	reactions, err := h.svc.GetReactions(countryID, commentID)
+	if err != nil {
+		return utils.InternalError(c)
+	}
 
 	return utils.Success(c, "success", reactions)
 }
@@ -126,15 +114,8 @@ func (h *Handler) DashboardList(c *fiber.Ctx) error {
 // POST /api/dashboard/comments/:database
 func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 	dbCode := c.Params("database")
-	db := database.GetManager().GetByCode(dbCode)
 
-	type CreateRequest struct {
-		Body            string `json:"body" validate:"required,min=1"`
-		CommentableID   uint   `json:"commentable_id" validate:"required"`
-		CommentableType string `json:"commentable_type" validate:"required"`
-	}
-
-	var req CreateRequest
+	var req services.CreateCommentRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
@@ -148,15 +129,8 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 		return utils.Unauthorized(c)
 	}
 
-	comment := models.Comment{
-		Body:            utils.SanitizeInput(req.Body),
-		UserID:          user.ID,
-		CommentableID:   req.CommentableID,
-		CommentableType: req.CommentableType,
-		Database:        dbCode,
-	}
-
-	if err := db.Create(&comment).Error; err != nil {
+	comment, err := h.svc.Create(dbCode, user.ID, &req)
+	if err != nil {
 		return utils.InternalError(c, "فشل إنشاء التعليق")
 	}
 
@@ -172,8 +146,9 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "معرف غير صحيح")
 	}
 
-	db := database.GetManager().GetByCode(dbCode)
-	db.Delete(&models.Comment{}, id)
+	if err := h.svc.Delete(dbCode, id); err != nil {
+		return utils.InternalError(c, "فشل حذف التعليق")
+	}
 
 	return utils.Success(c, "تم حذف التعليق بنجاح", nil)
 }

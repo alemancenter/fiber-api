@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	"github.com/alemancenter/fiber-api/internal/database"
-	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -12,10 +11,14 @@ import (
 )
 
 // Handler contains file management route handlers
-type Handler struct{}
+type Handler struct {
+	svc *services.FileService
+}
 
 // New creates a new files Handler
-func New() *Handler { return &Handler{} }
+func New(svc *services.FileService) *Handler {
+	return &Handler{svc: svc}
+}
 
 // Info returns file metadata
 // GET /api/files/:id/info
@@ -26,11 +29,13 @@ func (h *Handler) Info(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var file models.File
-	if err := db.First(&file, id).Error; err != nil {
-		return utils.NotFound(c)
+	file, err := h.svc.FindByID(countryID, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c)
 	}
 
 	return utils.Success(c, "success", file)
@@ -45,9 +50,10 @@ func (h *Handler) IncrementView(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
-	db.Model(&models.File{}).Where("id = ?", id).
-		UpdateColumn("view_count", gorm.Expr("view_count + 1"))
+
+	if err := h.svc.IncrementViewCount(countryID, id); err != nil {
+		return utils.InternalError(c)
+	}
 
 	return utils.Success(c, "success", nil)
 }
@@ -60,8 +66,7 @@ func (h *Handler) UploadImage(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "الصورة مطلوبة")
 	}
 
-	fileSvc := services.NewFileService()
-	uploaded, err := fileSvc.UploadImage(photo, "images")
+	uploaded, err := h.svc.UploadImage(photo, "images")
 	if err != nil {
 		return utils.BadRequest(c, err.Error())
 	}
@@ -83,8 +88,7 @@ func (h *Handler) UploadDocument(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "الملف مطلوب")
 	}
 
-	fileSvc := services.NewFileService()
-	uploaded, err := fileSvc.UploadDocument(doc, "documents")
+	uploaded, err := h.svc.UploadDocument(doc, "documents")
 	if err != nil {
 		return utils.BadRequest(c, err.Error())
 	}
@@ -102,22 +106,15 @@ func (h *Handler) UploadDocument(c *fiber.Ctx) error {
 // GET /api/dashboard/files
 func (h *Handler) DashboardList(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 	pag := utils.GetPagination(c)
 
-	var fileList []models.File
-	var total int64
+	fileType := c.Query("type")
+	articleID := c.Query("article_id")
 
-	query := db.Model(&models.File{})
-	if fileType := c.Query("type"); fileType != "" {
-		query = query.Where("file_type = ?", fileType)
+	fileList, total, err := h.svc.List(countryID, fileType, articleID, pag.PerPage, pag.Offset)
+	if err != nil {
+		return utils.InternalError(c)
 	}
-	if articleID := c.Query("article_id"); articleID != "" {
-		query = query.Where("article_id = ?", articleID)
-	}
-
-	query.Count(&total)
-	query.Order("created_at DESC").Limit(pag.PerPage).Offset(pag.Offset).Find(&fileList)
 
 	return utils.Paginated(c, "success", fileList, pag.BuildMeta(total))
 }
@@ -136,37 +133,32 @@ func (h *Handler) DashboardUpload(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "الملف مطلوب")
 	}
 
-	fileSvc := services.NewFileService()
 	var uploaded *services.UploadedFile
 
 	// Try as document first, fallback to image
-	uploaded, err = fileSvc.UploadDocument(uploadedFile, "uploads")
+	uploaded, err = h.svc.UploadDocument(uploadedFile, "uploads")
 	if err != nil {
-		uploaded, err = fileSvc.UploadImage(uploadedFile, "uploads")
+		uploaded, err = h.svc.UploadImage(uploadedFile, "uploads")
 		if err != nil {
 			return utils.BadRequest(c, err.Error())
 		}
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	file := models.File{
-		FilePath: uploaded.Path,
-		FileType: uploaded.Ext,
-		FileName: uploaded.Name,
-		FileSize: uploaded.Size,
-		MimeType: uploaded.MimeType,
-	}
-
+	var articleIDPtr *uint
 	if articleID := c.FormValue("article_id"); articleID != "" {
 		if id, err := strconv.ParseUint(articleID, 10, 64); err == nil {
 			uid := uint(id)
-			file.ArticleID = &uid
+			articleIDPtr = &uid
 		}
 	}
 
-	db.Create(&file)
+	file, err := h.svc.CreateRecord(countryID, uploaded, articleIDPtr)
+	if err != nil {
+		return utils.InternalError(c, "فشل حفظ بيانات الملف")
+	}
+
 	return utils.Created(c, "تم رفع الملف بنجاح", file)
 }
 
@@ -179,16 +171,19 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
-
-	var file models.File
-	if err := db.First(&file, id).Error; err != nil {
-		return utils.NotFound(c)
-	}
 
 	var updates map[string]interface{}
-	c.BodyParser(&updates)
-	db.Model(&file).Updates(updates)
+	if err := c.BodyParser(&updates); err != nil {
+		return utils.BadRequest(c, "بيانات غير صحيحة")
+	}
+
+	file, err := h.svc.UpdateRecord(countryID, id, updates)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c, "فشل تحديث الملف")
+	}
 
 	return utils.Success(c, "تم تحديث الملف بنجاح", file)
 }
@@ -202,18 +197,14 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var file models.File
-	if err := db.First(&file, id).Error; err != nil {
-		return utils.NotFound(c)
+	if err := h.svc.DeleteRecord(countryID, id); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c, "فشل حذف الملف")
 	}
 
-	// Delete physical file
-	fileSvc := services.NewFileService()
-	fileSvc.Delete(file.FilePath)
-
-	db.Delete(&file)
 	return utils.Success(c, "تم حذف الملف بنجاح", nil)
 }
 
@@ -226,15 +217,13 @@ func (h *Handler) DashboardDownload(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var file models.File
-	if err := db.First(&file, id).Error; err != nil {
+	file, err := h.svc.FindByID(countryID, id)
+	if err != nil {
 		return utils.NotFound(c)
 	}
 
-	fileSvc := services.NewFileService()
-	absPath := fileSvc.GetAbsPath(file.FilePath)
+	absPath := h.svc.GetAbsPath(file.FilePath)
 
 	c.Set("Content-Disposition", "attachment; filename=\""+file.FileName+"\"")
 	c.Set("Content-Type", file.MimeType)
@@ -261,7 +250,6 @@ func (h *Handler) SecureView(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "مسار الملف مطلوب")
 	}
 
-	fileSvc := services.NewFileService()
-	absPath := fileSvc.GetAbsPath(path)
+	absPath := h.svc.GetAbsPath(path)
 	return c.SendFile(absPath)
 }

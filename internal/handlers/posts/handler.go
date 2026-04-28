@@ -5,6 +5,7 @@ import (
 
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
+	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -12,36 +13,29 @@ import (
 )
 
 // Handler contains posts route handlers
-type Handler struct{}
+type Handler struct {
+	svc services.PostService
+}
 
 // New creates a new posts Handler
-func New() *Handler { return &Handler{} }
+func New(svc services.PostService) *Handler {
+	return &Handler{svc: svc}
+}
 
 // List returns a paginated list of published posts
 // GET /api/posts
 func (h *Handler) List(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 	pag := utils.GetPagination(c)
 
-	var postList []models.Post
-	var total int64
+	catID := c.Query("category_id")
+	search := c.Query("search")
+	featured := c.Query("featured")
 
-	query := db.Model(&models.Post{}).Preload("Category").Preload("Author").
-		Where("is_active = ?", true)
-
-	if catID := c.Query("category_id"); catID != "" {
-		query = query.Where("category_id = ?", catID)
+	postList, total, err := h.svc.List(countryID, catID, search, featured, pag.PerPage, pag.Offset)
+	if err != nil {
+		return utils.InternalError(c)
 	}
-	if search := c.Query("search"); search != "" {
-		query = query.Where("title LIKE ? OR content LIKE ?", "%"+search+"%", "%"+search+"%")
-	}
-	if featured := c.Query("featured"); featured == "1" {
-		query = query.Where("is_featured = ?", true)
-	}
-
-	query.Count(&total)
-	query.Order("created_at DESC").Limit(pag.PerPage).Offset(pag.Offset).Find(&postList)
 
 	return utils.Paginated(c, "success", postList, pag.BuildMeta(total))
 }
@@ -55,20 +49,16 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var post models.Post
-	if err := db.Preload("Category").Preload("Author").Preload("Comments.User").
-		Preload("KeywordsRel").
-		Where("id = ? AND is_active = ?", id, true).
-		First(&post).Error; err != nil {
+	post, err := h.svc.GetByID(countryID, id)
+	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c)
 	}
 
-	go db.Model(&post).UpdateColumn("views", gorm.Expr("views + 1"))
+	go h.svc.IncrementView(countryID, uint64(post.ID))
 
 	return utils.Success(c, "success", post)
 }
@@ -82,9 +72,10 @@ func (h *Handler) IncrementView(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
-	db.Model(&models.Post{}).Where("id = ?", id).
-		UpdateColumn("views", gorm.Expr("views + 1"))
+
+	if err := h.svc.IncrementView(countryID, id); err != nil {
+		return utils.InternalError(c)
+	}
 
 	return utils.Success(c, "success", nil)
 }
@@ -92,17 +83,7 @@ func (h *Handler) IncrementView(c *fiber.Ctx) error {
 // DashboardCreate creates a new post
 // POST /api/dashboard/posts
 func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
-	type CreateRequest struct {
-		CategoryID      uint   `json:"category_id"`
-		Title           string `json:"title" validate:"required,min=3,max=500"`
-		Content         string `json:"content" validate:"required"`
-		IsActive        bool   `json:"is_active"`
-		IsFeatured      bool   `json:"is_featured"`
-		Keywords        string `json:"keywords"`
-		MetaDescription string `json:"meta_description" validate:"omitempty,max=500"`
-	}
-
-	var req CreateRequest
+	var req services.CreatePostRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
@@ -112,42 +93,27 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 	countryCode, _ := c.Locals("country_code").(string)
 	user, _ := c.Locals("user").(*models.User)
 
-	slug := generateSlug(req.Title)
-	post := models.Post{
-		Title:    utils.SanitizeInput(req.Title),
-		Content:  req.Content,
-		Slug:     slug,
-		IsActive: req.IsActive,
-		IsFeatured: req.IsFeatured,
-		Country:  countryCode,
-	}
-	if req.CategoryID > 0 {
-		post.CategoryID = &req.CategoryID
-	}
-	if req.Keywords != "" {
-		post.Keywords = &req.Keywords
-	}
-	if req.MetaDescription != "" {
-		post.MetaDescription = &req.MetaDescription
-	}
+	var userID *uint
 	if user != nil {
-		post.AuthorID = &user.ID
+		userID = &user.ID
 	}
 
 	// Handle image upload
+	var imagePath string
 	if img, err := c.FormFile("image"); err == nil {
-		fileSvc := services.NewFileService()
+		fileRepo := repositories.NewFileRepository()
+		fileSvc := services.NewFileService(fileRepo)
 		uploaded, err := fileSvc.UploadImage(img, "posts")
 		if err == nil {
-			post.Image = &uploaded.Path
+			imagePath = uploaded.Path
 		}
 	}
 
-	if err := db.Create(&post).Error; err != nil {
+	post, err := h.svc.Create(countryID, countryCode, userID, &req, imagePath)
+	if err != nil {
 		return utils.InternalError(c, "فشل إنشاء المنشور")
 	}
 
@@ -163,19 +129,19 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var post models.Post
-	if err := db.First(&post, id).Error; err != nil {
-		return utils.NotFound(c)
-	}
-
-	var updates map[string]interface{}
-	if err := c.BodyParser(&updates); err != nil {
+	var req services.UpdatePostRequest
+	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
 
-	db.Model(&post).Updates(updates)
+	post, err := h.svc.Update(countryID, id, &req)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c, "فشل تحديث المنشور")
+	}
 	return utils.Success(c, "تم تحديث المنشور بنجاح", post)
 }
 
@@ -188,15 +154,21 @@ func (h *Handler) DashboardToggleStatus(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var post models.Post
-	if err := db.First(&post, id).Error; err != nil {
+	post, err := h.svc.GetByID(countryID, id)
+	if err != nil {
 		return utils.NotFound(c)
 	}
 
-	db.Model(&post).Update("is_active", !post.IsActive)
-	return utils.Success(c, "تم تحديث حالة المنشور", post)
+	newStatus := !post.IsActive
+	updatedPost, err := h.svc.Update(countryID, id, &services.UpdatePostRequest{
+		IsActive: &newStatus,
+	})
+	if err != nil {
+		return utils.InternalError(c, "فشل تحديث حالة المنشور")
+	}
+
+	return utils.Success(c, "تم تحديث حالة المنشور", updatedPost)
 }
 
 // DashboardDelete deletes a post
@@ -208,25 +180,10 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
-	db.Delete(&models.Post{}, id)
+
+	if err := h.svc.Delete(countryID, id); err != nil {
+		return utils.InternalError(c, "فشل حذف المنشور")
+	}
 
 	return utils.Success(c, "تم حذف المنشور بنجاح", nil)
-}
-
-func generateSlug(title string) string {
-	slug := ""
-	for _, r := range title {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			slug += string(r)
-		} else if r >= 'A' && r <= 'Z' {
-			slug += string(r + 32)
-		} else if r == ' ' || r == '-' {
-			slug += "-"
-		}
-	}
-	if slug == "" {
-		slug = strconv.FormatInt(int64(len(title)), 36)
-	}
-	return slug
 }

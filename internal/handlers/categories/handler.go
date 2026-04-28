@@ -4,28 +4,32 @@ import (
 	"strconv"
 
 	"github.com/alemancenter/fiber-api/internal/database"
-	"github.com/alemancenter/fiber-api/internal/models"
+	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
 
 // Handler contains categories route handlers
-type Handler struct{}
+type Handler struct {
+	svc services.CategoryService
+}
 
 // New creates a new categories Handler
-func New() *Handler { return &Handler{} }
+func New(svc services.CategoryService) *Handler {
+	return &Handler{svc: svc}
+}
 
-// List returns all active categories
+// List returns all active categories (cached per country).
 // GET /api/categories
 func (h *Handler) List(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var categoryList []models.Category
-	db.Where("is_active = ?", true).Order("`order` ASC, name ASC").Find(&categoryList)
-
-	return utils.Success(c, "success", categoryList)
+	cats, err := h.svc.GetActiveCategories(countryID)
+	if err != nil {
+		return utils.InternalError(c)
+	}
+	return utils.Success(c, "success", cats)
 }
 
 // Show returns a single category
@@ -37,10 +41,9 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var category models.Category
-	if err := db.First(&category, id).Error; err != nil {
+	category, err := h.svc.GetByID(countryID, id)
+	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return utils.NotFound(c)
 		}
@@ -54,14 +57,12 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 // GET /api/dashboard/categories
 func (h *Handler) DashboardList(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 	pag := utils.GetPagination(c)
 
-	var categoryList []models.Category
-	var total int64
-
-	db.Model(&models.Category{}).Count(&total)
-	db.Order("`order` ASC, name ASC").Limit(pag.PerPage).Offset(pag.Offset).Find(&categoryList)
+	categoryList, total, err := h.svc.ListDashboard(countryID, pag.PerPage, pag.Offset)
+	if err != nil {
+		return utils.InternalError(c)
+	}
 
 	return utils.Paginated(c, "success", categoryList, pag.BuildMeta(total))
 }
@@ -75,41 +76,18 @@ func (h *Handler) DashboardShow(c *fiber.Ctx) error {
 // DashboardCreate creates a new category
 // POST /api/dashboard/categories
 func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
-	type CreateRequest struct {
-		Name        string `json:"name" validate:"required,min=2,max=255"`
-		Slug        string `json:"slug"`
-		Description string `json:"description"`
-		Order       int    `json:"order"`
-	}
-
-	var req CreateRequest
+	var req services.CreateCategoryRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
-
 	if errs := utils.Validate(req); errs != nil {
 		return utils.ValidationError(c, errs)
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	slug := req.Slug
-	if slug == "" {
-		slug = generateCategorySlug(req.Name)
-	}
-
-	category := models.Category{
-		Name:     req.Name,
-		Slug:     slug,
-		IsActive: true,
-		Order:    req.Order,
-	}
-	if req.Description != "" {
-		category.Description = &req.Description
-	}
-
-	if err := db.Create(&category).Error; err != nil {
+	category, err := h.svc.Create(countryID, &req)
+	if err != nil {
 		return utils.InternalError(c, "فشل إنشاء التصنيف")
 	}
 
@@ -125,16 +103,17 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var category models.Category
-	if err := db.First(&category, id).Error; err != nil {
-		return utils.NotFound(c)
+	var req services.UpdateCategoryRequest
+	c.BodyParser(&req)
+
+	category, err := h.svc.Update(countryID, id, &req)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c, "فشل تحديث التصنيف")
 	}
-
-	var updates map[string]interface{}
-	c.BodyParser(&updates)
-	db.Model(&category).Updates(updates)
 
 	return utils.Success(c, "تم تحديث التصنيف بنجاح", category)
 }
@@ -148,8 +127,10 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
-	db.Delete(&models.Category{}, id)
+
+	if err := h.svc.Delete(countryID, id); err != nil {
+		return utils.InternalError(c, "فشل حذف التصنيف")
+	}
 
 	return utils.Success(c, "تم حذف التصنيف بنجاح", nil)
 }
@@ -163,27 +144,19 @@ func (h *Handler) DashboardToggleStatus(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var category models.Category
-	if err := db.First(&category, id).Error; err != nil {
+	category, err := h.svc.GetByID(countryID, id)
+	if err != nil {
 		return utils.NotFound(c)
 	}
 
-	db.Model(&category).Update("is_active", !category.IsActive)
-	return utils.Success(c, "تم تحديث حالة التصنيف", category)
-}
-
-func generateCategorySlug(name string) string {
-	slug := ""
-	for _, r := range name {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			slug += string(r)
-		} else if r >= 'A' && r <= 'Z' {
-			slug += string(r + 32)
-		} else if r == ' ' || r == '-' {
-			slug += "-"
-		}
+	newStatus := !category.IsActive
+	updatedCategory, err := h.svc.Update(countryID, id, &services.UpdateCategoryRequest{
+		IsActive: &newStatus,
+	})
+	if err != nil {
+		return utils.InternalError(c, "فشل تحديث حالة التصنيف")
 	}
-	return slug
+
+	return utils.Success(c, "تم تحديث حالة التصنيف", updatedCategory)
 }

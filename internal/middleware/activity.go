@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"sync"
 	"time"
 
 	"github.com/alemancenter/fiber-api/internal/database"
@@ -9,7 +10,16 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// UpdateLastActivity updates the authenticated user's last activity timestamp
+// activityCache is an in-process write-dedup map: userID → last DB write time.
+// Stored BEFORE the goroutine fires so concurrent requests on the same user see
+// the updated timestamp immediately and skip the redundant UPDATE.
+var activityCache sync.Map
+
+const activityDebounce = time.Minute
+
+// UpdateLastActivity updates the authenticated user's last activity timestamp.
+// At most one DB write per user per activityDebounce window, regardless of
+// how many concurrent requests arrive.
 func UpdateLastActivity() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if err := c.Next(); err != nil {
@@ -22,15 +32,30 @@ func UpdateLastActivity() fiber.Handler {
 		}
 
 		now := time.Now()
-		// Only update if last activity was more than 1 minute ago (reduces DB writes)
-		if user.LastActivity != nil && time.Since(*user.LastActivity) < time.Minute {
+
+		// LoadOrStore with a *sync.Mutex per user to make the check-and-set atomic
+		type entry struct {
+			mu   sync.Mutex
+			last time.Time
+		}
+		v, _ := activityCache.LoadOrStore(user.ID, &entry{})
+		e := v.(*entry)
+
+		e.mu.Lock()
+		skip := now.Sub(e.last) < activityDebounce
+		if !skip {
+			e.last = now // mark before unlock so other goroutines see it
+		}
+		e.mu.Unlock()
+
+		if skip {
 			return nil
 		}
 
-		go func() {
-			db := database.DB()
-			db.Model(user).Update("last_activity", now)
-		}()
+		go database.DB().Exec(
+			"UPDATE users SET last_activity = ?, updated_at = ? WHERE id = ?",
+			now, now, user.ID,
+		)
 
 		return nil
 	}
@@ -67,15 +92,15 @@ func TrackVisitor() fiber.Handler {
 
 		go func() {
 			db := database.GetManager().GetByCode(countryCode)
+			path := c.Path()
+			now := time.Now()
 			tracking := models.VisitorTracking{
-				IPAddress: clientIP,
-				Page:      c.Path(),
-				Database:  countryCode,
-				UserID:    userID,
-				CreatedAt: time.Now(),
-			}
-			if ua := c.Get("User-Agent"); ua != "" {
-				tracking.UserAgent = &ua
+				IPAddress:    clientIP,
+				UserAgent:    c.Get("User-Agent"),
+				URL:          &path,
+				UserID:       userID,
+				LastActivity: now,
+				CreatedAt:    now,
 			}
 			if ref := c.Get("Referer"); ref != "" {
 				tracking.Referer = &ref

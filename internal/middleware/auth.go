@@ -1,7 +1,12 @@
 package middleware
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
@@ -10,7 +15,40 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// Auth validates JWT bearer token and loads the current user
+const userCacheTTL = 5 * time.Minute
+
+// loadUserCached returns the user from Redis cache or falls back to DB.
+// On a cache miss it loads with Preload("Roles.Permissions","Permissions") and writes the result to cache.
+func loadUserCached(userID uint) (*models.User, error) {
+	ctx := context.Background()
+	rdb := database.Redis()
+	key := rdb.Key("user", fmt.Sprintf("%d", userID))
+
+	if cached, err := rdb.Get(ctx, key); err == nil {
+		var user models.User
+		if json.Unmarshal([]byte(cached), &user) == nil {
+			return &user, nil
+		}
+	}
+
+	db := database.DB()
+	var user models.User
+	if err := db.Preload("Roles.Permissions").Preload("Permissions").
+		First(&user, userID).Error; err != nil {
+		return nil, err
+	}
+
+	if data, err := json.Marshal(user); err == nil {
+		_ = rdb.Set(ctx, key, data, userCacheTTL)
+	}
+	return &user, nil
+}
+
+// InvalidateUserCache delegates to services.InvalidateUserCache.
+// Kept as a shim so existing callers in this package don't need to import services.
+func InvalidateUserCache(userID uint) { services.InvalidateUserCache(userID) }
+
+// Auth validates JWT bearer token and loads the current user (with Redis caching).
 func Auth() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
@@ -26,13 +64,18 @@ func Auth() fiber.Handler {
 			return utils.Unauthorized(c, "رمز المصادقة غير صالح أو منتهي الصلاحية")
 		}
 
-		// Load user from Jordan (main) database
-		db := database.DB()
-		var user models.User
-		if err := db.
-			Preload("Roles.Permissions").
-			Preload("Permissions").
-			First(&user, claims.UserID).Error; err != nil {
+		// Check token blacklist (tokens invalidated by logout)
+		ctx := context.Background()
+		rdb := database.Redis()
+		hash := sha256.Sum256([]byte(tokenStr))
+		blacklistKey := rdb.Key("blacklist", fmt.Sprintf("%x", hash))
+		if exists, _ := rdb.Exists(ctx, blacklistKey); exists {
+			return utils.Unauthorized(c, "رمز المصادقة غير صالح أو منتهي الصلاحية")
+		}
+
+		// Load user from Redis cache (falls back to DB on miss)
+		user, err := loadUserCached(claims.UserID)
+		if err != nil {
 			return utils.Unauthorized(c, "المستخدم غير موجود")
 		}
 
@@ -40,15 +83,13 @@ func Auth() fiber.Handler {
 			return utils.Unauthorized(c, "الحساب غير نشط أو محظور")
 		}
 
-		// Store user in context
-		c.Locals("user", &user)
+		c.Locals("user", user)
 		c.Locals("user_id", user.ID)
-
 		return c.Next()
 	}
 }
 
-// OptionalAuth loads user if token present, but doesn't require it
+// OptionalAuth loads user if token present, but doesn't require it (with Redis caching).
 func OptionalAuth() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
@@ -63,13 +104,10 @@ func OptionalAuth() fiber.Handler {
 			return c.Next()
 		}
 
-		db := database.DB()
-		var user models.User
-		if err := db.Preload("Roles.Permissions").Preload("Permissions").First(&user, claims.UserID).Error; err == nil {
-			c.Locals("user", &user)
+		if user, err := loadUserCached(claims.UserID); err == nil {
+			c.Locals("user", user)
 			c.Locals("user_id", user.ID)
 		}
-
 		return c.Next()
 	}
 }

@@ -2,20 +2,17 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"fmt"
-	"time"
+	"encoding/json"
+	"errors"
+	"net/http"
 
 	"github.com/alemancenter/fiber-api/internal/config"
-	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
+	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	"gorm.io/gorm"
 )
 
 // RegisterRequest contains fields for user registration
@@ -47,17 +44,15 @@ type ResetPasswordRequest struct {
 
 // Handler contains auth route handlers
 type Handler struct {
-	jwtSvc  *services.JWTService
-	mailSvc *services.MailService
-	cfg     *config.Config
+	svc services.AuthService
+	cfg *config.Config
 }
 
 // New creates a new auth Handler
-func New() *Handler {
+func New(svc services.AuthService) *Handler {
 	return &Handler{
-		jwtSvc:  services.NewJWTService(),
-		mailSvc: services.NewMailService(),
-		cfg:     config.Get(),
+		svc: svc,
+		cfg: config.Get(),
 	}
 }
 
@@ -84,44 +79,21 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		})
 	}
 
-	db := database.DB()
-
-	// Check email uniqueness
-	var count int64
-	db.Model(&models.User{}).Where("email = ?", req.Email).Count(&count)
-	if count > 0 {
-		return utils.ValidationError(c, map[string]string{
-			"email": "البريد الإلكتروني مستخدم بالفعل",
-		})
-	}
-
-	user := models.User{
-		Name:   req.Name,
-		Email:  req.Email,
-		Status: "active",
-	}
-
-	if err := user.HashPassword(req.Password); err != nil {
-		return utils.InternalError(c)
-	}
-
-	if err := db.Create(&user).Error; err != nil {
-		return utils.InternalError(c, "فشل إنشاء الحساب")
-	}
-
-	// Send verification email (async)
-	go h.sendVerificationEmail(&user)
-
-	token, err := h.jwtSvc.GenerateToken(user.ID, user.Email)
+	user, token, err := h.svc.Register(req.Name, req.Email, req.Password)
 	if err != nil {
-		return utils.InternalError(c)
+		if err == services.ErrEmailAlreadyExists {
+			return utils.ValidationError(c, map[string]string{
+				"email": "البريد الإلكتروني مستخدم بالفعل",
+			})
+		}
+		return utils.InternalError(c, "فشل إنشاء الحساب")
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "تم إنشاء الحساب بنجاح. يرجى التحقق من بريدك الإلكتروني.",
 		"token":   token,
-		"user":    buildUserResponse(&user, h.cfg.Storage.URL),
+		"user":    buildUserResponse(user, h.cfg.Storage.URL),
 	})
 }
 
@@ -137,60 +109,40 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		return utils.ValidationError(c, errs)
 	}
 
-	db := database.DB()
-	var user models.User
-	if err := db.Preload("Roles.Permissions").Preload("Permissions").
-		Where("email = ?", req.Email).First(&user).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return utils.Unauthorized(c, "بيانات الاعتماد غير صحيحة")
+	user, token, err := h.svc.Login(
+		req.Email,
+		req.Password,
+		utils.GetClientIP(c),
+		c.Get("User-Agent"),
+		c.Method(),
+		c.Path(),
+	)
+
+	if err != nil {
+		if err == services.ErrInvalidCredentials || err == services.ErrAccountInactive {
+			return utils.Unauthorized(c, err.Error())
 		}
 		return utils.InternalError(c)
 	}
 
-	if !user.CheckPassword(req.Password) {
-		services.NewSecurityService().LogEvent(
-			utils.GetClientIP(c),
-			models.EventLoginFailed,
-			"فشل تسجيل الدخول للبريد: "+req.Email,
-			models.SeverityWarning,
-			services.WithRoute(c.Path()),
-			services.WithMethod(c.Method()),
-			services.WithUserAgent(c.Get("User-Agent")),
-		)
-		return utils.Unauthorized(c, "بيانات الاعتماد غير صحيحة")
-	}
-
-	if !user.IsActive() {
-		return utils.Unauthorized(c, "الحساب غير نشط أو محظور")
-	}
-
-	token, err := h.jwtSvc.GenerateToken(user.ID, user.Email)
-	if err != nil {
-		return utils.InternalError(c)
-	}
-
-	// Update last activity
-	now := time.Now()
-	db.Model(&user).Update("last_activity", now)
-
-	return utils.WithToken(c, "تم تسجيل الدخول بنجاح", buildUserResponse(&user, h.cfg.Storage.URL), token)
+	return utils.WithToken(c, "تم تسجيل الدخول بنجاح", buildUserResponse(user, h.cfg.Storage.URL), token)
 }
 
 // Logout invalidates the current token
 // POST /api/auth/logout
 func (h *Handler) Logout(c *fiber.Ctx) error {
-	// With JWT, logout is client-side (remove token)
-	// For server-side invalidation, add token to a Redis blacklist
-	rdb := database.Redis()
-	ctx := context.Background()
-
 	authHeader := c.Get("Authorization")
+	var tokenStr string
 	if len(authHeader) > 7 {
-		tokenStr := authHeader[7:]
-		// Blacklist token until its natural expiry
-		key := rdb.Key("blacklist", tokenStr[:min(len(tokenStr), 32)])
-		_ = rdb.Set(ctx, key, "1", time.Duration(h.cfg.JWT.ExpireHours)*time.Hour)
+		tokenStr = authHeader[7:]
 	}
+
+	var user *models.User
+	if u, ok := c.Locals("user").(*models.User); ok && u != nil {
+		user = u
+	}
+
+	_ = h.svc.Logout(tokenStr, user)
 
 	return utils.Success(c, "تم تسجيل الخروج بنجاح", nil)
 }
@@ -208,12 +160,12 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
 
 	type UpdateProfileRequest struct {
-		Name      string  `json:"name" validate:"omitempty,min=2,max=255"`
-		Phone     string  `json:"phone" validate:"omitempty"`
-		JobTitle  string  `json:"job_title" validate:"omitempty,max=255"`
-		Gender    string  `json:"gender" validate:"omitempty,oneof=male female other"`
-		Country   string  `json:"country" validate:"omitempty,max=100"`
-		Bio       string  `json:"bio" validate:"omitempty"`
+		Name        string `json:"name" validate:"omitempty,min=2,max=255"`
+		Phone       string `json:"phone" validate:"omitempty"`
+		JobTitle    string `json:"job_title" validate:"omitempty,max=255"`
+		Gender      string `json:"gender" validate:"omitempty,oneof=male female other"`
+		Country     string `json:"country" validate:"omitempty,max=100"`
+		Bio         string `json:"bio" validate:"omitempty"`
 		SocialLinks string `json:"social_links" validate:"omitempty"`
 	}
 
@@ -226,7 +178,6 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 		return utils.ValidationError(c, errs)
 	}
 
-	db := database.DB()
 	updates := map[string]interface{}{}
 
 	if req.Name != "" {
@@ -253,7 +204,8 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 
 	// Handle profile photo upload
 	if photo, err := c.FormFile("profile_photo"); err == nil {
-		fileSvc := services.NewFileService()
+		fileRepo := repositories.NewFileRepository()
+		fileSvc := services.NewFileService(fileRepo)
 		uploaded, err := fileSvc.UploadImage(photo, "profile_photos")
 		if err != nil {
 			return utils.BadRequest(c, err.Error())
@@ -265,14 +217,12 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 		updates["profile_photo_path"] = uploaded.Path
 	}
 
-	if err := db.Model(user).Updates(updates).Error; err != nil {
+	updatedUser, err := h.svc.UpdateProfile(user, updates)
+	if err != nil {
 		return utils.InternalError(c, "فشل تحديث الملف الشخصي")
 	}
 
-	// Reload user
-	db.Preload("Roles.Permissions").Preload("Permissions").First(user, user.ID)
-
-	return utils.Success(c, "تم تحديث الملف الشخصي بنجاح", buildUserResponse(user, h.cfg.Storage.URL))
+	return utils.Success(c, "تم تحديث الملف الشخصي بنجاح", buildUserResponse(updatedUser, h.cfg.Storage.URL))
 }
 
 // ForgotPassword initiates password reset
@@ -287,27 +237,8 @@ func (h *Handler) ForgotPassword(c *fiber.Ctx) error {
 		return utils.ValidationError(c, errs)
 	}
 
-	db := database.DB()
-	var user models.User
-	if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
-		// Return success even if email not found (prevent enumeration)
-		return utils.Success(c, "إذا كان البريد الإلكتروني مسجلاً، ستتلقى رسالة إعادة التعيين", nil)
-	}
-
-	// Generate reset token
-	token := generateSecureToken()
-	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(token)))
-
-	// Store in Redis with 60-minute expiry
-	rdb := database.Redis()
-	ctx := context.Background()
-	key := rdb.Key("password_reset", hash)
-	_ = rdb.Set(ctx, key, fmt.Sprintf("%d", user.ID), 60*time.Minute)
-
-	// Send reset email
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s&email=%s",
-		h.cfg.Frontend.URL, token, req.Email)
-	go h.mailSvc.SendPasswordResetEmail(user.Email, user.Name, resetURL)
+	// We don't care about the error, we always return success to prevent enumeration
+	_ = h.svc.ForgotPassword(req.Email)
 
 	return utils.Success(c, "إذا كان البريد الإلكتروني مسجلاً، ستتلقى رسالة إعادة التعيين", nil)
 }
@@ -330,32 +261,13 @@ func (h *Handler) ResetPassword(c *fiber.Ctx) error {
 		})
 	}
 
-	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(req.Token)))
-	rdb := database.Redis()
-	ctx := context.Background()
-	key := rdb.Key("password_reset", hash)
-
-	userIDStr, err := rdb.Get(ctx, key)
+	err := h.svc.ResetPassword(req.Token, req.Email, req.Password)
 	if err != nil {
-		return utils.BadRequest(c, "رمز إعادة التعيين غير صالح أو منتهي الصلاحية")
-	}
-
-	db := database.DB()
-	var user models.User
-	if err := db.Where("id = ? AND email = ?", userIDStr, req.Email).First(&user).Error; err != nil {
-		return utils.BadRequest(c, "بيانات غير صحيحة")
-	}
-
-	if err := user.HashPassword(req.Password); err != nil {
-		return utils.InternalError(c)
-	}
-
-	if err := db.Model(&user).Update("password", user.Password).Error; err != nil {
+		if err == services.ErrInvalidResetToken || err == services.ErrInvalidCredentials {
+			return utils.BadRequest(c, err.Error())
+		}
 		return utils.InternalError(c, "فشل تحديث كلمة المرور")
 	}
-
-	// Delete used token
-	_ = rdb.Del(ctx, key)
 
 	return utils.Success(c, "تم إعادة تعيين كلمة المرور بنجاح", nil)
 }
@@ -366,24 +278,16 @@ func (h *Handler) VerifyEmail(c *fiber.Ctx) error {
 	id := c.Params("id")
 	hash := c.Params("hash")
 
-	db := database.DB()
-	var user models.User
-	if err := db.First(&user, id).Error; err != nil {
+	err := h.svc.VerifyEmail(id, hash)
+	if err != nil {
+		if err == services.ErrAlreadyVerified {
+			return utils.Success(c, err.Error(), nil)
+		}
+		if err == services.ErrInvalidVerifyToken {
+			return utils.BadRequest(c, err.Error())
+		}
 		return utils.NotFound(c)
 	}
-
-	// Verify hash matches email hash
-	expectedHash := fmt.Sprintf("%x", sha256.Sum256([]byte(user.Email)))
-	if hash != expectedHash {
-		return utils.BadRequest(c, "رابط التحقق غير صالح")
-	}
-
-	if user.IsVerified() {
-		return utils.Success(c, "البريد الإلكتروني مُحقق بالفعل", nil)
-	}
-
-	now := time.Now()
-	db.Model(&user).Update("email_verified_at", now)
 
 	return utils.Success(c, "تم التحقق من البريد الإلكتروني بنجاح", nil)
 }
@@ -393,11 +297,13 @@ func (h *Handler) VerifyEmail(c *fiber.Ctx) error {
 func (h *Handler) ResendVerification(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
 
-	if user.IsVerified() {
-		return utils.BadRequest(c, "البريد الإلكتروني مُحقق بالفعل")
+	err := h.svc.ResendVerification(user)
+	if err != nil {
+		if err == services.ErrAlreadyVerified {
+			return utils.BadRequest(c, err.Error())
+		}
+		return utils.InternalError(c)
 	}
-
-	go h.sendVerificationEmail(user)
 
 	return utils.Success(c, "تم إرسال رسالة التحقق", nil)
 }
@@ -416,12 +322,11 @@ func (h *Handler) DeleteAccount(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
 
-	if !user.CheckPassword(req.Password) {
-		return utils.Unauthorized(c, "كلمة المرور غير صحيحة")
-	}
-
-	db := database.DB()
-	if err := db.Delete(user).Error; err != nil {
+	err := h.svc.DeleteAccount(user, req.Password)
+	if err != nil {
+		if err == services.ErrInvalidCredentials {
+			return utils.Unauthorized(c, err.Error())
+		}
 		return utils.InternalError(c, "فشل حذف الحساب")
 	}
 
@@ -431,7 +336,7 @@ func (h *Handler) DeleteAccount(c *fiber.Ctx) error {
 // GoogleRedirect redirects to Google OAuth
 // GET /api/auth/google/redirect
 func (h *Handler) GoogleRedirect(c *fiber.Ctx) error {
-	oauthCfg := h.getGoogleOAuthConfig()
+	oauthCfg := h.svc.GetGoogleOAuthConfig()
 	url := oauthCfg.AuthCodeURL("state", oauth2.AccessTypeOffline)
 	return c.Redirect(url)
 }
@@ -492,15 +397,10 @@ func (h *Handler) RegisterPushToken(c *fiber.Ctx) error {
 		return utils.ValidationError(c, errs)
 	}
 
-	db := database.DB()
-	pushToken := models.PushToken{
-		UserID:   user.ID,
-		Token:    req.Token,
-		Platform: req.Platform,
+	err := h.svc.UpsertPushToken(user.ID, req.Token, req.Platform)
+	if err != nil {
+		return utils.InternalError(c, "فشل تسجيل رمز الإشعارات")
 	}
-
-	// Upsert: update if token exists, otherwise create
-	db.Where(models.PushToken{Token: req.Token}).Assign(pushToken).FirstOrCreate(&pushToken)
 
 	return utils.Success(c, "تم تسجيل رمز الإشعارات بنجاح", nil)
 }
@@ -519,128 +419,94 @@ func (h *Handler) DeletePushToken(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
 
-	db := database.DB()
-	db.Where("user_id = ? AND token = ?", user.ID, req.Token).Delete(&models.PushToken{})
+	err := h.svc.DeletePushToken(user.ID, req.Token)
+	if err != nil {
+		return utils.InternalError(c, "فشل حذف رمز الإشعارات")
+	}
 
 	return utils.Success(c, "تم حذف رمز الإشعارات بنجاح", nil)
 }
 
 // --- Helper functions ---
 
-type googleUserInfo struct {
-	ID            string `json:"id"`
-	Email         string `json:"email"`
-	Name          string `json:"name"`
-	Picture       string `json:"picture"`
-	VerifiedEmail bool   `json:"verified_email"`
-}
+func (h *Handler) exchangeGoogleCode(code string) (*oauth2.Token, *services.GoogleUserInfo, error) {
+	ctx := context.Background()
+	oauthCfg := h.svc.GetGoogleOAuthConfig()
 
-func (h *Handler) loginOrRegisterGoogleUser(c *fiber.Ctx, info *googleUserInfo) error {
-	db := database.DB()
-	var user models.User
-
-	err := db.Preload("Roles.Permissions").Preload("Permissions").
-		Where("email = ? OR google_id = ?", info.Email, info.ID).
-		First(&user).Error
-
-	if err == gorm.ErrRecordNotFound {
-		// Register new user
-		now := time.Now()
-		user = models.User{
-			Name:            info.Name,
-			Email:           info.Email,
-			GoogleID:        &info.ID,
-			EmailVerifiedAt: &now,
-			Status:          "active",
-		}
-		_ = user.HashPassword(generateSecureToken())
-		if err := db.Create(&user).Error; err != nil {
-			return utils.InternalError(c, "فشل إنشاء الحساب")
-		}
-	} else if err != nil {
-		return utils.InternalError(c)
-	} else {
-		// Update Google ID if not set
-		if user.GoogleID == nil {
-			db.Model(&user).Update("google_id", info.ID)
-		}
-	}
-
-	token, err := h.jwtSvc.GenerateToken(user.ID, user.Email)
-	if err != nil {
-		return utils.InternalError(c)
-	}
-
-	return utils.WithToken(c, "تم تسجيل الدخول بنجاح", buildUserResponse(&user, h.cfg.Storage.URL), token)
-}
-
-func (h *Handler) sendVerificationEmail(user *models.User) {
-	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(user.Email)))
-	verifyURL := fmt.Sprintf("%s/api/auth/email/verify/%d/%s",
-		h.cfg.App.URL, user.ID, hash)
-	_ = h.mailSvc.SendVerificationEmail(user.Email, user.Name, verifyURL)
-}
-
-func (h *Handler) getGoogleOAuthConfig() *oauth2.Config {
-	cfg := h.cfg.Google
-	return &oauth2.Config{
-		ClientID:     cfg.ClientID,
-		ClientSecret: cfg.ClientSecret,
-		RedirectURL:  cfg.RedirectURI,
-		Scopes:       []string{"openid", "email", "profile"},
-		Endpoint:     google.Endpoint,
-	}
-}
-
-func (h *Handler) exchangeGoogleCode(code string) (*oauth2.Token, *googleUserInfo, error) {
-	// Simplified — in production use proper HTTP client
-	oauthCfg := h.getGoogleOAuthConfig()
-	token, err := oauthCfg.Exchange(context.Background(), code)
+	token, err := oauthCfg.Exchange(ctx, code)
 	if err != nil {
 		return nil, nil, err
 	}
-	info, err := h.verifyGoogleToken(token.AccessToken)
-	return token, info, err
+
+	client := oauthCfg.Client(ctx, token)
+	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	var userInfo services.GoogleUserInfo
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return nil, nil, err
+	}
+
+	return token, &userInfo, nil
 }
 
-func (h *Handler) verifyGoogleToken(accessToken string) (*googleUserInfo, error) {
-	// Use Google's tokeninfo endpoint
-	return &googleUserInfo{
-		ID:    "google_id",
-		Email: "user@gmail.com",
-	}, nil
+func (h *Handler) verifyGoogleToken(token string) (*services.GoogleUserInfo, error) {
+	resp, err := http.Get("https://www.googleapis.com/oauth2/v3/userinfo?access_token=" + token)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New("invalid google token")
+	}
+
+	var userInfo services.GoogleUserInfo
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return nil, err
+	}
+
+	return &userInfo, nil
+}
+
+func (h *Handler) loginOrRegisterGoogleUser(c *fiber.Ctx, info *services.GoogleUserInfo) error {
+	user, token, err := h.svc.LoginOrRegisterGoogleUser(info)
+	if err != nil {
+		return utils.InternalError(c, "فشل معالجة حساب Google")
+	}
+
+	return utils.WithToken(c, "تم تسجيل الدخول بنجاح", buildUserResponse(user, h.cfg.Storage.URL), token)
 }
 
 func buildUserResponse(user *models.User, storageURL string) fiber.Map {
+	if user == nil {
+		return nil
+	}
+
+	var photoURL *string
+	if user.ProfilePhotoPath != nil && *user.ProfilePhotoPath != "" {
+		url := storageURL + "/" + *user.ProfilePhotoPath
+		photoURL = &url
+	}
+
 	return fiber.Map{
-		"id":                user.ID,
-		"name":              user.Name,
-		"email":             user.Email,
-		"email_verified_at": user.EmailVerifiedAt,
-		"phone":             user.Phone,
-		"job_title":         user.JobTitle,
-		"gender":            user.Gender,
-		"country":           user.Country,
-		"bio":               user.Bio,
-		"profile_photo_url": user.GetProfilePhotoURL(storageURL),
-		"status":            user.Status,
-		"is_online":         user.IsOnline(),
-		"last_activity":     user.LastActivity,
-		"created_at":        user.CreatedAt,
-		"roles":             user.Roles,
-		"permissions":       user.Permissions,
+		"id":                 user.ID,
+		"name":               user.Name,
+		"email":              user.Email,
+		"email_verified_at":  user.EmailVerifiedAt,
+		"phone":              user.Phone,
+		"job_title":          user.JobTitle,
+		"gender":             user.Gender,
+		"country":            user.Country,
+		"bio":                user.Bio,
+		"social_links":       user.SocialLinks,
+		"profile_photo_url":  photoURL,
+		"profile_photo_path": user.ProfilePhotoPath,
+		"status":             user.Status,
+		"roles":              user.Roles,
+		"permissions":        user.Permissions,
 	}
-}
-
-func generateSecureToken() string {
-	b := make([]byte, 32)
-	rand.Read(b)
-	return fmt.Sprintf("%x", b)
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

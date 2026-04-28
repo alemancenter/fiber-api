@@ -47,3 +47,8 @@ go.work.sum
 # Air (hot-reload temp files)
 tmp/
 build-errors.log
+
+# Compiled binaries at root
+/fiber-api
+/fiber-api.exe
+/tmp_test_bin

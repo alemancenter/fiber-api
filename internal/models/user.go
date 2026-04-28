@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 // User represents an application user stored in the Jordan (main) database
@@ -30,7 +29,6 @@ type User struct {
 	TwoFactorConfirmedAt *time.Time     `json:"-"`
 	CreatedAt            time.Time      `json:"created_at"`
 	UpdatedAt            time.Time      `json:"updated_at"`
-	DeletedAt            gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// Relationships
 	Roles       []Role       `gorm:"many2many:model_has_roles;joinForeignKey:model_id;joinReferences:role_id" json:"roles,omitempty"`
@@ -67,7 +65,7 @@ func (u *User) IsAdmin() bool {
 
 // IsActive checks if user account is active
 func (u *User) IsActive() bool {
-	return u.Status == "active"
+	return u.Status != "inactive" && u.Status != "banned"
 }
 
 // IsVerified checks if email is verified

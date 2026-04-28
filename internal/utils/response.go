@@ -1,6 +1,23 @@
 package utils
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"reflect"
+
+	"github.com/gofiber/fiber/v2"
+)
+
+// normalizeData converts a nil slice to an empty slice so JSON encodes it as []
+// instead of null — prevents frontend .filter()/.map() crashes on empty lists.
+func normalizeData(v interface{}) interface{} {
+	if v == nil {
+		return v
+	}
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Slice && rv.IsNil() {
+		return reflect.MakeSlice(rv.Type(), 0, 0).Interface()
+	}
+	return v
+}
 
 // APIResponse is the standard JSON response envelope
 type APIResponse struct {
@@ -9,7 +26,8 @@ type APIResponse struct {
 	Data    interface{} `json:"data,omitempty"`
 	Errors  interface{} `json:"errors,omitempty"`
 	Token   *string     `json:"token,omitempty"`
-	Meta    *PaginationMeta `json:"meta,omitempty"`
+	Meta       *PaginationMeta `json:"meta,omitempty"`
+	Pagination *PaginationMeta `json:"pagination,omitempty"`
 }
 
 // PaginationMeta contains pagination metadata
@@ -53,10 +71,11 @@ func WithToken(c *fiber.Ctx, message string, data interface{}, token string) err
 // Paginated sends a paginated success response
 func Paginated(c *fiber.Ctx, message string, data interface{}, meta PaginationMeta) error {
 	return c.Status(fiber.StatusOK).JSON(APIResponse{
-		Success: true,
-		Message: message,
-		Data:    data,
-		Meta:    &meta,
+		Success:    true,
+		Message:    message,
+		Data:       normalizeData(data),
+		Meta:       &meta,
+		Pagination: &meta,
 	})
 }
 

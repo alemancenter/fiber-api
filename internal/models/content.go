@@ -5,16 +5,15 @@ import "time"
 // SchoolClass represents a grade level
 type SchoolClass struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
-	Name       string    `gorm:"type:varchar(255);not null" json:"name"`
-	GradeLevel string    `gorm:"type:varchar(50)" json:"grade_level"`
+	GradeName  string    `gorm:"column:grade_name;type:varchar(255)" json:"grade_name"`
+	GradeLevel int       `gorm:"column:grade_level" json:"grade_level"`
 	CountryID  *uint     `json:"country_id,omitempty"`
-	IsActive   bool      `gorm:"default:true" json:"is_active"`
-	Order      int       `gorm:"default:0" json:"order"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 
-	Subjects  []Subject  `gorm:"foreignKey:SchoolClassID" json:"subjects,omitempty"`
-	Semesters []Semester `gorm:"foreignKey:SchoolClassID" json:"semesters,omitempty"`
+	// subjects.grade_level is FK to school_classes.id
+	Subjects  []Subject  `gorm:"foreignKey:GradeLevel" json:"subjects,omitempty"`
+	Semesters []Semester `gorm:"foreignKey:GradeLevel" json:"semesters,omitempty"`
 }
 
 func (SchoolClass) TableName() string { return "school_classes" }
@@ -22,47 +21,45 @@ func (SchoolClass) TableName() string { return "school_classes" }
 // Subject represents a school subject (Math, English, etc.)
 type Subject struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
-	Name        string    `gorm:"type:varchar(255);not null" json:"name"`
-	SchoolClassID *uint   `gorm:"index" json:"school_class_id,omitempty"`
-	IsActive    bool      `gorm:"default:true" json:"is_active"`
-	Order       int       `gorm:"default:0" json:"order"`
+	SubjectName string    `gorm:"column:subject_name;type:varchar(255)" json:"subject_name"`
+	GradeLevel  uint      `gorm:"column:grade_level;not null;index" json:"grade_level"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 
-	SchoolClass *SchoolClass `gorm:"foreignKey:SchoolClassID" json:"school_class,omitempty"`
-	Semesters   []Semester   `gorm:"foreignKey:SubjectID" json:"semesters,omitempty"`
+	// grade_level is FK to school_classes.id
+	SchoolClass *SchoolClass `gorm:"foreignKey:GradeLevel" json:"school_class,omitempty"`
 }
 
 func (Subject) TableName() string { return "subjects" }
 
 // Semester represents an academic term
 type Semester struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	Name        string    `gorm:"type:varchar(255);not null" json:"name"`
-	SubjectID   *uint     `gorm:"index" json:"subject_id,omitempty"`
-	SchoolClassID *uint   `gorm:"index" json:"school_class_id,omitempty"`
-	IsActive    bool      `gorm:"default:true" json:"is_active"`
-	Order       int       `gorm:"default:0" json:"order"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	SemesterName string    `gorm:"column:semester_name;type:varchar(255)" json:"semester_name"`
+	GradeLevel   uint      `gorm:"column:grade_level;not null;index" json:"grade_level"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 
-	Subject     *Subject     `gorm:"foreignKey:SubjectID" json:"subject,omitempty"`
-	SchoolClass *SchoolClass `gorm:"foreignKey:SchoolClassID" json:"school_class,omitempty"`
+	// grade_level is FK to school_classes.id
+	SchoolClass *SchoolClass `gorm:"foreignKey:GradeLevel" json:"school_class,omitempty"`
 }
 
 func (Semester) TableName() string { return "semesters" }
 
 // Category represents a post category
 type Category struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	Name        string    `gorm:"type:varchar(255);not null" json:"name"`
-	Slug        string    `gorm:"type:varchar(300);unique" json:"slug"`
-	Description *string   `gorm:"type:text" json:"description,omitempty"`
-	Image       *string   `gorm:"type:varchar(500)" json:"image,omitempty"`
-	IsActive    bool      `gorm:"default:true" json:"is_active"`
-	Order       int       `gorm:"default:0" json:"order"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Name      string    `gorm:"type:varchar(255);not null" json:"name"`
+	Slug      string    `gorm:"type:varchar(300);unique" json:"slug"`
+	ParentID  *uint     `json:"parent_id,omitempty"`
+	Icon      *string   `gorm:"type:varchar(500)" json:"icon,omitempty"`
+	Image     *string   `gorm:"type:varchar(500)" json:"image,omitempty"`
+	IsActive  bool      `gorm:"default:true" json:"is_active"`
+	Country   string    `gorm:"type:varchar(10)" json:"country"`
+	Depth     int       `gorm:"default:0" json:"depth"`
+	IconImage *string   `gorm:"column:icon_image;type:varchar(500)" json:"icon_image,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 
 	Posts []Post `gorm:"foreignKey:CategoryID" json:"posts,omitempty"`
 }
@@ -72,8 +69,7 @@ func (Category) TableName() string { return "categories" }
 // Keyword represents a tag/keyword used in articles and posts
 type Keyword struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	Name      string    `gorm:"type:varchar(255);unique;not null" json:"name"`
-	Slug      string    `gorm:"type:varchar(300);unique" json:"slug"`
+	Keyword   string    `gorm:"column:keyword;type:varchar(255);unique;not null" json:"keyword"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -135,17 +131,12 @@ func (Reaction) TableName() string { return "reactions" }
 
 // Event represents a calendar event
 type Event struct {
-	ID          uint       `gorm:"primaryKey" json:"id"`
-	Title       string     `gorm:"type:varchar(500);not null" json:"title"`
-	Description *string    `gorm:"type:text" json:"description,omitempty"`
-	StartDate   time.Time  `json:"start_date"`
-	EndDate     *time.Time `json:"end_date,omitempty"`
-	AllDay      bool       `gorm:"default:false" json:"all_day"`
-	Color       *string    `gorm:"type:varchar(50)" json:"color,omitempty"`
-	Database    string     `gorm:"type:varchar(10);default:'jo'" json:"database"`
-	CreatedBy   *uint      `json:"created_by,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	Title       string    `gorm:"type:varchar(500);not null" json:"title"`
+	Description *string   `gorm:"type:text" json:"description,omitempty"`
+	EventDate   time.Time `gorm:"column:event_date" json:"event_date"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func (Event) TableName() string { return "events" }
@@ -155,8 +146,6 @@ type Setting struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	Key       string    `gorm:"type:varchar(255);unique;not null" json:"key"`
 	Value     *string   `gorm:"type:longtext" json:"value,omitempty"`
-	Group     string    `gorm:"type:varchar(100);default:'general'" json:"group"`
-	Type      string    `gorm:"type:varchar(50);default:'string'" json:"type"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -178,22 +167,42 @@ type Notification struct {
 func (Notification) TableName() string { return "notifications" }
 
 // Message represents a direct message between users
-type Message struct {
-	ID          uint       `gorm:"primaryKey" json:"id"`
-	SenderID    uint       `gorm:"not null;index" json:"sender_id"`
-	RecipientID uint       `gorm:"not null;index" json:"recipient_id"`
-	Subject     *string    `gorm:"type:varchar(500)" json:"subject,omitempty"`
-	Body        string     `gorm:"type:text;not null" json:"body"`
-	IsRead      bool       `gorm:"default:false" json:"is_read"`
-	IsImportant bool       `gorm:"default:false" json:"is_important"`
-	IsDraft     bool       `gorm:"default:false" json:"is_draft"`
-	ReadAt      *time.Time `json:"read_at,omitempty"`
-	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+// Conversation represents a private or public messaging thread.
+type Conversation struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Title     *string   `gorm:"type:varchar(255)" json:"title,omitempty"`
+	Type      string    `gorm:"type:enum('private','public');default:'private'" json:"type"`
+	User1ID   uint      `gorm:"not null;index" json:"user1_id"`
+	User2ID   uint      `gorm:"not null;index" json:"user2_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 
-	Sender    *User `gorm:"foreignKey:SenderID" json:"sender,omitempty"`
-	Recipient *User `gorm:"foreignKey:RecipientID" json:"recipient,omitempty"`
+	User1 *User `gorm:"foreignKey:User1ID" json:"user1,omitempty"`
+	User2 *User `gorm:"foreignKey:User2ID" json:"user2,omitempty"`
+}
+
+func (Conversation) TableName() string { return "conversations" }
+
+// Message represents a single message within a conversation.
+type Message struct {
+	ID             uint      `gorm:"primaryKey" json:"id"`
+	ConversationID uint      `gorm:"not null;index" json:"conversation_id"`
+	SenderID       uint      `gorm:"not null;index" json:"sender_id"`
+	Subject        string    `gorm:"type:varchar(255)" json:"subject"`
+	Body           string    `gorm:"type:text;not null" json:"body"`
+	Read           bool      `gorm:"column:read;default:false" json:"read"`
+	IsImportant    bool      `gorm:"default:false" json:"is_important"`
+	IsDraft        bool      `gorm:"default:false" json:"is_draft"`
+	IsDeleted      bool      `gorm:"default:false" json:"is_deleted"`
+	IsChat         bool      `gorm:"default:false" json:"is_chat"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+
+	Sender       *User         `gorm:"foreignKey:SenderID" json:"sender,omitempty"`
+	Conversation *Conversation `gorm:"foreignKey:ConversationID" json:"conversation,omitempty"`
+
+	// Recipient is populated at query time from the conversation, not stored in DB.
+	Recipient *User `gorm:"-" json:"recipient,omitempty"`
 }
 
 func (Message) TableName() string { return "messages" }

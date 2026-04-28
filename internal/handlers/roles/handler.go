@@ -3,24 +3,30 @@ package roles
 import (
 	"strconv"
 
-	"github.com/alemancenter/fiber-api/internal/database"
-	"github.com/alemancenter/fiber-api/internal/models"
+	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
 
 // Handler contains roles and permissions route handlers
-type Handler struct{}
+type Handler struct {
+	svc services.RoleService
+}
 
 // New creates a new roles Handler
-func New() *Handler { return &Handler{} }
+func New(svc services.RoleService) *Handler {
+	return &Handler{
+		svc: svc,
+	}
+}
 
 // ListRoles returns all roles
 // GET /api/dashboard/roles
 func (h *Handler) ListRoles(c *fiber.Ctx) error {
-	db := database.DB()
-	var roles []models.Role
-	db.Preload("Permissions").Find(&roles)
+	roles, err := h.svc.ListRoles()
+	if err != nil {
+		return utils.InternalError(c)
+	}
 	return utils.Success(c, "success", roles)
 }
 
@@ -32,9 +38,8 @@ func (h *Handler) GetRole(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "معرف غير صحيح")
 	}
 
-	db := database.DB()
-	var role models.Role
-	if err := db.Preload("Permissions").First(&role, id).Error; err != nil {
+	role, err := h.svc.GetRole(id)
+	if err != nil {
 		return utils.NotFound(c)
 	}
 
@@ -58,23 +63,12 @@ func (h *Handler) CreateRole(c *fiber.Ctx) error {
 		return utils.ValidationError(c, errs)
 	}
 
-	db := database.DB()
-
-	var count int64
-	db.Model(&models.Role{}).Where("name = ?", req.Name).Count(&count)
-	if count > 0 {
-		return utils.ValidationError(c, map[string]string{"name": "اسم الدور مستخدم بالفعل"})
-	}
-
-	role := models.Role{Name: req.Name, GuardName: "api"}
-	if err := db.Create(&role).Error; err != nil {
+	role, err := h.svc.CreateRole(req.Name, req.Permissions)
+	if err != nil {
+		if err.Error() == "اسم الدور مستخدم بالفعل" {
+			return utils.ValidationError(c, map[string]string{"name": err.Error()})
+		}
 		return utils.InternalError(c, "فشل إنشاء الدور")
-	}
-
-	if len(req.Permissions) > 0 {
-		var permissions []models.Permission
-		db.Where("id IN ?", req.Permissions).Find(&permissions)
-		db.Model(&role).Association("Permissions").Replace(permissions)
 	}
 
 	return utils.Created(c, "تم إنشاء الدور بنجاح", role)
@@ -88,12 +82,6 @@ func (h *Handler) UpdateRole(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "معرف غير صحيح")
 	}
 
-	db := database.DB()
-	var role models.Role
-	if err := db.First(&role, id).Error; err != nil {
-		return utils.NotFound(c)
-	}
-
 	type UpdateRequest struct {
 		Name        string `json:"name" validate:"omitempty,min=2,max=125"`
 		Permissions []uint `json:"permissions"`
@@ -104,17 +92,11 @@ func (h *Handler) UpdateRole(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
 
-	if req.Name != "" {
-		db.Model(&role).Update("name", req.Name)
+	role, err := h.svc.UpdateRole(id, req.Name, req.Permissions)
+	if err != nil {
+		return utils.NotFound(c)
 	}
 
-	if req.Permissions != nil {
-		var permissions []models.Permission
-		db.Where("id IN ?", req.Permissions).Find(&permissions)
-		db.Model(&role).Association("Permissions").Replace(permissions)
-	}
-
-	db.Preload("Permissions").First(&role, id)
 	return utils.Success(c, "تم تحديث الدور بنجاح", role)
 }
 
@@ -126,17 +108,20 @@ func (h *Handler) DeleteRole(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "معرف غير صحيح")
 	}
 
-	db := database.DB()
-	db.Delete(&models.Role{}, id)
+	if err := h.svc.DeleteRole(id); err != nil {
+		return utils.InternalError(c)
+	}
+
 	return utils.Success(c, "تم حذف الدور بنجاح", nil)
 }
 
 // ListPermissions returns all permissions
 // GET /api/dashboard/permissions
 func (h *Handler) ListPermissions(c *fiber.Ctx) error {
-	db := database.DB()
-	var permissions []models.Permission
-	db.Order("name ASC").Find(&permissions)
+	permissions, err := h.svc.ListPermissions()
+	if err != nil {
+		return utils.InternalError(c)
+	}
 	return utils.Success(c, "success", permissions)
 }
 
@@ -156,9 +141,8 @@ func (h *Handler) CreatePermission(c *fiber.Ctx) error {
 		return utils.ValidationError(c, errs)
 	}
 
-	db := database.DB()
-	permission := models.Permission{Name: req.Name, GuardName: "api"}
-	if err := db.Create(&permission).Error; err != nil {
+	permission, err := h.svc.CreatePermission(req.Name)
+	if err != nil {
 		return utils.InternalError(c, "فشل إنشاء الصلاحية")
 	}
 
@@ -182,8 +166,9 @@ func (h *Handler) UpdatePermission(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
 
-	db := database.DB()
-	db.Model(&models.Permission{}).Where("id = ?", id).Update("name", req.Name)
+	if err := h.svc.UpdatePermission(id, req.Name); err != nil {
+		return utils.InternalError(c, "فشل تحديث الصلاحية")
+	}
 
 	return utils.Success(c, "تم تحديث الصلاحية بنجاح", nil)
 }
@@ -196,7 +181,9 @@ func (h *Handler) DeletePermission(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "معرف غير صحيح")
 	}
 
-	db := database.DB()
-	db.Delete(&models.Permission{}, id)
+	if err := h.svc.DeletePermission(id); err != nil {
+		return utils.InternalError(c, "فشل حذف الصلاحية")
+	}
+
 	return utils.Success(c, "تم حذف الصلاحية بنجاح", nil)
 }

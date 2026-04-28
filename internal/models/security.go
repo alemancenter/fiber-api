@@ -103,21 +103,23 @@ func (ActivityLog) TableName() string { return "activity_log" }
 
 // VisitorTracking represents visitor analytics data
 type VisitorTracking struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	IPAddress   string    `gorm:"type:varchar(45);not null" json:"ip_address"`
-	UserAgent   *string   `gorm:"type:text" json:"user_agent,omitempty"`
-	Page        string    `gorm:"type:varchar(500)" json:"page"`
-	Referer     *string   `gorm:"type:varchar(500)" json:"referer,omitempty"`
-	Country     *string   `gorm:"type:varchar(100)" json:"country,omitempty"`
-	City        *string   `gorm:"type:varchar(100)" json:"city,omitempty"`
-	Device      *string   `gorm:"type:varchar(100)" json:"device,omitempty"`
-	Browser     *string   `gorm:"type:varchar(100)" json:"browser,omitempty"`
-	OS          *string   `gorm:"type:varchar(100)" json:"os,omitempty"`
-	SessionID   *string   `gorm:"type:varchar(100)" json:"session_id,omitempty"`
-	UserID      *uint     `gorm:"index" json:"user_id,omitempty"`
-	Duration    *int      `json:"duration,omitempty"`
-	Database    string    `gorm:"type:varchar(10);default:'jo'" json:"database"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	IPAddress    string    `gorm:"type:varchar(255);not null" json:"ip_address"`
+	UserAgent    string    `gorm:"type:text;not null;default:''" json:"user_agent"`
+	Country      *string   `gorm:"type:varchar(255)" json:"country,omitempty"`
+	City         *string   `gorm:"type:varchar(255)" json:"city,omitempty"`
+	Browser      *string   `gorm:"type:varchar(255)" json:"browser,omitempty"`
+	OS           *string   `gorm:"type:varchar(255)" json:"os,omitempty"`
+	URL          *string   `gorm:"type:text" json:"url,omitempty"`
+	Referer      *string   `gorm:"type:text" json:"referer,omitempty"`
+	Latitude     *float64  `gorm:"type:decimal(10,8)" json:"latitude,omitempty"`
+	Longitude    *float64  `gorm:"type:decimal(11,8)" json:"longitude,omitempty"`
+	UserID       *uint     `gorm:"index" json:"user_id,omitempty"`
+	StatusCode   *int      `json:"status_code,omitempty"`
+	LastActivity time.Time `gorm:"not null" json:"last_activity"`
+	ResponseTime *float64  `gorm:"type:decimal(8,2)" json:"response_time,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 func (VisitorTracking) TableName() string { return "visitors_tracking" }

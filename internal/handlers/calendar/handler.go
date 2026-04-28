@@ -2,18 +2,26 @@ package calendar
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
+	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
 
 // Handler contains calendar route handlers
-type Handler struct{}
+type Handler struct {
+	svc services.CalendarService
+}
 
 // New creates a new calendar Handler
-func New() *Handler { return &Handler{} }
+func New(svc services.CalendarService) *Handler {
+	return &Handler{
+		svc: svc,
+	}
+}
 
 // Databases returns available calendar databases (countries)
 // GET /api/dashboard/calendar/databases
@@ -26,24 +34,18 @@ func (h *Handler) Databases(c *fiber.Ctx) error {
 	})
 }
 
-// GetEvents returns calendar events
+// GetEvents returns calendar events for the dashboard
 // GET /api/dashboard/calendar/events
 func (h *Handler) GetEvents(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
-	countryCode, _ := c.Locals("country_code").(string)
+	start := c.Query("start")
+	end := c.Query("end")
 
-	var events []models.Event
-	query := db.Model(&models.Event{}).Where("`database` = ?", countryCode)
-
-	if start := c.Query("start"); start != "" {
-		query = query.Where("start_date >= ?", start)
-	}
-	if end := c.Query("end"); end != "" {
-		query = query.Where("start_date <= ?", end)
+	events, err := h.svc.ListEvents(countryID, start, end)
+	if err != nil {
+		return utils.InternalError(c)
 	}
 
-	query.Order("start_date ASC").Find(&events)
 	return utils.Success(c, "success", events)
 }
 
@@ -53,10 +55,7 @@ func (h *Handler) CreateEvent(c *fiber.Ctx) error {
 	type CreateRequest struct {
 		Title       string `json:"title" validate:"required,min=2,max=500"`
 		Description string `json:"description"`
-		StartDate   string `json:"start_date" validate:"required"`
-		EndDate     string `json:"end_date"`
-		AllDay      bool   `json:"all_day"`
-		Color       string `json:"color"`
+		EventDate   string `json:"event_date" validate:"required"`
 	}
 
 	var req CreateRequest
@@ -69,27 +68,22 @@ func (h *Handler) CreateEvent(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
-	countryCode, _ := c.Locals("country_code").(string)
-	user, _ := c.Locals("user").(*models.User)
+
+	eventDate, err := time.Parse("2006-01-02", req.EventDate)
+	if err != nil {
+		return utils.BadRequest(c, "صيغة التاريخ غير صحيحة")
+	}
 
 	event := models.Event{
-		Title:    utils.SanitizeInput(req.Title),
-		AllDay:   req.AllDay,
-		Database: countryCode,
+		Title:     utils.SanitizeInput(req.Title),
+		EventDate: eventDate,
 	}
 
 	if req.Description != "" {
 		event.Description = &req.Description
 	}
-	if req.Color != "" {
-		event.Color = &req.Color
-	}
-	if user != nil {
-		event.CreatedBy = &user.ID
-	}
 
-	if err := db.Create(&event).Error; err != nil {
+	if err := h.svc.CreateEvent(countryID, &event); err != nil {
 		return utils.InternalError(c, "فشل إنشاء الحدث")
 	}
 
@@ -105,19 +99,17 @@ func (h *Handler) UpdateEvent(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
-
-	var event models.Event
-	if err := db.First(&event, id).Error; err != nil {
-		return utils.NotFound(c)
-	}
 
 	var updates map[string]interface{}
 	if err := c.BodyParser(&updates); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
 
-	db.Model(&event).Updates(updates)
+	event, err := h.svc.UpdateEvent(countryID, id, updates)
+	if err != nil {
+		return utils.NotFound(c)
+	}
+
 	return utils.Success(c, "تم تحديث الحدث بنجاح", event)
 }
 
@@ -130,21 +122,22 @@ func (h *Handler) DeleteEvent(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
-	db.Delete(&models.Event{}, id)
+	if err := h.svc.DeleteEvent(countryID, id); err != nil {
+		return utils.NotFound(c)
+	}
 
 	return utils.Success(c, "تم حذف الحدث بنجاح", nil)
 }
 
-// PublicEvents returns public calendar events
+// PublicEvents returns upcoming calendar events
 // GET /api/home/calendar
 func (h *Handler) PublicEvents(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
-	countryCode, _ := c.Locals("country_code").(string)
 
-	var events []models.Event
-	db.Where("`database` = ?", countryCode).Order("start_date ASC").Limit(20).Find(&events)
+	events, err := h.svc.ListPublicEvents(countryID, 20)
+	if err != nil {
+		return utils.InternalError(c)
+	}
 
 	return utils.Success(c, "success", events)
 }
@@ -158,10 +151,9 @@ func (h *Handler) PublicEventDetail(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	db := database.DBForCountry(countryID)
 
-	var event models.Event
-	if err := db.First(&event, id).Error; err != nil {
+	event, err := h.svc.GetEvent(countryID, id)
+	if err != nil {
 		return utils.NotFound(c)
 	}
 

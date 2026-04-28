@@ -1,57 +1,92 @@
 package settings
 
 import (
-	"github.com/alemancenter/fiber-api/internal/database"
+	"strings"
+
 	"github.com/alemancenter/fiber-api/internal/models"
+	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
 
 // Handler contains settings route handlers
-type Handler struct{}
-
-// New creates a new settings Handler
-func New() *Handler { return &Handler{} }
-
-// GetAll returns all settings grouped by category
-// GET /api/dashboard/settings
-func (h *Handler) GetAll(c *fiber.Ctx) error {
-	db := database.DB()
-	var settings []models.Setting
-	db.Order("`group`, `key`").Find(&settings)
-
-	// Group settings by group key
-	grouped := make(map[string][]models.Setting)
-	for _, s := range settings {
-		grouped[s.Group] = append(grouped[s.Group], s)
-	}
-
-	return utils.Success(c, "success", grouped)
+type Handler struct {
+	svc services.SettingService
 }
 
-// Update saves settings
-// POST /api/dashboard/settings
+// New creates a new settings Handler
+func New(svc services.SettingService) *Handler {
+	return &Handler{svc: svc}
+}
+
+// GetAll returns all settings as a flat key→value map for the dashboard.
+// GET /api/dashboard/settings
+func (h *Handler) GetAll(c *fiber.Ctx) error {
+	m, err := h.svc.GetAll(c.Context())
+	if err != nil {
+		return utils.InternalError(c)
+	}
+	return utils.Success(c, "success", m)
+}
+
+// allowedSettingImageKeys lists the setting keys that accept file uploads.
+var allowedSettingImageKeys = map[string]bool{
+	"site_logo":     true,
+	"site_favicon":  true,
+	"site_og_image": true,
+}
+
+// Update saves settings using a batch upsert (INSERT … ON DUPLICATE KEY UPDATE).
+// Accepts both application/json (key/value map) and multipart/form-data (for image uploads).
+// POST /api/dashboard/settings  |  POST /api/dashboard/settings/update
 func (h *Handler) Update(c *fiber.Ctx) error {
-	var body map[string]string
-	if err := c.BodyParser(&body); err != nil {
-		return utils.BadRequest(c, "بيانات غير صحيحة")
+	updates := make(map[string]string)
+
+	ct := string(c.Request().Header.ContentType())
+	if strings.Contains(ct, "multipart/form-data") {
+		// Parse multipart: handle text fields and image file fields
+		form, err := c.MultipartForm()
+		if err != nil {
+			return utils.BadRequest(c, "بيانات غير صحيحة")
+		}
+		for key, vals := range form.Value {
+			if len(vals) > 0 {
+				updates[key] = vals[0]
+			}
+		}
+		fileRepo := repositories.NewFileRepository()
+		fileSvc := services.NewFileService(fileRepo)
+		for key, files := range form.File {
+			if !allowedSettingImageKeys[key] || len(files) == 0 {
+				continue
+			}
+			if uploaded, err := fileSvc.UploadImage(files[0], "settings"); err == nil {
+				updates[key] = uploaded.Path
+			}
+		}
+	} else {
+		var body map[string]string
+		if err := c.BodyParser(&body); err != nil {
+			return utils.BadRequest(c, "بيانات غير صحيحة")
+		}
+		updates = body
 	}
 
-	db := database.DB()
-	for key, value := range body {
-		v := value
-		db.Where(models.Setting{Key: key}).
-			Assign(models.Setting{Value: &v}).
-			FirstOrCreate(&models.Setting{})
+	if len(updates) == 0 {
+		return utils.BadRequest(c, "لا توجد بيانات للحفظ")
 	}
 
-	user, _ := c.Locals("user").(*models.User)
-	if user != nil {
-		services.LogActivity("حدّث الإعدادات", "Setting", 0, user.ID)
+	var userID uint
+	if user, ok := c.Locals("user").(*models.User); ok && user != nil {
+		userID = user.ID
 	}
 
-	return utils.Success(c, "تم حفظ الإعدادات بنجاح", nil)
+	if err := h.svc.Update(c.Context(), updates, userID); err != nil {
+		return utils.InternalError(c, "فشل حفظ الإعدادات")
+	}
+
+	return utils.Success(c, "تم حفظ الإعدادات بنجاح", updates)
 }
 
 // TestSMTP tests the SMTP connection
@@ -93,28 +128,25 @@ func (h *Handler) UpdateRobots(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
 
-	db := database.DB()
-	content := req.Content
-	db.Where(models.Setting{Key: "robots_txt"}).
-		Assign(models.Setting{Value: &content}).
-		FirstOrCreate(&models.Setting{})
+	var userID uint
+	if user, ok := c.Locals("user").(*models.User); ok && user != nil {
+		userID = user.ID
+	}
+
+	if err := h.svc.Update(c.Context(), map[string]string{"robots_txt": req.Content}, userID); err != nil {
+		return utils.InternalError(c, "فشل تحديث ملف robots.txt")
+	}
 
 	return utils.Success(c, "تم تحديث ملف robots.txt بنجاح", nil)
 }
 
-// GetPublic returns public-facing settings
+// GetPublic returns public-facing settings.
+// Result is cached in Redis for settingsCacheTTL to avoid a full table scan on every request.
 // GET /api/front/settings
 func (h *Handler) GetPublic(c *fiber.Ctx) error {
-	db := database.DB()
-	var settings []models.Setting
-	db.Where("`group` = ?", "general").Find(&settings)
-
-	result := make(map[string]string)
-	for _, s := range settings {
-		if s.Value != nil {
-			result[s.Key] = *s.Value
-		}
+	result, err := h.svc.GetPublic(c.Context())
+	if err != nil {
+		return utils.InternalError(c)
 	}
-
 	return utils.Success(c, "success", result)
 }

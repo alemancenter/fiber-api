@@ -5,18 +5,23 @@ import (
 	"io"
 	"mime/multipart"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/alemancenter/fiber-api/internal/config"
+	"github.com/alemancenter/fiber-api/internal/database"
+	"github.com/alemancenter/fiber-api/internal/models"
+	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/google/uuid"
 )
 
-// FileService handles file uploads and management
+// FileService handles file operations like uploading, path mapping, and size calculations.
 type FileService struct {
-	cfg config.StorageConfig
+	cfg  config.StorageConfig
+	repo repositories.FileRepository
 }
 
 // UploadedFile represents a successfully uploaded file
@@ -32,6 +37,7 @@ type UploadedFile struct {
 // AllowedImageTypes lists accepted image MIME types
 var AllowedImageTypes = []string{
 	"image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
+	"image/x-icon", "image/vnd.microsoft.icon",
 }
 
 // AllowedDocumentTypes lists accepted document MIME types
@@ -53,8 +59,11 @@ const MaxImageSize = 10 * 1024 * 1024
 const MaxDocumentSize = 50 * 1024 * 1024
 
 // NewFileService creates a new FileService
-func NewFileService() *FileService {
-	return &FileService{cfg: config.Get().Storage}
+func NewFileService(repo repositories.FileRepository) *FileService {
+	return &FileService{
+		cfg:  config.Get().Storage,
+		repo: repo,
+	}
 }
 
 // UploadImage validates and saves an image file
@@ -108,17 +117,15 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 	}
 	filename := fmt.Sprintf("%s_%d%s", uuid.New().String(), time.Now().UnixNano(), ext)
 
-	// Build destination path
+	// relPath is always forward-slash (URL-safe); absPath uses OS separators for disk I/O
 	dateDir := time.Now().Format("2006/01")
-	relPath := filepath.Join(subdir, dateDir, filename)
-	absPath := filepath.Join(s.cfg.Path, relPath)
+	relPath := path.Join(subdir, dateDir, filename)
+	absPath := filepath.Join(s.cfg.Path, filepath.FromSlash(relPath))
 
-	// Create directory structure
 	if err := os.MkdirAll(filepath.Dir(absPath), 0755); err != nil {
 		return nil, fmt.Errorf("failed to create upload directory: %w", err)
 	}
 
-	// Save file
 	dst, err := os.Create(absPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create file: %w", err)
@@ -129,12 +136,9 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 		return nil, fmt.Errorf("failed to save file: %w", err)
 	}
 
-	// Normalize path separators for URL
-	urlPath := strings.ReplaceAll(relPath, "\\", "/")
-
 	return &UploadedFile{
 		Path:     relPath,
-		URL:      s.cfg.URL + "/" + urlPath,
+		URL:      s.cfg.URL + "/" + relPath,
 		Name:     header.Filename,
 		Size:     header.Size,
 		MimeType: mtype.String(),
@@ -163,4 +167,60 @@ func isAllowedMime(mtype string, allowed []string) bool {
 		}
 	}
 	return false
+}
+
+// Database Operations
+
+func (s *FileService) List(countryID database.CountryID, fileType string, articleID string, limit, offset int) ([]models.File, int64, error) {
+	return s.repo.ListPaginated(countryID, fileType, articleID, limit, offset)
+}
+
+func (s *FileService) FindByID(countryID database.CountryID, id uint64) (*models.File, error) {
+	return s.repo.FindByID(countryID, id)
+}
+
+func (s *FileService) IncrementViewCount(countryID database.CountryID, id uint64) error {
+	return s.repo.IncrementView(countryID, id)
+}
+
+func (s *FileService) CreateRecord(countryID database.CountryID, uploaded *UploadedFile, articleID *uint) (*models.File, error) {
+	file := &models.File{
+		FilePath:  uploaded.Path,
+		FileType:  uploaded.Ext,
+		FileName:  uploaded.Name,
+		FileSize:  uploaded.Size,
+		MimeType:  uploaded.MimeType,
+		ArticleID: articleID,
+	}
+
+	if err := s.repo.Create(countryID, file); err != nil {
+		return nil, err
+	}
+
+	return file, nil
+}
+
+func (s *FileService) UpdateRecord(countryID database.CountryID, id uint64, updates map[string]interface{}) (*models.File, error) {
+	file, err := s.repo.FindByID(countryID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.repo.Update(countryID, file, updates); err != nil {
+		return nil, err
+	}
+
+	return file, nil
+}
+
+func (s *FileService) DeleteRecord(countryID database.CountryID, id uint64) error {
+	file, err := s.repo.FindByID(countryID, id)
+	if err != nil {
+		return err
+	}
+
+	// Delete physical file
+	s.Delete(file.FilePath)
+
+	return s.repo.Delete(countryID, file)
 }
