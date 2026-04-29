@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -91,11 +92,12 @@ func TrackVisitor() fiber.Handler {
 			return nil
 		}
 
-		// Sample 1 in 3 requests to reduce writes
-		clientIP := utils.GetClientIP(c)
-		if len(clientIP) > 0 && clientIP[0]%3 != 0 {
+		// Sample 1 in 3 requests uniformly to reduce writes
+		if rand.Intn(3) != 0 {
 			return nil
 		}
+
+		clientIP := utils.GetClientIP(c)
 
 		countryCode, _ := c.Locals("country_code").(string)
 		if countryCode == "" {

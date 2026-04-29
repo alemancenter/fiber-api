@@ -211,7 +211,7 @@ func Load() *Config {
 		// Validate required environment variables that have no safe default
 		required := []string{
 			"JWT_SECRET",
-			"DB_HOST_JO", "DB_NAME_JO", "DB_USER_JO", "DB_PASS_JO",
+			"DB_HOST_JO", "DB_NAME_JO", "DB_USER_JO",
 			"APP_URL", "FRONTEND_URL",
 		}
 		var missing []string

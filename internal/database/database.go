@@ -56,22 +56,41 @@ func GetManager() *Manager {
 	return manager
 }
 
-// initAll initializes all database connections
+// initAll initializes all database connections.
+// Jordan (primary) is required — its failure is fatal.
+// Secondary databases (SA/EG/PS) log a warning and fall back to Jordan on error.
 func (m *Manager) initAll() error {
-	configs := map[CountryID]config.DBConnection{
-		CountryJordan:    m.cfg.Database.Jordan,
-		CountrySaudi:     m.cfg.Database.Saudi,
-		CountryEgypt:     m.cfg.Database.Egypt,
-		CountryPalestine: m.cfg.Database.Palestine,
+	type entry struct {
+		id  CountryID
+		cfg config.DBConnection
 	}
 
-	for id, dbCfg := range configs {
-		db, err := m.connect(dbCfg)
+	// Jordan must succeed
+	jordanDB, err := m.connect(m.cfg.Database.Jordan)
+	if err != nil {
+		return fmt.Errorf("failed to connect to primary (Jordan) database: %w", err)
+	}
+	m.connections[CountryJordan] = jordanDB
+	logger.Info("database connected", zap.String("country", "jo"))
+
+	// Secondary databases — warn but fall back to Jordan on error
+	secondaries := []entry{
+		{CountrySaudi, m.cfg.Database.Saudi},
+		{CountryEgypt, m.cfg.Database.Egypt},
+		{CountryPalestine, m.cfg.Database.Palestine},
+	}
+	for _, s := range secondaries {
+		db, err := m.connect(s.cfg)
 		if err != nil {
-			return fmt.Errorf("failed to connect to %s database: %w", countryNames[id], err)
+			logger.Error("secondary database unavailable — falling back to Jordan",
+				zap.String("country", countryNames[s.id]),
+				zap.Error(err),
+			)
+			m.connections[s.id] = jordanDB // safe fallback
+			continue
 		}
-		m.connections[id] = db
-		logger.Info("database connected", zap.String("country", countryNames[id]))
+		m.connections[s.id] = db
+		logger.Info("database connected", zap.String("country", countryNames[s.id]))
 	}
 	return nil
 }
@@ -103,6 +122,7 @@ func (m *Manager) connect(dbCfg config.DBConnection) (*gorm.DB, error) {
 	sqlDB.SetMaxIdleConns(dbCfg.MaxIdle)
 	sqlDB.SetMaxOpenConns(dbCfg.MaxOpen)
 	sqlDB.SetConnMaxLifetime(time.Duration(dbCfg.MaxLife) * time.Second)
+	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
 
 	return db, nil
 }

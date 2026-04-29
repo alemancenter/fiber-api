@@ -21,9 +21,12 @@ func SecurityHeaders() fiber.Handler {
 		}
 
 		if cfg.App.IsProduction() {
+			// unsafe-eval removed: eval() and similar dynamic code execution blocked.
+			// unsafe-inline kept for script/style because the Next.js frontend injects
+			// inline styles; replace with nonce-based CSP when the frontend supports it.
 			c.Set("Content-Security-Policy",
 				"default-src 'self'; "+
-					"script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; "+
+					"script-src 'self' 'unsafe-inline' https:; "+
 					"style-src 'self' 'unsafe-inline' https:; "+
 					"img-src 'self' data: https:; "+
 					"font-src 'self' https: data:; "+

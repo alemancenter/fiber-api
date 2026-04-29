@@ -13,6 +13,7 @@ func Setup(app *fiber.App) {
 	deps := NewDependencies()
 
 	// Global middleware
+	app.Use(middleware.RequestID())
 	app.Use(middleware.SecurityHeaders())
 	app.Use(middleware.CORS())
 	app.Use(middleware.RequestLogger())

@@ -1,40 +1,96 @@
 package middleware
 
 import (
+	"context"
+	"encoding/json"
+	"time"
+
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
 
-// IPGuard blocks requests from blocked IPs and skips checks for trusted IPs
+const ipCacheTTL = 5 * time.Minute
+
+type ipStatus struct {
+	Blocked bool `json:"blocked"`
+	Trusted bool `json:"trusted"`
+}
+
+// IPGuard blocks requests from blocked IPs and skips checks for trusted IPs.
+// Results are cached in Redis for ipCacheTTL to avoid a DB hit on every request.
 func IPGuard() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		clientIP := utils.GetClientIP(c)
 
-		// Localhost always passes
 		if utils.IsLocalhost(clientIP) {
 			return c.Next()
 		}
 
-		db := database.DB()
-
-		// Check if IP is blocked
-		var blocked models.BlockedIP
-		if err := db.Where("ip_address = ?", clientIP).First(&blocked).Error; err == nil {
-			if !blocked.IsExpired() {
-				return utils.Forbidden(c, "عنوان IP الخاص بك محظور")
-			}
-			// Auto-remove expired block
-			db.Delete(&blocked)
+		status, err := getIPStatus(clientIP)
+		if err != nil {
+			// On cache/DB error fall through — don't block legitimate traffic
+			return c.Next()
 		}
 
-		// Mark trusted status in context
-		var trusted models.TrustedIP
-		if err := db.Where("ip_address = ?", clientIP).First(&trusted).Error; err == nil {
+		if status.Blocked {
+			return utils.Forbidden(c, "عنوان IP الخاص بك محظور")
+		}
+		if status.Trusted {
 			c.Locals("trusted_ip", true)
 		}
 
 		return c.Next()
 	}
+}
+
+// getIPStatus returns the cached (or freshly loaded) block/trust status for an IP.
+func getIPStatus(ip string) (ipStatus, error) {
+	rdb := database.Redis()
+	ctx := context.Background()
+	cacheKey := rdb.Key("ip_guard", ip)
+
+	// Try cache first
+	if cached, err := rdb.Get(ctx, cacheKey); err == nil {
+		var s ipStatus
+		if json.Unmarshal([]byte(cached), &s) == nil {
+			return s, nil
+		}
+	}
+
+	// Cache miss — query DB
+	db := database.DB()
+	s := ipStatus{}
+
+	var blocked models.BlockedIP
+	if err := db.Where("ip_address = ?", ip).First(&blocked).Error; err == nil {
+		if !blocked.IsExpired() {
+			s.Blocked = true
+		} else {
+			// Auto-remove expired block
+			db.Delete(&blocked)
+		}
+	}
+
+	if !s.Blocked {
+		var trusted models.TrustedIP
+		if err := db.Where("ip_address = ?", ip).First(&trusted).Error; err == nil {
+			s.Trusted = true
+		}
+	}
+
+	// Cache result
+	if data, err := json.Marshal(s); err == nil {
+		_ = rdb.Set(ctx, cacheKey, data, ipCacheTTL)
+	}
+
+	return s, nil
+}
+
+// InvalidateIPCache removes the cached IP status so the next request re-checks DB.
+// Call this after blocking or unblocking an IP via the dashboard.
+func InvalidateIPCache(ip string) {
+	rdb := database.Redis()
+	_ = rdb.Del(context.Background(), rdb.Key("ip_guard", ip))
 }

@@ -38,7 +38,10 @@ func (r *postRepository) ListPaginated(countryID database.CountryID, catID strin
 		query = query.Where("category_id = ?", catID)
 	}
 	if search != "" {
-		query = query.Where("title LIKE ? OR content LIKE ?", "%"+search+"%", "%"+search+"%")
+		// Search title only — content is a large TEXT column and scanning it causes
+		// a full-table scan even with indexes. Add a FULLTEXT index on content and
+		// switch to MATCH() AGAINST() if full-content search is required.
+		query = query.Where("title LIKE ?", "%"+search+"%")
 	}
 	if featured == "1" {
 		query = query.Where("is_featured = ?", true)

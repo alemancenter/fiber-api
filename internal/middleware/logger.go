@@ -30,6 +30,9 @@ func RequestLogger() fiber.Handler {
 			zap.String("user_agent", c.Get("User-Agent")),
 		}
 
+		if reqID, ok := c.Locals("request_id").(string); ok && reqID != "" {
+			fields = append(fields, zap.String("request_id", reqID))
+		}
 		if userID, ok := c.Locals("user_id").(uint); ok {
 			fields = append(fields, zap.Uint("user_id", userID))
 		}

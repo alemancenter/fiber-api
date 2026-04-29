@@ -79,7 +79,8 @@ func SanitizeInput(input string) string {
 	return strings.TrimSpace(re.ReplaceAllString(input, ""))
 }
 
-// SanitizeStruct sanitizes all string fields in a struct pointer
+// SanitizeStruct sanitizes all string fields in a struct pointer (recursive).
+// Handles: string, *string, []string, nested structs, and slices of structs.
 func SanitizeStruct(s interface{}) {
 	v := reflect.ValueOf(s)
 	if v.Kind() != reflect.Ptr || v.IsNil() {
@@ -89,16 +90,40 @@ func SanitizeStruct(s interface{}) {
 	if v.Kind() != reflect.Struct {
 		return
 	}
+	sanitizeValue(v)
+}
 
+func sanitizeValue(v reflect.Value) {
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
-		if field.Kind() == reflect.String && field.CanSet() {
+		if !field.CanSet() {
+			continue
+		}
+		switch field.Kind() {
+		case reflect.String:
 			field.SetString(SanitizeInput(field.String()))
-		} else if field.Kind() == reflect.Ptr && !field.IsNil() && field.Elem().Kind() == reflect.String && field.CanSet() {
-			sanitized := SanitizeInput(field.Elem().String())
-			field.Elem().SetString(sanitized)
-		} else if field.Kind() == reflect.Struct {
-			SanitizeStruct(field.Addr().Interface())
+		case reflect.Ptr:
+			if !field.IsNil() && field.Elem().Kind() == reflect.String {
+				field.Elem().SetString(SanitizeInput(field.Elem().String()))
+			}
+		case reflect.Struct:
+			sanitizeValue(field)
+		case reflect.Slice:
+			for j := 0; j < field.Len(); j++ {
+				elem := field.Index(j)
+				switch elem.Kind() {
+				case reflect.String:
+					if elem.CanSet() {
+						elem.SetString(SanitizeInput(elem.String()))
+					}
+				case reflect.Struct:
+					sanitizeValue(elem)
+				case reflect.Ptr:
+					if !elem.IsNil() && elem.Elem().Kind() == reflect.Struct {
+						sanitizeValue(elem.Elem())
+					}
+				}
+			}
 		}
 	}
 }

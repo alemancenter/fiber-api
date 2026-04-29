@@ -42,14 +42,14 @@ func (p *Pagination) BuildMeta(total int64) PaginationMeta {
 		lastPage = 1
 	}
 
-	from := p.Offset + 1
-	to := p.Offset + p.PerPage
-	if to > int(total) {
-		to = int(total)
-	}
-	if total == 0 {
-		from = 0
-		to = 0
+	from := 0
+	to := 0
+	if total > 0 && p.Offset < int(total) {
+		from = p.Offset + 1
+		to = p.Offset + p.PerPage
+		if to > int(total) {
+			to = int(total)
+		}
 	}
 
 	return PaginationMeta{
