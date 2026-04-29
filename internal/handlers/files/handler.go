@@ -20,7 +20,7 @@ func New(svc *services.FileService) *Handler {
 	return &Handler{svc: svc}
 }
 
-// Info returns file metadata
+// Info returns file metadata with its parent article or post.
 // GET /api/files/:id/info
 func (h *Handler) Info(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
@@ -30,7 +30,7 @@ func (h *Handler) Info(c *fiber.Ctx) error {
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
-	file, err := h.svc.FindByID(countryID, id)
+	resp, err := h.svc.GetFileWithParent(countryID, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return utils.NotFound(c)
@@ -38,7 +38,7 @@ func (h *Handler) Info(c *fiber.Ctx) error {
 		return utils.InternalError(c)
 	}
 
-	return utils.Success(c, "success", file)
+	return utils.Success(c, "success", resp)
 }
 
 // IncrementView increments the file view count
@@ -119,10 +119,22 @@ func (h *Handler) DashboardList(c *fiber.Ctx) error {
 	return utils.Paginated(c, "success", fileList, pag.BuildMeta(total))
 }
 
-// DashboardShow returns a single file
+// DashboardShow returns a single file (flat, no parent join)
 // GET /api/dashboard/files/:id
 func (h *Handler) DashboardShow(c *fiber.Ctx) error {
-	return h.Info(c)
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return utils.BadRequest(c, "معرف غير صحيح")
+	}
+	countryID, _ := c.Locals("country_id").(database.CountryID)
+	file, err := h.svc.FindByID(countryID, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c)
+	}
+	return utils.Success(c, "success", file)
 }
 
 // DashboardUpload uploads a file and creates a record
