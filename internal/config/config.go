@@ -15,19 +15,19 @@ var (
 )
 
 type Config struct {
-	App      AppConfig
-	JWT      JWTConfig
-	Frontend FrontendConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	Mail     MailConfig
-	Google   GoogleConfig
-	FCM      FCMConfig
-	Storage  StorageConfig
-	Security SecurityConfig
-	Log      LogConfig
-	GeoIP    GeoIPConfig
-	AI       AIConfig
+	App       AppConfig
+	JWT       JWTConfig
+	Frontend  FrontendConfig
+	Database  DatabaseConfig
+	Redis     RedisConfig
+	Mail      MailConfig
+	Google    GoogleConfig
+	FCM       FCMConfig
+	Storage   StorageConfig
+	Security  SecurityConfig
+	Log       LogConfig
+	GeoIP     GeoIPConfig
+	AI        AIConfig
 	OneSignal OneSignalConfig
 }
 
@@ -44,22 +44,22 @@ type AppConfig struct {
 }
 
 type JWTConfig struct {
-	Secret        string
-	ExpireHours   int
-	RefreshHours  int
+	Secret       string
+	ExpireHours  int
+	RefreshHours int
 }
 
 type FrontendConfig struct {
-	APIKey           string
-	URL              string
-	CORSOrigins      []string
-	RateLimit        bool
-	RateLimitMax     int
-	RateLimitWindow  int
-	LoginRateLimit   int
-	APIRateLimit     int
-	SSRRateLimitMax  int
-	SSRTrustedIPs    []string
+	APIKey          string
+	URL             string
+	CORSOrigins     []string
+	RateLimit       bool
+	RateLimitMax    int
+	RateLimitWindow int
+	LoginRateLimit  int
+	APIRateLimit    int
+	SSRRateLimitMax int
+	SSRTrustedIPs   []string
 }
 
 type DBConnection struct {
@@ -125,8 +125,8 @@ type StorageConfig struct {
 }
 
 type SecurityConfig struct {
-	AddHSTS          bool
-	SessionLifetime  int
+	AddHSTS           bool
+	SessionLifetime   int
 	VisitorActiveMins int
 	VisitorPruneMins  int
 }
@@ -207,6 +207,10 @@ func Load() *Config {
 			fmt.Fprintf(os.Stderr, "FATAL: JWT_SECRET must be at least 32 characters (got %d). Set a strong secret in .env\n", len(jwtSecret))
 			os.Exit(1)
 		}
+		if jwtSecretLowEntropy(jwtSecret) {
+			fmt.Fprintf(os.Stderr, "FATAL: JWT_SECRET has insufficient entropy. Use a cryptographically random value (e.g. openssl rand -hex 32).\n")
+			os.Exit(1)
+		}
 
 		// Validate required environment variables that have no safe default
 		required := []string{
@@ -256,48 +260,48 @@ func Load() *Config {
 			},
 			Database: DatabaseConfig{
 				Jordan: DBConnection{
-					Host:    v.GetString("DB_HOST_JO"),
-					Port:    v.GetInt("DB_PORT_JO"),
-					Name:    v.GetString("DB_NAME_JO"),
-					User:    v.GetString("DB_USER_JO"),
+					Host:     v.GetString("DB_HOST_JO"),
+					Port:     v.GetInt("DB_PORT_JO"),
+					Name:     v.GetString("DB_NAME_JO"),
+					User:     v.GetString("DB_USER_JO"),
 					Password: v.GetString("DB_PASS_JO"),
-					Charset: v.GetString("DB_CHARSET"),
-					MaxIdle: v.GetInt("DB_MAX_IDLE_CONNS"),
-					MaxOpen: v.GetInt("DB_MAX_OPEN_CONNS"),
-					MaxLife: v.GetInt("DB_CONN_MAX_LIFETIME"),
+					Charset:  v.GetString("DB_CHARSET"),
+					MaxIdle:  v.GetInt("DB_MAX_IDLE_CONNS"),
+					MaxOpen:  v.GetInt("DB_MAX_OPEN_CONNS"),
+					MaxLife:  v.GetInt("DB_CONN_MAX_LIFETIME"),
 				},
 				Saudi: DBConnection{
-					Host:    v.GetString("DB_HOST_SA"),
-					Port:    v.GetInt("DB_PORT_SA"),
-					Name:    v.GetString("DB_NAME_SA"),
-					User:    v.GetString("DB_USER_SA"),
+					Host:     v.GetString("DB_HOST_SA"),
+					Port:     v.GetInt("DB_PORT_SA"),
+					Name:     v.GetString("DB_NAME_SA"),
+					User:     v.GetString("DB_USER_SA"),
 					Password: v.GetString("DB_PASS_SA"),
-					Charset: v.GetString("DB_CHARSET"),
-					MaxIdle: v.GetInt("DB_MAX_IDLE_CONNS"),
-					MaxOpen: v.GetInt("DB_MAX_OPEN_CONNS"),
-					MaxLife: v.GetInt("DB_CONN_MAX_LIFETIME"),
+					Charset:  v.GetString("DB_CHARSET"),
+					MaxIdle:  v.GetInt("DB_MAX_IDLE_CONNS"),
+					MaxOpen:  v.GetInt("DB_MAX_OPEN_CONNS"),
+					MaxLife:  v.GetInt("DB_CONN_MAX_LIFETIME"),
 				},
 				Egypt: DBConnection{
-					Host:    v.GetString("DB_HOST_EG"),
-					Port:    v.GetInt("DB_PORT_EG"),
-					Name:    v.GetString("DB_NAME_EG"),
-					User:    v.GetString("DB_USER_EG"),
+					Host:     v.GetString("DB_HOST_EG"),
+					Port:     v.GetInt("DB_PORT_EG"),
+					Name:     v.GetString("DB_NAME_EG"),
+					User:     v.GetString("DB_USER_EG"),
 					Password: v.GetString("DB_PASS_EG"),
-					Charset: v.GetString("DB_CHARSET"),
-					MaxIdle: v.GetInt("DB_MAX_IDLE_CONNS"),
-					MaxOpen: v.GetInt("DB_MAX_OPEN_CONNS"),
-					MaxLife: v.GetInt("DB_CONN_MAX_LIFETIME"),
+					Charset:  v.GetString("DB_CHARSET"),
+					MaxIdle:  v.GetInt("DB_MAX_IDLE_CONNS"),
+					MaxOpen:  v.GetInt("DB_MAX_OPEN_CONNS"),
+					MaxLife:  v.GetInt("DB_CONN_MAX_LIFETIME"),
 				},
 				Palestine: DBConnection{
-					Host:    v.GetString("DB_HOST_PS"),
-					Port:    v.GetInt("DB_PORT_PS"),
-					Name:    v.GetString("DB_NAME_PS"),
-					User:    v.GetString("DB_USER_PS"),
+					Host:     v.GetString("DB_HOST_PS"),
+					Port:     v.GetInt("DB_PORT_PS"),
+					Name:     v.GetString("DB_NAME_PS"),
+					User:     v.GetString("DB_USER_PS"),
 					Password: v.GetString("DB_PASS_PS"),
-					Charset: v.GetString("DB_CHARSET"),
-					MaxIdle: v.GetInt("DB_MAX_IDLE_CONNS"),
-					MaxOpen: v.GetInt("DB_MAX_OPEN_CONNS"),
-					MaxLife: v.GetInt("DB_CONN_MAX_LIFETIME"),
+					Charset:  v.GetString("DB_CHARSET"),
+					MaxIdle:  v.GetInt("DB_MAX_IDLE_CONNS"),
+					MaxOpen:  v.GetInt("DB_MAX_OPEN_CONNS"),
+					MaxLife:  v.GetInt("DB_CONN_MAX_LIFETIME"),
 				},
 			},
 			Redis: RedisConfig{
@@ -385,4 +389,14 @@ func (a *AppConfig) IsProduction() bool {
 
 func (a *AppConfig) IsDevelopment() bool {
 	return a.Env == "development" || a.Env == "local"
+}
+
+// jwtSecretLowEntropy returns true when the secret has fewer than 8 unique
+// characters — a strong signal it was not randomly generated (e.g. all 'a's).
+func jwtSecretLowEntropy(secret string) bool {
+	seen := make(map[rune]struct{}, len(secret))
+	for _, c := range secret {
+		seen[c] = struct{}{}
+	}
+	return len(seen) < 8
 }

@@ -17,7 +17,12 @@ func CORS() fiber.Handler {
 		AllowOriginsFunc: func(origin string) bool {
 			for _, allowed := range cfg.Frontend.CORSOrigins {
 				allowed = strings.TrimSpace(allowed)
-				if allowed == "*" || allowed == origin {
+				// Never match wildcard when credentials are enabled — browsers reject it anyway
+				// and it would allow any origin to make credentialed cross-origin requests.
+				if allowed == "*" {
+					continue
+				}
+				if allowed == origin {
 					return true
 				}
 			}

@@ -12,8 +12,8 @@ type PostService interface {
 	GetByID(countryID database.CountryID, id uint64) (*models.Post, error)
 	IncrementView(countryID database.CountryID, id uint64) error
 	Create(countryID database.CountryID, countryCode string, userID *uint, req *CreatePostRequest, imagePath string) (*models.Post, error)
-	Update(countryID database.CountryID, id uint64, req *UpdatePostRequest) (*models.Post, error)
-	Delete(countryID database.CountryID, id uint64) error
+	Update(countryID database.CountryID, id uint64, req *UpdatePostRequest, callerID uint, callerIsAdmin bool) (*models.Post, error)
+	Delete(countryID database.CountryID, id uint64, callerID uint, callerIsAdmin bool) error
 }
 
 type CreatePostRequest struct {
@@ -45,15 +45,17 @@ func NewPostService(repo repositories.PostRepository) PostService {
 }
 
 func (s *postService) List(countryID database.CountryID, catID string, search string, featured string, limit, offset int) ([]models.Post, int64, error) {
-	return s.repo.ListPaginated(countryID, catID, search, featured, limit, offset)
+	posts, total, err := s.repo.ListPaginated(countryID, catID, search, featured, limit, offset)
+	return posts, total, MapError(err)
 }
 
 func (s *postService) GetByID(countryID database.CountryID, id uint64) (*models.Post, error) {
-	return s.repo.FindByID(countryID, id)
+	post, err := s.repo.FindByID(countryID, id)
+	return post, MapError(err)
 }
 
 func (s *postService) IncrementView(countryID database.CountryID, id uint64) error {
-	return s.repo.IncrementView(countryID, id)
+	return ViewCounter.IncrementPostView(countryID, id)
 }
 
 func (s *postService) Create(countryID database.CountryID, countryCode string, userID *uint, req *CreatePostRequest, imagePath string) (*models.Post, error) {
@@ -84,16 +86,20 @@ func (s *postService) Create(countryID database.CountryID, countryCode string, u
 	}
 
 	if err := s.repo.Create(countryID, post); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	return post, nil
 }
 
-func (s *postService) Update(countryID database.CountryID, id uint64, req *UpdatePostRequest) (*models.Post, error) {
+func (s *postService) Update(countryID database.CountryID, id uint64, req *UpdatePostRequest, callerID uint, callerIsAdmin bool) (*models.Post, error) {
 	post, err := s.repo.FindByID(countryID, id)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
+	}
+
+	if !callerIsAdmin && callerID > 0 && post.AuthorID != nil && *post.AuthorID != callerID {
+		return nil, ErrForbidden
 	}
 
 	if req.CategoryID != nil {
@@ -120,12 +126,21 @@ func (s *postService) Update(countryID database.CountryID, id uint64, req *Updat
 	}
 
 	if err := s.repo.Update(countryID, post); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	return post, nil
 }
 
-func (s *postService) Delete(countryID database.CountryID, id uint64) error {
+func (s *postService) Delete(countryID database.CountryID, id uint64, callerID uint, callerIsAdmin bool) error {
+	post, err := s.repo.FindByID(countryID, id)
+	if err != nil {
+		return MapError(err)
+	}
+
+	if !callerIsAdmin && callerID > 0 && post.AuthorID != nil && *post.AuthorID != callerID {
+		return ErrForbidden
+	}
+
 	return s.repo.Delete(countryID, id)
 }

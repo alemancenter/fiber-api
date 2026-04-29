@@ -2,6 +2,7 @@ package posts
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
@@ -9,8 +10,26 @@ import (
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
 )
+
+var adminRoleNames = []string{"admin", "super_admin", "super-admin", "manager", "administrator", "root"}
+
+func isAdminUser(user *models.User) bool {
+	if user == nil {
+		return false
+	}
+	if user.ID == 1 {
+		return true
+	}
+	for _, role := range user.Roles {
+		for _, name := range adminRoleNames {
+			if strings.EqualFold(role.Name, name) {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 // Handler contains posts route handlers
 type Handler struct {
@@ -52,7 +71,7 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 
 	post, err := h.svc.GetByID(countryID, id)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c)
@@ -129,18 +148,28 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
+	caller, _ := c.Locals("user").(*models.User)
 
 	var req services.UpdatePostRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
 
-	post, err := h.svc.Update(countryID, id, &req)
+	callerID := uint(0)
+	if caller != nil {
+		callerID = caller.ID
+	}
+
+	post, err := h.svc.Update(countryID, id, &req, callerID, isAdminUser(caller))
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		switch err {
+		case services.ErrNotFound:
 			return utils.NotFound(c)
+		case services.ErrForbidden:
+			return utils.Forbidden(c)
+		default:
+			return utils.InternalError(c, "فشل تحديث المنشور")
 		}
-		return utils.InternalError(c, "فشل تحديث المنشور")
 	}
 	return utils.Success(c, "تم تحديث المنشور بنجاح", post)
 }
@@ -154,18 +183,29 @@ func (h *Handler) DashboardToggleStatus(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
+	caller, _ := c.Locals("user").(*models.User)
 
 	post, err := h.svc.GetByID(countryID, id)
 	if err != nil {
 		return utils.NotFound(c)
 	}
 
+	callerID := uint(0)
+	if caller != nil {
+		callerID = caller.ID
+	}
+
 	newStatus := !post.IsActive
 	updatedPost, err := h.svc.Update(countryID, id, &services.UpdatePostRequest{
 		IsActive: &newStatus,
-	})
+	}, callerID, isAdminUser(caller))
 	if err != nil {
-		return utils.InternalError(c, "فشل تحديث حالة المنشور")
+		switch err {
+		case services.ErrForbidden:
+			return utils.Forbidden(c)
+		default:
+			return utils.InternalError(c, "فشل تحديث حالة المنشور")
+		}
 	}
 
 	return utils.Success(c, "تم تحديث حالة المنشور", updatedPost)
@@ -180,9 +220,22 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 	}
 
 	countryID, _ := c.Locals("country_id").(database.CountryID)
+	caller, _ := c.Locals("user").(*models.User)
 
-	if err := h.svc.Delete(countryID, id); err != nil {
-		return utils.InternalError(c, "فشل حذف المنشور")
+	callerID := uint(0)
+	if caller != nil {
+		callerID = caller.ID
+	}
+
+	if err := h.svc.Delete(countryID, id, callerID, isAdminUser(caller)); err != nil {
+		switch err {
+		case services.ErrNotFound:
+			return utils.NotFound(c)
+		case services.ErrForbidden:
+			return utils.Forbidden(c)
+		default:
+			return utils.InternalError(c, "فشل حذف المنشور")
+		}
 	}
 
 	return utils.Success(c, "تم حذف المنشور بنجاح", nil)

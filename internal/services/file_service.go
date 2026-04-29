@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -74,12 +75,12 @@ var allowedImageExts = map[string][]string{
 
 // allowedDocumentExts maps MIME type → allowed file extensions for documents.
 var allowedDocumentExts = map[string][]string{
-	"application/pdf":           {".pdf"},
-	"application/msword":        {".doc"},
+	"application/pdf":    {".pdf"},
+	"application/msword": {".doc"},
 	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": {".docx"},
-	"application/vnd.ms-excel":  {".xls"},
-	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":       {".xlsx"},
-	"application/vnd.ms-powerpoint": {".ppt"},
+	"application/vnd.ms-excel": {".xls"},
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":         {".xlsx"},
+	"application/vnd.ms-powerpoint":                                             {".ppt"},
 	"application/vnd.openxmlformats-officedocument.presentationml.presentation": {".pptx"},
 	"text/plain": {".txt"},
 }
@@ -120,7 +121,7 @@ func (s *FileService) UploadDocument(header *multipart.FileHeader, subdir string
 func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowed []string) (*UploadedFile, error) {
 	src, err := header.Open()
 	if err != nil {
-		return nil, fmt.Errorf("failed to open uploaded file: %w", err)
+		return nil, fmt.Errorf("failed to open uploaded file: %w", MapError(err))
 	}
 	defer src.Close()
 
@@ -129,7 +130,7 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 	n, _ := src.Read(buf)
 	mtype, err := mimetype.DetectReader(strings.NewReader(string(buf[:n])))
 	if err != nil {
-		return nil, fmt.Errorf("failed to detect file type: %w", err)
+		return nil, fmt.Errorf("failed to detect file type: %w", MapError(err))
 	}
 
 	// Validate MIME type
@@ -150,7 +151,7 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 
 	// Reset reader
 	if _, err := src.(io.Seeker).Seek(0, 0); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	// Generate unique filename using MIME-derived extension (not the client-supplied one)
@@ -166,17 +167,17 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 	absPath := filepath.Join(s.cfg.Path, filepath.FromSlash(relPath))
 
 	if err := os.MkdirAll(filepath.Dir(absPath), 0755); err != nil {
-		return nil, fmt.Errorf("failed to create upload directory: %w", err)
+		return nil, fmt.Errorf("failed to create upload directory: %w", MapError(err))
 	}
 
 	dst, err := os.Create(absPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create file: %w", err)
+		return nil, fmt.Errorf("failed to create file: %w", MapError(err))
 	}
 	defer dst.Close()
 
 	if _, err := io.Copy(dst, src); err != nil {
-		return nil, fmt.Errorf("failed to save file: %w", err)
+		return nil, fmt.Errorf("failed to save file: %w", MapError(err))
 	}
 
 	return &UploadedFile{
@@ -193,7 +194,7 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 func (s *FileService) Delete(relPath string) error {
 	absPath := filepath.Join(s.cfg.Path, relPath)
 	if err := os.Remove(absPath); err != nil && !os.IsNotExist(err) {
-		return err
+		return MapError(err)
 	}
 	return nil
 }
@@ -201,6 +202,24 @@ func (s *FileService) Delete(relPath string) error {
 // GetAbsPath returns the absolute path for a relative storage path
 func (s *FileService) GetAbsPath(relPath string) string {
 	return filepath.Join(s.cfg.Path, relPath)
+}
+
+// SafeGetAbsPath resolves relPath within the storage root and rejects any
+// path that escapes it (path traversal). Returns an error for invalid paths.
+func (s *FileService) SafeGetAbsPath(relPath string) (string, error) {
+	// Clean removes ".." and "." components
+	cleaned := filepath.Clean(relPath)
+	// Reject absolute paths supplied by the caller
+	if filepath.IsAbs(cleaned) {
+		return "", errors.New("absolute paths are not allowed")
+	}
+	storageRoot := filepath.Clean(s.cfg.Path)
+	abs := filepath.Join(storageRoot, cleaned)
+	// Ensure the resolved path is still under the storage root
+	if !strings.HasPrefix(abs, storageRoot+string(filepath.Separator)) {
+		return "", errors.New("path traversal detected")
+	}
+	return abs, nil
 }
 
 func isAllowedMime(mtype string, allowed []string) bool {
@@ -253,7 +272,7 @@ type FileInfoResponse struct {
 func (s *FileService) GetFileWithParent(countryID database.CountryID, id uint64) (*FileInfoResponse, error) {
 	file, err := s.repo.FindByID(countryID, id)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	db := database.DBForCountry(countryID)
@@ -279,7 +298,7 @@ func (s *FileService) GetFileWithParent(countryID database.CountryID, id uint64)
 }
 
 func (s *FileService) IncrementViewCount(countryID database.CountryID, id uint64) error {
-	return s.repo.IncrementView(countryID, id)
+	return ViewCounter.IncrementFileView(countryID, id)
 }
 
 func (s *FileService) CreateRecord(countryID database.CountryID, uploaded *UploadedFile, articleID *uint) (*models.File, error) {
@@ -293,7 +312,7 @@ func (s *FileService) CreateRecord(countryID database.CountryID, uploaded *Uploa
 	}
 
 	if err := s.repo.Create(countryID, file); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	return file, nil
@@ -308,7 +327,7 @@ type UpdateFileInput struct {
 func (s *FileService) UpdateRecord(countryID database.CountryID, id uint64, req *UpdateFileInput) (*models.File, error) {
 	file, err := s.repo.FindByID(countryID, id)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	if req.FileName != "" {
@@ -319,7 +338,7 @@ func (s *FileService) UpdateRecord(countryID database.CountryID, id uint64, req 
 	}
 
 	if err := s.repo.Update(countryID, file); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	return file, nil
@@ -328,7 +347,7 @@ func (s *FileService) UpdateRecord(countryID database.CountryID, id uint64, req 
 func (s *FileService) DeleteRecord(countryID database.CountryID, id uint64) error {
 	file, err := s.repo.FindByID(countryID, id)
 	if err != nil {
-		return err
+		return MapError(err)
 	}
 
 	// Delete physical file

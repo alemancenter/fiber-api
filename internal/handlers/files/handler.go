@@ -7,7 +7,6 @@ import (
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
 )
 
 // Handler contains file management route handlers
@@ -32,7 +31,7 @@ func (h *Handler) Info(c *fiber.Ctx) error {
 
 	resp, err := h.svc.GetFileWithParent(countryID, id)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c)
@@ -129,7 +128,7 @@ func (h *Handler) DashboardShow(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	file, err := h.svc.FindByID(countryID, id)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c)
@@ -191,7 +190,7 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 
 	file, err := h.svc.UpdateRecord(countryID, id, &req)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c, "فشل تحديث الملف")
@@ -211,7 +210,7 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
 	if err := h.svc.DeleteRecord(countryID, id); err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c, "فشل حذف الملف")
@@ -257,11 +256,14 @@ func (h *Handler) SecureUploadDocument(c *fiber.Ctx) error {
 // SecureView serves a file securely
 // GET /api/secure/view
 func (h *Handler) SecureView(c *fiber.Ctx) error {
-	path := c.Query("path")
-	if path == "" {
+	relPath := c.Query("path")
+	if relPath == "" {
 		return utils.BadRequest(c, "مسار الملف مطلوب")
 	}
 
-	absPath := h.svc.GetAbsPath(path)
+	absPath, err := h.svc.SafeGetAbsPath(relPath)
+	if err != nil {
+		return utils.BadRequest(c, "مسار الملف غير صالح")
+	}
 	return c.SendFile(absPath)
 }

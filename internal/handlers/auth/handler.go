@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/alemancenter/fiber-api/internal/config"
 	"github.com/alemancenter/fiber-api/internal/models"
@@ -468,7 +469,14 @@ func (h *Handler) exchangeGoogleCode(code string) (*oauth2.Token, *services.Goog
 }
 
 func (h *Handler) verifyGoogleToken(token string) (*services.GoogleUserInfo, error) {
-	resp, err := http.Get("https://www.googleapis.com/oauth2/v3/userinfo?access_token=" + token)
+	req, err := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v3/userinfo", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
