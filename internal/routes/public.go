@@ -17,6 +17,8 @@ func RegisterPublicRoutes(api fiber.Router, h *Handlers) {
 	public.Get("/articles/by-keyword/:keyword", h.Articles.ByKeyword)
 	public.Get("/articles/:id", h.Articles.Show)
 	public.Get("/articles/file/:id/download", h.Articles.DownloadFile)
+	public.Get("/articles/file/:id/download-url", h.Articles.GetDownloadToken)
+	public.Get("/articles/download", h.Articles.DownloadFileSigned)
 
 	// Files
 	public.Get("/files/:id/info", h.Files.Info)

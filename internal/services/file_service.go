@@ -60,6 +60,30 @@ var AllowedDocumentTypes = []string{
 	"text/plain",
 }
 
+// allowedImageExts maps MIME type → allowed file extensions for images.
+// This prevents polyglot files that pass MIME detection but carry a dangerous extension.
+var allowedImageExts = map[string][]string{
+	"image/jpeg":               {".jpg", ".jpeg"},
+	"image/png":                {".png"},
+	"image/gif":                {".gif"},
+	"image/webp":               {".webp"},
+	"image/svg+xml":            {".svg"},
+	"image/x-icon":             {".ico"},
+	"image/vnd.microsoft.icon": {".ico"},
+}
+
+// allowedDocumentExts maps MIME type → allowed file extensions for documents.
+var allowedDocumentExts = map[string][]string{
+	"application/pdf":           {".pdf"},
+	"application/msword":        {".doc"},
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": {".docx"},
+	"application/vnd.ms-excel":  {".xls"},
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":       {".xlsx"},
+	"application/vnd.ms-powerpoint": {".ppt"},
+	"application/vnd.openxmlformats-officedocument.presentationml.presentation": {".pptx"},
+	"text/plain": {".txt"},
+}
+
 // MaxImageSize is 10MB
 const MaxImageSize = 10 * 1024 * 1024
 
@@ -113,15 +137,26 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 		return nil, fmt.Errorf("نوع الملف غير مسموح: %s", mtype.String())
 	}
 
+	// Validate that the uploaded filename's extension matches the detected MIME type.
+	// This blocks polyglot files (e.g. a PHP script with a .jpg extension that passes
+	// MIME detection but would execute if served directly).
+	uploadedExt := strings.ToLower(filepath.Ext(header.Filename))
+	if uploadedExt != "" {
+		allowedExts := allowedExtensionsForMime(mtype.String())
+		if len(allowedExts) > 0 && !containsStr(allowedExts, uploadedExt) {
+			return nil, fmt.Errorf("امتداد الملف غير مطابق لنوعه: %s", uploadedExt)
+		}
+	}
+
 	// Reset reader
 	if _, err := src.(io.Seeker).Seek(0, 0); err != nil {
 		return nil, err
 	}
 
-	// Generate unique filename
-	ext := filepath.Ext(header.Filename)
+	// Generate unique filename using MIME-derived extension (not the client-supplied one)
+	ext := mtype.Extension()
 	if ext == "" {
-		ext = mtype.Extension()
+		ext = strings.ToLower(filepath.Ext(header.Filename))
 	}
 	filename := fmt.Sprintf("%s_%d%s", uuid.New().String(), time.Now().UnixNano(), ext)
 
@@ -171,6 +206,25 @@ func (s *FileService) GetAbsPath(relPath string) string {
 func isAllowedMime(mtype string, allowed []string) bool {
 	for _, a := range allowed {
 		if a == mtype {
+			return true
+		}
+	}
+	return false
+}
+
+func allowedExtensionsForMime(mtype string) []string {
+	if exts, ok := allowedImageExts[mtype]; ok {
+		return exts
+	}
+	if exts, ok := allowedDocumentExts[mtype]; ok {
+		return exts
+	}
+	return nil
+}
+
+func containsStr(slice []string, s string) bool {
+	for _, v := range slice {
+		if v == s {
 			return true
 		}
 	}

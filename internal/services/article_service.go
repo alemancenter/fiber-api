@@ -46,6 +46,8 @@ type ArticleService interface {
 	GetByGradeLevel(countryID database.CountryID, gradeLevel string, pag utils.Pagination) ([]models.Article, int64, error)
 	GetByKeyword(countryID database.CountryID, keyword string, pag utils.Pagination) ([]models.Article, int64, error)
 	GetFileForDownload(countryID database.CountryID, id uint64) (*models.File, string, error)
+	GetSignedDownloadToken(countryID database.CountryID, fileID uint64) (string, error)
+	GetFileBySignedToken(token string) (*models.File, string, error)
 
 	// Dashboard methods
 	GetDashboardCreateData(countryID database.CountryID) (*ArticleDashboardCreateData, error)
@@ -109,6 +111,45 @@ func (s *articleService) GetFileForDownload(countryID database.CountryID, id uin
 	// Increment view count async
 	go func() {
 		_ = s.repo.IncrementFileViewCount(countryID, id)
+	}()
+
+	return file, absPath, nil
+}
+
+// GetSignedDownloadToken generates a short-lived (15 min) token that authorises
+// downloading the given file without exposing the raw file path.
+func (s *articleService) GetSignedDownloadToken(countryID database.CountryID, fileID uint64) (string, error) {
+	// Verify file exists before issuing token
+	if _, err := s.repo.GetFileByID(countryID, fileID); err != nil {
+		return "", err
+	}
+	jwtSvc := NewJWTService()
+	return jwtSvc.GenerateDownloadToken(fileID, uint(countryID))
+}
+
+// GetFileBySignedToken validates a signed download token and returns the file + abs path.
+func (s *articleService) GetFileBySignedToken(token string) (*models.File, string, error) {
+	jwtSvc := NewJWTService()
+	claims, err := jwtSvc.ValidateDownloadToken(token)
+	if err != nil {
+		return nil, "", err
+	}
+
+	countryID := database.CountryID(claims.CountryID)
+	file, err := s.repo.GetFileByID(countryID, claims.FileID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var absPath string
+	if s.fileSvc != nil {
+		absPath = s.fileSvc.GetAbsPath(file.FilePath)
+	} else {
+		absPath = file.FilePath
+	}
+
+	go func() {
+		_ = s.repo.IncrementFileViewCount(countryID, claims.FileID)
 	}()
 
 	return file, absPath, nil

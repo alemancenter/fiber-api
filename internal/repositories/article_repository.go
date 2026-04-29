@@ -40,7 +40,7 @@ func (r *articleRepository) List(countryID database.CountryID, pag utils.Paginat
 	var articles []models.Article
 	var total int64
 
-	query := db.Model(&models.Article{}).Preload("Subject").Preload("Semester").Preload("Files")
+	query := db.Model(&models.Article{}).Preload("Subject").Preload("Semester")
 
 	if filter != nil {
 		if filter.Status != nil {

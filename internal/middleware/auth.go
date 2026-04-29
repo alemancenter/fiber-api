@@ -15,7 +15,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-const userCacheTTL = 5 * time.Minute
+const userCacheTTL = 1 * time.Minute
 
 // loadUserCached returns the user from Redis cache or falls back to DB.
 // On a cache miss it loads with Preload("Roles.Permissions","Permissions") and writes the result to cache.
@@ -85,6 +85,11 @@ func Auth() fiber.Handler {
 
 		c.Locals("user", user)
 		c.Locals("user_id", user.ID)
+		// If country_id was not set by FrontendGuard (e.g. mobile client) but the
+		// token carries one, use it so downstream handlers always have a country.
+		if c.Locals("country_id") == nil && claims.CountryID != 0 {
+			c.Locals("country_id", database.CountryID(claims.CountryID))
+		}
 		return c.Next()
 	}
 }

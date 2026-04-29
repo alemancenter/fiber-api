@@ -208,6 +208,23 @@ func Load() *Config {
 			os.Exit(1)
 		}
 
+		// Validate required environment variables that have no safe default
+		required := []string{
+			"JWT_SECRET",
+			"DB_HOST_JO", "DB_NAME_JO", "DB_USER_JO", "DB_PASS_JO",
+			"APP_URL", "FRONTEND_URL",
+		}
+		var missing []string
+		for _, key := range required {
+			if v.GetString(key) == "" {
+				missing = append(missing, key)
+			}
+		}
+		if len(missing) > 0 {
+			fmt.Fprintf(os.Stderr, "FATAL: missing required environment variables: %v\n", missing)
+			os.Exit(1)
+		}
+
 		cfg = &Config{
 			App: AppConfig{
 				Name:           v.GetString("APP_NAME"),

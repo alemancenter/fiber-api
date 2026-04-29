@@ -71,27 +71,12 @@ func validatePhone(fl validator.FieldLevel) bool {
 	return re.MatchString(fl.Field().String())
 }
 
-// SanitizeInput removes dangerous content from user input
+// SanitizeInput strips HTML tags from user input.
+// SQL injection is handled by GORM's parameterized queries; stripping SQL keywords
+// here would silently corrupt legitimate user data (e.g. names like "Drop").
 func SanitizeInput(input string) string {
-	// Strip HTML tags
 	re := regexp.MustCompile(`<[^>]*>`)
-	input = re.ReplaceAllString(input, "")
-
-	// Strip dangerous SQL keywords (basic protection, GORM handles parameterization)
-	dangerous := []string{
-		"DROP TABLE", "DELETE FROM", "INSERT INTO", "UPDATE SET",
-		"TRUNCATE", "ALTER TABLE", "CREATE TABLE", "--", "/*", "*/",
-		"UNION SELECT", "OR 1=1", "AND 1=1",
-	}
-	upper := strings.ToUpper(input)
-	for _, d := range dangerous {
-		if strings.Contains(upper, d) {
-			input = strings.ReplaceAll(input, d, "")
-			input = strings.ReplaceAll(input, strings.ToLower(d), "")
-		}
-	}
-
-	return strings.TrimSpace(input)
+	return strings.TrimSpace(re.ReplaceAllString(input, ""))
 }
 
 // SanitizeStruct sanitizes all string fields in a struct pointer

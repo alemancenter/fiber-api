@@ -10,12 +10,16 @@ func RegisterAuthRoutes(api fiber.Router, h *Handlers) {
 	// AUTH ROUTES
 	// =====================
 	authGroup := api.Group("/auth")
-	authGroup.Post("/register", h.Auth.Register)
-	authGroup.Post("/login", h.Auth.Login)
+
+	// Brute-force-sensitive endpoints get a dedicated per-IP rate limiter
+	authGroup.Post("/register", middleware.AuthRateLimit(), h.Auth.Register)
+	authGroup.Post("/login", middleware.AuthRateLimit(), h.Auth.Login)
+	authGroup.Post("/refresh", middleware.AuthRateLimit(), h.Auth.RefreshToken)
+	authGroup.Post("/password/forgot", middleware.AuthRateLimit(), h.Auth.ForgotPassword)
+
 	authGroup.Get("/google/redirect", h.Auth.GoogleRedirect)
 	authGroup.Get("/google/callback", h.Auth.GoogleCallback)
 	authGroup.Post("/google/token", h.Auth.GoogleTokenLogin)
-	authGroup.Post("/password/forgot", h.Auth.ForgotPassword)
 	authGroup.Post("/password/reset", h.Auth.ResetPassword)
 	authGroup.Get("/email/verify/:id/:hash", h.Auth.VerifyEmail)
 

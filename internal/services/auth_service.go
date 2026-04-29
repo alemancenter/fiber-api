@@ -11,8 +11,10 @@ import (
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/repositories"
+	"github.com/alemancenter/fiber-api/pkg/logger"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -49,6 +51,8 @@ type AuthService interface {
 	Register(name, email, password string) (*models.User, string, error)
 	Login(email, password, ip, userAgent, method, path string) (*models.User, string, error)
 	Logout(tokenStr string, user *models.User) error
+	RefreshToken(refreshTokenStr string) (accessToken, newRefreshToken string, err error)
+	GenerateRefreshTokenForUser(userID uint, email string) (string, error)
 	UpdateProfile(user *models.User, req *UpdateProfileInput) (*models.User, error)
 	ForgotPassword(email string) error
 	ResetPassword(token, email, newPassword string) error
@@ -179,6 +183,10 @@ func (s *authService) Login(email, password, ip, userAgent, method, path string)
 	return user, token, nil
 }
 
+func (s *authService) GenerateRefreshTokenForUser(userID uint, email string) (string, error) {
+	return s.jwtSvc.GenerateRefreshToken(userID, email)
+}
+
 func (s *authService) Logout(tokenStr string, user *models.User) error {
 	rdb := database.Redis()
 	ctx := context.Background()
@@ -195,6 +203,31 @@ func (s *authService) Logout(tokenStr string, user *models.User) error {
 	}
 
 	return nil
+}
+
+func (s *authService) RefreshToken(refreshTokenStr string) (string, string, error) {
+	claims, err := s.jwtSvc.ValidateRefreshToken(refreshTokenStr)
+	if err != nil {
+		return "", "", ErrInvalidCredentials
+	}
+
+	user, err := s.repo.FindByID(uint64(claims.UserID))
+	if err != nil {
+		return "", "", ErrInvalidCredentials
+	}
+	if !user.IsActive() {
+		return "", "", ErrAccountInactive
+	}
+
+	accessToken, err := s.jwtSvc.GenerateToken(user.ID, user.Email)
+	if err != nil {
+		return "", "", err
+	}
+	newRefresh, err := s.jwtSvc.GenerateRefreshToken(user.ID, user.Email)
+	if err != nil {
+		return "", "", err
+	}
+	return accessToken, newRefresh, nil
 }
 
 func (s *authService) UpdateProfile(user *models.User, req *UpdateProfileInput) (*models.User, error) {
@@ -259,7 +292,15 @@ func (s *authService) ForgotPassword(email string) error {
 	// Send reset email
 	resetURL := fmt.Sprintf("%s/reset-password?token=%s&email=%s",
 		s.cfg.Frontend.URL, token, email)
-	go s.mailSvc.SendPasswordResetEmail(user.Email, user.Name, resetURL)
+	go func() {
+		if err := s.mailSvc.SendPasswordResetEmail(user.Email, user.Name, resetURL); err != nil {
+			logger.Error("failed to send password reset email",
+				zap.Uint("user_id", user.ID),
+				zap.String("email", user.Email),
+				zap.Error(err),
+			)
+		}
+	}()
 
 	return nil
 }
@@ -400,5 +441,11 @@ func (s *authService) sendVerificationEmail(user *models.User) {
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(user.Email)))
 	verifyURL := fmt.Sprintf("%s/api/auth/email/verify/%d/%s",
 		s.cfg.App.URL, user.ID, hash)
-	_ = s.mailSvc.SendVerificationEmail(user.Email, user.Name, verifyURL)
+	if err := s.mailSvc.SendVerificationEmail(user.Email, user.Name, verifyURL); err != nil {
+		logger.Error("failed to send verification email",
+			zap.Uint("user_id", user.ID),
+			zap.String("email", user.Email),
+			zap.Error(err),
+		)
+	}
 }

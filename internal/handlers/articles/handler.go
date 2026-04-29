@@ -124,7 +124,47 @@ func (h *Handler) ByKeyword(c *fiber.Ctx) error {
 	return utils.Paginated(c, "success", articles, pag.BuildMeta(total))
 }
 
-// DownloadFile serves an article file for download
+// GetDownloadToken returns a short-lived signed token for a file download.
+// GET /api/articles/file/:id/download-url
+func (h *Handler) GetDownloadToken(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return utils.BadRequest(c, "معرف غير صحيح")
+	}
+
+	countryID, _ := c.Locals("country_id").(database.CountryID)
+
+	token, err := h.svc.GetSignedDownloadToken(countryID, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c)
+	}
+
+	return utils.Success(c, "success", fiber.Map{"token": token})
+}
+
+// DownloadFileSigned validates a signed token and serves the file.
+// GET /api/articles/download?token=...
+func (h *Handler) DownloadFileSigned(c *fiber.Ctx) error {
+	token := c.Query("token")
+	if token == "" {
+		return utils.BadRequest(c, "رمز التحميل مطلوب")
+	}
+
+	file, absPath, err := h.svc.GetFileBySignedToken(token)
+	if err != nil {
+		return utils.Unauthorized(c, "رمز التحميل غير صالح أو منتهي الصلاحية")
+	}
+
+	disposition := mime.FormatMediaType("attachment", map[string]string{"filename": file.FileName})
+	c.Set("Content-Disposition", disposition)
+	c.Set("Content-Type", file.MimeType)
+	return c.SendFile(absPath)
+}
+
+// DownloadFile serves an article file for download (legacy — prefer signed URL via GetDownloadToken)
 // GET /api/articles/file/:id/download
 func (h *Handler) DownloadFile(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)

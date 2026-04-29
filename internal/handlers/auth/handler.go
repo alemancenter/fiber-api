@@ -125,7 +125,41 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		return utils.InternalError(c)
 	}
 
-	return utils.WithToken(c, "تم تسجيل الدخول بنجاح", buildUserResponse(user, h.cfg.Storage.URL), token)
+	refreshToken, _ := h.svc.GenerateRefreshTokenForUser(user.ID, user.Email)
+
+	return c.JSON(fiber.Map{
+		"success":       true,
+		"message":       "تم تسجيل الدخول بنجاح",
+		"token":         token,
+		"refresh_token": refreshToken,
+		"data":          buildUserResponse(user, h.cfg.Storage.URL),
+	})
+}
+
+// RefreshToken issues a new access token from a valid refresh token
+// POST /api/auth/refresh
+func (h *Handler) RefreshToken(c *fiber.Ctx) error {
+	type RefreshRequest struct {
+		RefreshToken string `json:"refresh_token" validate:"required"`
+	}
+
+	var req RefreshRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.BadRequest(c, "بيانات غير صحيحة")
+	}
+	if errs := utils.Validate(req); errs != nil {
+		return utils.ValidationError(c, errs)
+	}
+
+	accessToken, newRefresh, err := h.svc.RefreshToken(req.RefreshToken)
+	if err != nil {
+		return utils.Unauthorized(c, "رمز التحديث غير صالح أو منتهي الصلاحية")
+	}
+
+	return utils.Success(c, "تم تجديد الرمز بنجاح", fiber.Map{
+		"token":         accessToken,
+		"refresh_token": newRefresh,
+	})
 }
 
 // Logout invalidates the current token
@@ -142,7 +176,9 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 		user = u
 	}
 
-	_ = h.svc.Logout(tokenStr, user)
+	if err := h.svc.Logout(tokenStr, user); err != nil {
+		return utils.InternalError(c, "فشل تسجيل الخروج")
+	}
 
 	return utils.Success(c, "تم تسجيل الخروج بنجاح", nil)
 }
