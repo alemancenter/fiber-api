@@ -124,7 +124,7 @@ func (r *articleRepository) FindByGradeLevel(countryID database.CountryID, grade
 	}
 
 	err := query.Preload("Subject").Preload("Semester").
-		Order("published_at DESC").
+		Order("created_at DESC").
 		Limit(pag.PerPage).Offset(pag.Offset).
 		Find(&articles).Error
 	return articles, total, err
@@ -148,7 +148,7 @@ func (r *articleRepository) FindByKeyword(countryID database.CountryID, keyword 
 	}
 
 	err := query.Preload("Subject").Preload("Semester").
-		Order("published_at DESC").
+		Order("created_at DESC").
 		Limit(pag.PerPage).Offset(pag.Offset).
 		Find(&articles).Error
 
@@ -219,9 +219,9 @@ func (r *articleRepository) GetStats(countryID database.CountryID) (total, publi
 	}
 	var row statsRow
 	err = db.Model(&models.Article{}).Select(
-		"COUNT(*) AS total, "+
-			"SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS published, "+
-			"SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS drafts, "+
+		"COUNT(*) AS total, " +
+			"SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS published, " +
+			"SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS drafts, " +
 			"COALESCE(SUM(visit_count), 0) AS views",
 	).Scan(&row).Error
 	return row.Total, row.Published, row.Drafts, row.Views, err
