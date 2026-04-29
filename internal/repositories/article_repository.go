@@ -38,14 +38,12 @@ func (r *articleRepository) GetDB(countryID database.CountryID) *gorm.DB {
 
 // allowedArticleOrders is an allowlist of safe ORDER BY expressions for articles.
 var allowedArticleOrders = map[string]bool{
-	"published_at DESC":  true,
-	"published_at ASC":   true,
-	"created_at DESC":    true,
-	"created_at ASC":     true,
-	"visit_count DESC":   true,
-	"visit_count ASC":    true,
-	"title ASC":          true,
-	"title DESC":         true,
+	"created_at DESC":  true,
+	"created_at ASC":   true,
+	"visit_count DESC": true,
+	"visit_count ASC":  true,
+	"title ASC":        true,
+	"title DESC":       true,
 }
 
 func (r *articleRepository) List(countryID database.CountryID, pag utils.Pagination, filter *models.ArticleFilter) ([]models.Article, int64, error) {
@@ -83,10 +81,10 @@ func (r *articleRepository) List(countryID database.CountryID, pag utils.Paginat
 		if filter.Order != "" && allowedArticleOrders[filter.Order] {
 			query = query.Order(filter.Order)
 		} else {
-			query = query.Order("published_at DESC, created_at DESC")
+			query = query.Order("created_at DESC")
 		}
 	} else {
-		query = query.Order("published_at DESC, created_at DESC")
+		query = query.Order("created_at DESC")
 	}
 
 	if err := query.Count(&total).Error; err != nil {
