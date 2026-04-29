@@ -40,17 +40,17 @@ func RegisterPublicRoutes(api fiber.Router, h *Handlers) {
 	public.Get("/keywords", h.Keywords.Index)
 	public.Get("/keywords/:keyword", h.Keywords.Show)
 
-	// School classes & filter
+	// School classes & filter (Aliases to Grades)
 	public.Get("/school-classes", h.Grades.ListSchoolClasses)
 	public.Get("/school-classes/:id", h.Grades.GetSchoolClass)
 	public.Get("/filter", h.Grades.FilterMeta)
 	public.Get("/filter/subjects/:classId", h.Grades.ListSubjects)
 	public.Get("/filter/semesters/:subjectId", h.Grades.ListSemesters)
 
-	// Grades
+	// Grades (Aliases to School Classes - maintained for frontend backward compatibility)
 	public.Get("/grades", h.Grades.ListSchoolClasses)
 	public.Get("/grades/:id", h.Grades.GetSchoolClass)
-	public.Get("/grades/subjects/:id", h.Grades.ListSubjects)
+	public.Get("/grades/subjects/:classId", h.Grades.ListSubjects)
 	public.Get("/grades/articles/:id", h.Grades.GetGradeArticles)
 	public.Get("/grades/files/:id/download", h.Grades.DownloadGradeFile)
 

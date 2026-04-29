@@ -94,7 +94,6 @@ func RegisterDashboardRoutes(api fiber.Router, h *Handlers) {
 	dashSettings := dash.Group("", middleware.Can("manage settings"))
 	dashSettings.Get("/settings", h.Settings.GetAll)
 	dashSettings.Post("/settings", h.Settings.Update)
-	dashSettings.Post("/settings/update", h.Settings.Update)
 	dashSettings.Post("/settings/smtp/test", h.Settings.TestSMTP)
 	dashSettings.Post("/settings/smtp/send-test", h.Settings.SendTestEmail)
 	dashSettings.Post("/settings/robots", h.Settings.UpdateRobots)
@@ -195,4 +194,13 @@ func RegisterDashboardRoutes(api fiber.Router, h *Handlers) {
 	// Secure file upload (dashboard)
 	dash.Post("/secure/upload-image", h.Files.SecureUploadImage)
 	dash.Post("/secure/upload-document", h.Files.SecureUploadDocument)
+
+	// Redis management (admin only)
+	dashRedis := dash.Group("/redis", middleware.AdminOnly())
+	dashRedis.Get("/keys", h.Redis.ListKeys)
+	dashRedis.Post("", h.Redis.SetKey)
+	dashRedis.Delete("/expired/clean", h.Redis.CleanExpired)
+	dashRedis.Get("/test", h.Redis.TestConnection)
+	dashRedis.Get("/info", h.Redis.GetInfo)
+	dashRedis.Delete("/:key", h.Redis.DeleteKey)
 }

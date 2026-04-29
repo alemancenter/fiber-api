@@ -1,7 +1,6 @@
 package dashboard
 
 import (
-	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -17,19 +16,6 @@ func New(svc services.DashboardService) *Handler {
 	return &Handler{
 		svc: svc,
 	}
-}
-
-// Home returns dashboard overview statistics
-// GET /api/dashboard
-func (h *Handler) Home(c *fiber.Ctx) error {
-	countryID, _ := c.Locals("country_id").(database.CountryID)
-
-	data, err := h.svc.GetHomeData(countryID)
-	if err != nil {
-		return utils.InternalError(c, "فشل جلب بيانات لوحة التحكم")
-	}
-
-	return utils.Success(c, "success", data)
 }
 
 // Activities returns the activity log

@@ -10,6 +10,7 @@ import (
 type ArticleRepository interface {
 	List(countryID database.CountryID, pag utils.Pagination, filter *models.ArticleFilter) ([]models.Article, int64, error)
 	FindByID(countryID database.CountryID, id uint64) (*models.Article, error)
+	FindByIDWithComments(countryID database.CountryID, id uint64) (*models.Article, error)
 	FindByGradeLevel(countryID database.CountryID, gradeLevel string, pag utils.Pagination) ([]models.Article, int64, error)
 	FindByKeyword(countryID database.CountryID, keyword string, pag utils.Pagination) ([]models.Article, int64, error)
 	Create(countryID database.CountryID, article *models.Article) error
@@ -33,6 +34,18 @@ func NewArticleRepository() ArticleRepository {
 
 func (r *articleRepository) GetDB(countryID database.CountryID) *gorm.DB {
 	return database.DBForCountry(countryID)
+}
+
+// allowedArticleOrders is an allowlist of safe ORDER BY expressions for articles.
+var allowedArticleOrders = map[string]bool{
+	"published_at DESC":  true,
+	"published_at ASC":   true,
+	"created_at DESC":    true,
+	"created_at ASC":     true,
+	"visit_count DESC":   true,
+	"visit_count ASC":    true,
+	"title ASC":          true,
+	"title DESC":         true,
 }
 
 func (r *articleRepository) List(countryID database.CountryID, pag utils.Pagination, filter *models.ArticleFilter) ([]models.Article, int64, error) {
@@ -60,7 +73,7 @@ func (r *articleRepository) List(countryID database.CountryID, pag utils.Paginat
 			query = query.Where("title LIKE ?", "%"+filter.Query+"%")
 		}
 
-		if filter.Order != "" {
+		if filter.Order != "" && allowedArticleOrders[filter.Order] {
 			query = query.Order(filter.Order)
 		} else {
 			query = query.Order("published_at DESC, created_at DESC")
@@ -78,6 +91,15 @@ func (r *articleRepository) List(countryID database.CountryID, pag utils.Paginat
 }
 
 func (r *articleRepository) FindByID(countryID database.CountryID, id uint64) (*models.Article, error) {
+	db := r.GetDB(countryID)
+	var article models.Article
+	// Dashboard edits don't need Comments — omit to avoid the nested join on large datasets.
+	err := db.Preload("Subject").Preload("Semester").Preload("Files").Preload("KeywordsRel").
+		First(&article, id).Error
+	return &article, err
+}
+
+func (r *articleRepository) FindByIDWithComments(countryID database.CountryID, id uint64) (*models.Article, error) {
 	db := r.GetDB(countryID)
 	var article models.Article
 	err := db.Preload("Subject").Preload("Semester").Preload("Files").
@@ -183,9 +205,19 @@ func (r *articleRepository) GetSemestersByClass(countryID database.CountryID, cl
 
 func (r *articleRepository) GetStats(countryID database.CountryID) (total, published, drafts, views int64, err error) {
 	db := r.GetDB(countryID)
-	db.Model(&models.Article{}).Count(&total)
-	db.Model(&models.Article{}).Where("status = ?", 1).Count(&published)
-	db.Model(&models.Article{}).Where("status = ?", 0).Count(&drafts)
-	err = db.Model(&models.Article{}).Select("COALESCE(SUM(visit_count), 0)").Scan(&views).Error
-	return
+
+	type statsRow struct {
+		Total     int64
+		Published int64
+		Drafts    int64
+		Views     int64
+	}
+	var row statsRow
+	err = db.Model(&models.Article{}).Select(
+		"COUNT(*) AS total, "+
+			"SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS published, "+
+			"SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS drafts, "+
+			"COALESCE(SUM(visit_count), 0) AS views",
+	).Scan(&row).Error
+	return row.Total, row.Published, row.Drafts, row.Views, err
 }

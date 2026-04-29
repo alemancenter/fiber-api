@@ -38,6 +38,7 @@ func (h *Handler) ListSchoolClasses(c *fiber.Ctx) error {
 	if err != nil {
 		return utils.InternalError(c)
 	}
+	c.Set("Cache-Control", "public, max-age=3600, stale-while-revalidate=600")
 	return utils.Success(c, "success", classes)
 }
 
@@ -73,6 +74,7 @@ func (h *Handler) ListSubjects(c *fiber.Ctx) error {
 	if err != nil {
 		return utils.InternalError(c)
 	}
+	c.Set("Cache-Control", "public, max-age=3600, stale-while-revalidate=600")
 	return utils.Success(c, "success", subjects)
 }
 
@@ -94,6 +96,7 @@ func (h *Handler) ListSemesters(c *fiber.Ctx) error {
 		return utils.InternalError(c)
 	}
 
+	c.Set("Cache-Control", "public, max-age=3600, stale-while-revalidate=600")
 	return utils.Success(c, "success", services.SemestersResponse{
 		Subject:   subject,
 		ClassID:   subject.GradeLevel,
@@ -110,6 +113,7 @@ func (h *Handler) FilterMeta(c *fiber.Ctx) error {
 	if err != nil {
 		return utils.InternalError(c)
 	}
+	c.Set("Cache-Control", "public, max-age=3600, stale-while-revalidate=600")
 	return utils.Success(c, "success", services.FilterMetaResponse{Classes: classes})
 }
 

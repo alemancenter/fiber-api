@@ -5,6 +5,7 @@ import (
 
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/repositories"
+	"gorm.io/gorm"
 )
 
 type UserService interface {
@@ -86,14 +87,18 @@ func (s *userService) Create(req *CreateUserRequest, callerID uint) (*models.Use
 		return nil, err
 	}
 
-	if err := s.repo.Create(user); err != nil {
-		return nil, errors.New("فشل إنشاء المستخدم")
-	}
-
-	if len(req.Roles) > 0 {
-		if err := AssignRoles(s.repo.GetDB(), user.ID, req.Roles); err != nil {
-			return nil, errors.New("فشل تعيين الأدوار")
+	db := s.repo.GetDB()
+	txErr := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(user).Error; err != nil {
+			return err
 		}
+		if len(req.Roles) > 0 {
+			return AssignRoles(tx, user.ID, req.Roles)
+		}
+		return nil
+	})
+	if txErr != nil {
+		return nil, errors.New("فشل إنشاء المستخدم")
 	}
 
 	if callerID > 0 {

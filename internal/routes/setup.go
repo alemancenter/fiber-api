@@ -34,13 +34,4 @@ func Setup(app *fiber.App) {
 	RegisterPublicRoutes(api, deps)
 	RegisterAuthRoutes(api, deps)
 	RegisterDashboardRoutes(api, deps)
-
-	// We map the redis admin group inside dash as before but use AdminOnly via RegisterAdminRoutes if we want,
-	// but let's keep it under dash to match the old path: /api/dashboard/redis
-	dash := api.Group("/dashboard",
-		middleware.Auth(),
-		middleware.UpdateLastActivity(),
-		middleware.DashboardSecurityHeaders(),
-	)
-	RegisterAdminRoutes(dash, deps)
 }

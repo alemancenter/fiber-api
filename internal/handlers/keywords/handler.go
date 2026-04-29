@@ -68,6 +68,7 @@ func (h *Handler) Index(c *fiber.Ctx) error {
 		res["post_keywords"] = nil
 	}
 
+	c.Set("Cache-Control", "public, max-age=600, stale-while-revalidate=120")
 	return utils.Success(c, "success", res)
 }
 

@@ -1,7 +1,11 @@
 package services
 
 import (
+	"context"
+	"fmt"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
@@ -76,11 +80,10 @@ func (s *articleService) List(countryID database.CountryID, pag utils.Pagination
 }
 
 func (s *articleService) GetByID(countryID database.CountryID, id uint64) (*models.Article, error) {
-	article, err := s.repo.FindByID(countryID, id)
+	article, err := s.repo.FindByIDWithComments(countryID, id)
 	if err != nil {
 		return nil, err
 	}
-	// Increment view count async
 	go func() {
 		_ = s.repo.IncrementViewCount(countryID, id)
 	}()
@@ -173,28 +176,44 @@ func (s *articleService) GetDashboardEditData(countryID database.CountryID, id u
 		return nil, err
 	}
 
-	classes, err := s.repo.GetClasses(countryID)
-	if err != nil {
-		return nil, err
-	}
-
-	var subjects []models.Subject
-	var semesters []models.Semester
-
 	classID := articleClassID(article)
-	if classID > 0 {
-		subjects, _ = s.repo.GetSubjectsByClass(countryID, classID)
-	}
-
 	if classID == 0 && article.SubjectID != nil {
-		subject, err := s.repo.GetSubjectByID(countryID, *article.SubjectID)
-		if err == nil {
+		if subject, err := s.repo.GetSubjectByID(countryID, *article.SubjectID); err == nil {
 			classID = subject.GradeLevel
 		}
 	}
 
+	var (
+		classes   []models.SchoolClass
+		subjects  []models.Subject
+		semesters []models.Semester
+		classErr  error
+		wg        sync.WaitGroup
+	)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		classes, classErr = s.repo.GetClasses(countryID)
+	}()
+
 	if classID > 0 {
-		semesters, _ = s.repo.GetSemestersByClass(countryID, classID)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			subjects, _ = s.repo.GetSubjectsByClass(countryID, classID)
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			semesters, _ = s.repo.GetSemestersByClass(countryID, classID)
+		}()
+	}
+
+	wg.Wait()
+
+	if classErr != nil {
+		return nil, classErr
 	}
 
 	return &ArticleDashboardEditData{
@@ -314,17 +333,20 @@ func (s *articleService) SetArticleStatus(countryID database.CountryID, id uint6
 }
 
 func (s *articleService) GetDashboardStats(countryID database.CountryID) (*ArticleDashboardStats, error) {
-	total, published, drafts, views, err := s.repo.GetStats(countryID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ArticleDashboardStats{
-		Total:     total,
-		Published: published,
-		Drafts:    drafts,
-		Views:     views,
-	}, nil
+	ctx := context.Background()
+	key := fmt.Sprintf("article_stats:%d", countryID)
+	return GetOrSet[*ArticleDashboardStats](ctx, key, time.Hour, func() (*ArticleDashboardStats, error) {
+		total, published, drafts, views, err := s.repo.GetStats(countryID)
+		if err != nil {
+			return nil, err
+		}
+		return &ArticleDashboardStats{
+			Total:     total,
+			Published: published,
+			Drafts:    drafts,
+			Views:     views,
+		}, nil
+	})
 }
 
 func articleClassID(article *models.Article) uint {
