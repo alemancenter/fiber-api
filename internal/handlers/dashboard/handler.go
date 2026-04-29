@@ -24,7 +24,6 @@ func (h *Handler) Activities(c *fiber.Ctx) error {
 	pag := utils.GetPagination(c)
 	logName := c.Query("log_name")
 	causerID := c.Query("causer_id")
-
 	activities, total, err := h.svc.ListActivities(logName, causerID, pag.Offset, pag.PerPage)
 	if err != nil {
 		return utils.InternalError(c, "فشل جلب السجلات")

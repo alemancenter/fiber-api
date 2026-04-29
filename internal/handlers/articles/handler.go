@@ -57,6 +57,9 @@ func (h *Handler) List(c *fiber.Ctx) error {
 	} else if search := c.Query("search"); search != "" {
 		filters.Query = search
 	}
+	if fc := c.Query("file_category"); fc != "" {
+		filters.FileCategory = fc
+	}
 
 	articles, total, err := h.svc.List(countryID, pag, filters)
 	if err != nil {

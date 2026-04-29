@@ -69,6 +69,13 @@ func (r *articleRepository) List(countryID database.CountryID, pag utils.Paginat
 		if filter.SemesterID != nil {
 			query = query.Where("semester_id = ?", *filter.SemesterID)
 		}
+		if filter.FileCategory != "" {
+			// Restrict to articles that have at least one file with this category.
+			query = query.Where(
+				"EXISTS (SELECT 1 FROM files WHERE files.article_id = articles.id AND files.file_category = ?)",
+				filter.FileCategory,
+			)
+		}
 		if filter.Query != "" {
 			query = query.Where("title LIKE ?", "%"+filter.Query+"%")
 		}

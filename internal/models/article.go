@@ -44,10 +44,11 @@ type ArticleKeyword struct {
 func (ArticleKeyword) TableName() string { return "article_keyword" }
 
 type ArticleFilter struct {
-	Status     *int
-	GradeLevel string
-	SubjectID  *uint
-	SemesterID *uint
-	Query      string
-	Order      string
+	Status       *int
+	GradeLevel   string
+	SubjectID    *uint
+	SemesterID   *uint
+	FileCategory string
+	Query        string
+	Order        string
 }
