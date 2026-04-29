@@ -76,32 +76,35 @@ func NewArticleService(repo repositories.ArticleRepository, fileSvc *FileService
 }
 
 func (s *articleService) List(countryID database.CountryID, pag utils.Pagination, filter *models.ArticleFilter) ([]models.Article, int64, error) {
-	return s.repo.List(countryID, pag, filter)
+	articles, total, err := s.repo.List(countryID, pag, filter)
+	return articles, total, MapError(err)
 }
 
 func (s *articleService) GetByID(countryID database.CountryID, id uint64) (*models.Article, error) {
 	article, err := s.repo.FindByIDWithComments(countryID, id)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 	go func() {
-		_ = s.repo.IncrementViewCount(countryID, id)
+		_ = ViewCounter.IncrementArticleView(countryID, id)
 	}()
 	return article, nil
 }
 
 func (s *articleService) GetByGradeLevel(countryID database.CountryID, gradeLevel string, pag utils.Pagination) ([]models.Article, int64, error) {
-	return s.repo.FindByGradeLevel(countryID, gradeLevel, pag)
+	articles, total, err := s.repo.FindByGradeLevel(countryID, gradeLevel, pag)
+	return articles, total, MapError(err)
 }
 
 func (s *articleService) GetByKeyword(countryID database.CountryID, keyword string, pag utils.Pagination) ([]models.Article, int64, error) {
-	return s.repo.FindByKeyword(countryID, keyword, pag)
+	articles, total, err := s.repo.FindByKeyword(countryID, keyword, pag)
+	return articles, total, MapError(err)
 }
 
 func (s *articleService) GetFileForDownload(countryID database.CountryID, id uint64) (*models.File, string, error) {
 	file, err := s.repo.GetFileByID(countryID, id)
 	if err != nil {
-		return nil, "", err
+		return nil, "", MapError(err)
 	}
 
 	var absPath string
@@ -113,7 +116,7 @@ func (s *articleService) GetFileForDownload(countryID database.CountryID, id uin
 
 	// Increment view count async
 	go func() {
-		_ = s.repo.IncrementFileViewCount(countryID, id)
+		_ = ViewCounter.IncrementFileView(countryID, id)
 	}()
 
 	return file, absPath, nil
@@ -124,7 +127,7 @@ func (s *articleService) GetFileForDownload(countryID database.CountryID, id uin
 func (s *articleService) GetSignedDownloadToken(countryID database.CountryID, fileID uint64) (string, error) {
 	// Verify file exists before issuing token
 	if _, err := s.repo.GetFileByID(countryID, fileID); err != nil {
-		return "", err
+		return "", MapError(err)
 	}
 	jwtSvc := NewJWTService()
 	return jwtSvc.GenerateDownloadToken(fileID, uint(countryID))
@@ -135,13 +138,13 @@ func (s *articleService) GetFileBySignedToken(token string) (*models.File, strin
 	jwtSvc := NewJWTService()
 	claims, err := jwtSvc.ValidateDownloadToken(token)
 	if err != nil {
-		return nil, "", err
+		return nil, "", MapError(err)
 	}
 
 	countryID := database.CountryID(claims.CountryID)
 	file, err := s.repo.GetFileByID(countryID, claims.FileID)
 	if err != nil {
-		return nil, "", err
+		return nil, "", MapError(err)
 	}
 
 	var absPath string
@@ -152,7 +155,7 @@ func (s *articleService) GetFileBySignedToken(token string) (*models.File, strin
 	}
 
 	go func() {
-		_ = s.repo.IncrementFileViewCount(countryID, claims.FileID)
+		_ = ViewCounter.IncrementFileView(countryID, claims.FileID)
 	}()
 
 	return file, absPath, nil
@@ -161,7 +164,7 @@ func (s *articleService) GetFileBySignedToken(token string) (*models.File, strin
 func (s *articleService) GetDashboardCreateData(countryID database.CountryID) (*ArticleDashboardCreateData, error) {
 	classes, err := s.repo.GetClasses(countryID)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 	return &ArticleDashboardCreateData{
 		Classes:   classes,
@@ -173,7 +176,7 @@ func (s *articleService) GetDashboardCreateData(countryID database.CountryID) (*
 func (s *articleService) GetDashboardEditData(countryID database.CountryID, id uint64) (*ArticleDashboardEditData, error) {
 	article, err := s.repo.FindByID(countryID, id)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	classID := articleClassID(article)
@@ -227,7 +230,7 @@ func (s *articleService) GetDashboardEditData(countryID database.CountryID, id u
 func (s *articleService) CreateArticle(countryID database.CountryID, req *ArticleInput, authorID *uint) (*models.Article, error) {
 	article := &models.Article{
 		Title:   utils.SanitizeInput(req.Title),
-		Content: req.Content,
+		Content: utils.SanitizeHTML(req.Content),
 	}
 
 	if req.Status != nil {
@@ -256,7 +259,7 @@ func (s *articleService) CreateArticle(countryID database.CountryID, req *Articl
 
 	err := s.repo.Create(countryID, article)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 	if authorID != nil {
 		LogActivity("أنشأ مقالة: "+article.Title, "Article", article.ID, *authorID)
@@ -267,14 +270,14 @@ func (s *articleService) CreateArticle(countryID database.CountryID, req *Articl
 func (s *articleService) UpdateArticle(countryID database.CountryID, id uint64, req *ArticleInput, authorID *uint) (*models.Article, error) {
 	article, err := s.repo.FindByID(countryID, id)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	if req.Title != "" {
 		article.Title = utils.SanitizeInput(req.Title)
 	}
 	if req.Content != "" {
-		article.Content = req.Content
+		article.Content = utils.SanitizeHTML(req.Content)
 	}
 	if req.GradeLevel != "" {
 		article.GradeLevel = &req.GradeLevel
@@ -297,7 +300,7 @@ func (s *articleService) UpdateArticle(countryID database.CountryID, id uint64, 
 
 	err = s.repo.Update(countryID, article)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	if authorID != nil {
@@ -310,7 +313,7 @@ func (s *articleService) UpdateArticle(countryID database.CountryID, id uint64, 
 func (s *articleService) DeleteArticle(countryID database.CountryID, id uint64, authorID *uint) error {
 	article, err := s.repo.FindByID(countryID, id)
 	if err != nil {
-		return err
+		return MapError(err)
 	}
 
 	err = s.repo.Delete(countryID, article)
@@ -318,18 +321,18 @@ func (s *articleService) DeleteArticle(countryID database.CountryID, id uint64, 
 		LogActivity("حذف مقالة: "+article.Title, "Article", article.ID, *authorID)
 	}
 
-	return err
+	return MapError(err)
 }
 
 func (s *articleService) SetArticleStatus(countryID database.CountryID, id uint64, status int8) (*models.Article, error) {
 	article, err := s.repo.FindByID(countryID, id)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	article.Status = status
 	err = s.repo.Update(countryID, article)
-	return article, err
+	return article, MapError(err)
 }
 
 func (s *articleService) GetDashboardStats(countryID database.CountryID) (*ArticleDashboardStats, error) {
@@ -338,7 +341,7 @@ func (s *articleService) GetDashboardStats(countryID database.CountryID) (*Artic
 	return GetOrSet[*ArticleDashboardStats](ctx, key, time.Hour, func() (*ArticleDashboardStats, error) {
 		total, published, drafts, views, err := s.repo.GetStats(countryID)
 		if err != nil {
-			return nil, err
+			return nil, MapError(err)
 		}
 		return &ArticleDashboardStats{
 			Total:     total,

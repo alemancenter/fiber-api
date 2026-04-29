@@ -234,7 +234,11 @@ func (h *Handler) DashboardDownload(c *fiber.Ctx) error {
 		return utils.NotFound(c)
 	}
 
-	absPath := h.svc.GetAbsPath(file.FilePath)
+	// Use SafeGetAbsPath to reject any DB-stored path that escapes the storage root
+	absPath, err := h.svc.SafeGetAbsPath(file.FilePath)
+	if err != nil {
+		return utils.InternalError(c, "مسار الملف غير صالح")
+	}
 
 	c.Set("Content-Disposition", "attachment; filename=\""+file.FileName+"\"")
 	c.Set("Content-Type", file.MimeType)

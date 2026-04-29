@@ -12,9 +12,9 @@ import (
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/alemancenter/fiber-api/pkg/logger"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -110,7 +110,7 @@ func NewAuthService(repo repositories.UserRepository, jwtSvc *JWTService, mailSv
 func (s *authService) Register(name, email, password string) (*models.User, string, error) {
 	count, err := s.repo.CountByEmail(email)
 	if err != nil {
-		return nil, "", err
+		return nil, "", MapError(err)
 	}
 	if count > 0 {
 		return nil, "", ErrEmailAlreadyExists
@@ -123,11 +123,11 @@ func (s *authService) Register(name, email, password string) (*models.User, stri
 	}
 
 	if err := user.HashPassword(password); err != nil {
-		return nil, "", err
+		return nil, "", MapError(err)
 	}
 
 	if err := s.repo.Create(&user); err != nil {
-		return nil, "", err
+		return nil, "", MapError(err)
 	}
 
 	// Send verification email (async)
@@ -135,7 +135,7 @@ func (s *authService) Register(name, email, password string) (*models.User, stri
 
 	token, err := s.jwtSvc.GenerateToken(user.ID, user.Email)
 	if err != nil {
-		return nil, "", err
+		return nil, "", MapError(err)
 	}
 
 	return &user, token, nil
@@ -147,7 +147,7 @@ func (s *authService) Login(email, password, ip, userAgent, method, path string)
 		if err == gorm.ErrRecordNotFound {
 			return nil, "", ErrInvalidCredentials
 		}
-		return nil, "", err
+		return nil, "", MapError(err)
 	}
 
 	if !user.CheckPassword(password) {
@@ -172,7 +172,7 @@ func (s *authService) Login(email, password, ip, userAgent, method, path string)
 
 	token, err := s.jwtSvc.GenerateToken(user.ID, user.Email)
 	if err != nil {
-		return nil, "", err
+		return nil, "", MapError(err)
 	}
 
 	// Update last activity
@@ -221,11 +221,11 @@ func (s *authService) RefreshToken(refreshTokenStr string) (string, string, erro
 
 	accessToken, err := s.jwtSvc.GenerateToken(user.ID, user.Email)
 	if err != nil {
-		return "", "", err
+		return "", "", MapError(err)
 	}
 	newRefresh, err := s.jwtSvc.GenerateRefreshToken(user.ID, user.Email)
 	if err != nil {
-		return "", "", err
+		return "", "", MapError(err)
 	}
 	return accessToken, newRefresh, nil
 }
@@ -257,13 +257,13 @@ func (s *authService) UpdateProfile(user *models.User, req *UpdateProfileInput) 
 	}
 
 	if err := s.repo.Update(user); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	// Reload user
 	updatedUser, err := s.repo.FindByID(uint64(user.ID))
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	return updatedUser, nil
@@ -317,16 +317,18 @@ func (s *authService) ResetPassword(token, email, newPassword string) error {
 	}
 
 	user, err := s.repo.FindByEmail(email)
+	// Return the same generic token error whether email is wrong or ID mismatches —
+	// different errors here allow an attacker to enumerate valid email addresses.
 	if err != nil || fmt.Sprintf("%d", user.ID) != userIDStr {
-		return ErrInvalidCredentials
+		return ErrInvalidResetToken
 	}
 
 	if err := user.HashPassword(newPassword); err != nil {
-		return err
+		return MapError(err)
 	}
 
 	if err := s.repo.Update(user); err != nil {
-		return err
+		return MapError(err)
 	}
 
 	// Delete used token
@@ -342,7 +344,7 @@ func (s *authService) VerifyEmail(id string, hash string) error {
 
 	user, err := s.repo.FindByID(userID)
 	if err != nil {
-		return err
+		return MapError(err)
 	}
 
 	expectedHash := fmt.Sprintf("%x", sha256.Sum256([]byte(user.Email)))
@@ -402,10 +404,10 @@ func (s *authService) LoginOrRegisterGoogleUser(info *GoogleUserInfo) (*models.U
 		}
 		_ = user.HashPassword(s.jwtSvc.GenerateRandomString(32))
 		if err := s.repo.Create(user); err != nil {
-			return nil, "", err
+			return nil, "", MapError(err)
 		}
 	} else if err != nil {
-		return nil, "", err
+		return nil, "", MapError(err)
 	} else {
 		// Update Google ID if not set
 		if user.GoogleID == nil || *user.GoogleID != info.ID {
@@ -416,7 +418,7 @@ func (s *authService) LoginOrRegisterGoogleUser(info *GoogleUserInfo) (*models.U
 
 	token, err := s.jwtSvc.GenerateToken(user.ID, user.Email)
 	if err != nil {
-		return nil, "", err
+		return nil, "", MapError(err)
 	}
 
 	return user, token, nil

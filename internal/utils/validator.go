@@ -6,7 +6,33 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/microcosm-cc/bluemonday"
 )
+
+// richTextPolicy is a permissive bluemonday policy for WYSIWYG-editor content.
+// It keeps standard formatting, tables, images, links, and media iframes while
+// stripping scripts, event handlers, and other dangerous constructs.
+var richTextPolicy = func() *bluemonday.Policy {
+	p := bluemonday.UGCPolicy()
+	// Allow iframes from trusted video/map hosts only
+	p.AllowElements("iframe")
+	p.AllowAttrs("src").Matching(regexp.MustCompile(
+		`^https://(www\.)?(youtube(-nocookie)?\.com|player\.vimeo\.com|maps\.google\.com)/`,
+	)).OnElements("iframe")
+	p.AllowAttrs("width", "height", "frameborder", "allowfullscreen", "allow").OnElements("iframe")
+	// Allow dir attribute for RTL text
+	p.AllowAttrs("dir").OnElements("p", "div", "span", "h1", "h2", "h3", "h4", "h5", "h6", "td", "th")
+	// Allow inline styles for editor-generated content (colour, font-size, etc.)
+	p.AllowStyles("color", "background-color", "font-size", "font-weight", "text-align",
+		"text-decoration", "font-style").Globally()
+	return p
+}()
+
+// SanitizeHTML sanitizes rich HTML content from a WYSIWYG editor.
+// It keeps safe formatting tags and attributes while stripping scripts and event handlers.
+func SanitizeHTML(html string) string {
+	return richTextPolicy.Sanitize(html)
+}
 
 var validate *validator.Validate
 

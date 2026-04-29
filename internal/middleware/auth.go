@@ -15,7 +15,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-const userCacheTTL = 1 * time.Minute
+// userCacheTTL is intentionally short so permission revocations take effect quickly.
+// 15 seconds balances DB load against the window in which a revoked permission stays active.
+const userCacheTTL = 15 * time.Second
 
 // loadUserCached returns the user from Redis cache or falls back to DB.
 // On a cache miss it loads with Preload("Roles.Permissions","Permissions") and writes the result to cache.
