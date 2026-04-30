@@ -71,6 +71,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -582,6 +585,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -619,6 +625,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -822,6 +831,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -972,6 +984,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1023,6 +1038,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1180,6 +1198,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1345,6 +1366,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1423,6 +1447,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -1496,6 +1523,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1548,6 +1578,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1599,6 +1632,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1681,6 +1717,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -1737,6 +1776,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1808,6 +1850,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1860,6 +1905,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1912,6 +1960,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1952,6 +2003,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2018,6 +2072,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -2091,6 +2148,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2167,6 +2227,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -2217,6 +2280,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2295,6 +2361,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -2368,6 +2437,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2438,6 +2510,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -2518,6 +2593,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -2568,6 +2646,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2638,6 +2719,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2689,6 +2773,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2767,6 +2854,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -2856,6 +2946,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2926,6 +3019,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -3006,6 +3102,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -3062,6 +3161,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3120,6 +3222,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3189,6 +3294,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3255,6 +3363,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3321,6 +3432,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3396,6 +3510,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3462,6 +3579,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3526,6 +3646,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -3576,6 +3699,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3628,6 +3754,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3680,6 +3809,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3752,6 +3884,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -3819,6 +3954,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3882,6 +4020,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3931,6 +4072,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3974,6 +4118,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4011,6 +4158,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4057,6 +4207,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4103,6 +4256,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4141,6 +4297,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4179,6 +4338,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4217,6 +4379,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4260,6 +4425,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4306,6 +4474,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -4373,6 +4544,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4431,6 +4605,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -4475,6 +4652,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4551,6 +4731,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4640,6 +4823,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -4702,6 +4888,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4778,6 +4967,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4835,6 +5027,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4898,6 +5093,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4929,6 +5127,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4972,6 +5173,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5023,6 +5227,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5067,6 +5274,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5107,6 +5317,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5153,6 +5366,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -5220,6 +5436,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5278,6 +5497,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -5346,6 +5568,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -5390,6 +5615,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5456,6 +5684,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -5529,6 +5760,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5611,6 +5845,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -5661,6 +5898,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5716,6 +5956,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5771,6 +6014,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5823,6 +6069,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5880,6 +6129,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5937,6 +6189,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5983,6 +6238,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6029,6 +6287,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6113,6 +6374,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -6142,6 +6406,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6188,6 +6455,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6234,6 +6504,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6278,6 +6551,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6321,6 +6597,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6364,6 +6643,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6430,6 +6712,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -6503,6 +6788,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6573,6 +6861,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -6653,6 +6944,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -6703,6 +6997,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6757,6 +7054,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -6809,6 +7109,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6860,6 +7163,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6897,6 +7203,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6928,6 +7237,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6994,6 +7306,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -7067,6 +7382,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7137,6 +7455,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -7217,6 +7538,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -7267,6 +7591,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7345,6 +7672,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -7412,6 +7742,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7475,6 +7808,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7529,6 +7865,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7586,6 +7925,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7650,6 +7992,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -7724,6 +8069,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -7774,6 +8122,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7838,6 +8189,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7895,6 +8249,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7963,6 +8320,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -9164,6 +9524,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -11656,7 +12019,12 @@ const docTemplate = `{
             "name": "X-Frontend-Key",
             "in": "header"
         }
-    }
+    },
+    "security": [
+        {
+            "FrontendKeyAuth": []
+        }
+    ]
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it

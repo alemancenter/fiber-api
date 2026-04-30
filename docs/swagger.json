@@ -69,6 +69,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -580,6 +583,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -617,6 +623,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -820,6 +829,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -970,6 +982,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1021,6 +1036,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1178,6 +1196,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1343,6 +1364,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1421,6 +1445,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -1494,6 +1521,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1546,6 +1576,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1597,6 +1630,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1679,6 +1715,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -1735,6 +1774,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1806,6 +1848,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1858,6 +1903,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1910,6 +1958,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -1950,6 +2001,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2016,6 +2070,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -2089,6 +2146,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2165,6 +2225,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -2215,6 +2278,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2293,6 +2359,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -2366,6 +2435,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2436,6 +2508,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -2516,6 +2591,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -2566,6 +2644,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2636,6 +2717,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2687,6 +2771,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2765,6 +2852,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -2854,6 +2944,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -2924,6 +3017,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -3004,6 +3100,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -3060,6 +3159,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3118,6 +3220,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3187,6 +3292,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3253,6 +3361,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3319,6 +3430,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3394,6 +3508,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3460,6 +3577,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3524,6 +3644,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -3574,6 +3697,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3626,6 +3752,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3678,6 +3807,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3750,6 +3882,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -3817,6 +3952,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3880,6 +4018,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3929,6 +4070,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -3972,6 +4116,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4009,6 +4156,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4055,6 +4205,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4101,6 +4254,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4139,6 +4295,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4177,6 +4336,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4215,6 +4377,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4258,6 +4423,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4304,6 +4472,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -4371,6 +4542,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4429,6 +4603,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -4473,6 +4650,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4549,6 +4729,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4638,6 +4821,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -4700,6 +4886,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4776,6 +4965,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4833,6 +5025,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4896,6 +5091,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4927,6 +5125,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -4970,6 +5171,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5021,6 +5225,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5065,6 +5272,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5105,6 +5315,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5151,6 +5364,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -5218,6 +5434,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5276,6 +5495,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -5344,6 +5566,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -5388,6 +5613,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5454,6 +5682,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -5527,6 +5758,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5609,6 +5843,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -5659,6 +5896,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5714,6 +5954,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5769,6 +6012,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5821,6 +6067,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5878,6 +6127,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5935,6 +6187,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -5981,6 +6236,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6027,6 +6285,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6111,6 +6372,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -6140,6 +6404,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6186,6 +6453,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6232,6 +6502,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6276,6 +6549,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6319,6 +6595,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6362,6 +6641,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6428,6 +6710,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -6501,6 +6786,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6571,6 +6859,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -6651,6 +6942,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -6701,6 +6995,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6755,6 +7052,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -6807,6 +7107,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6858,6 +7161,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6895,6 +7201,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6926,6 +7235,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -6992,6 +7304,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -7065,6 +7380,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7135,6 +7453,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -7215,6 +7536,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -7265,6 +7589,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7343,6 +7670,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -7410,6 +7740,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7473,6 +7806,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7527,6 +7863,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7584,6 +7923,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7648,6 +7990,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -7722,6 +8067,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             },
@@ -7772,6 +8120,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7836,6 +8187,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7893,6 +8247,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -7961,6 +8318,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -9162,6 +9522,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "FrontendKeyAuth": []
                     }
                 ]
             }
@@ -11654,5 +12017,10 @@
             "name": "X-Frontend-Key",
             "in": "header"
         }
-    }
+    },
+    "security": [
+        {
+            "FrontendKeyAuth": []
+        }
+    ]
 }

@@ -1613,6 +1613,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: AI Content Generation
       tags:
       - AI
@@ -1940,6 +1941,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete Account
       tags:
       - Auth
@@ -1963,6 +1965,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Resend Verification Email
       tags:
       - Auth
@@ -2091,6 +2094,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Logout User
       tags:
       - Auth
@@ -2186,6 +2190,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update User Profile
       tags:
       - Auth
@@ -2218,6 +2223,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Register Push Token
       tags:
       - Auth
@@ -2314,6 +2320,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Current User
       tags:
       - Auth
@@ -2413,6 +2420,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Dashboard Summary
       tags:
       - Analytics
@@ -2460,6 +2468,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: List Articles (Dashboard)
       tags:
       - Articles
@@ -2504,6 +2513,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Create Article
       tags:
       - Articles
@@ -2541,6 +2551,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete Article
       tags:
       - Articles
@@ -2590,6 +2601,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update Article
       tags:
       - Articles
@@ -2634,6 +2646,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Edit Form Data
       tags:
       - Articles
@@ -2664,6 +2677,7 @@ paths:
               type: object
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Publish Article
       tags:
       - Articles
@@ -2694,6 +2708,7 @@ paths:
               type: object
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Unpublish Article
       tags:
       - Articles
@@ -2725,6 +2740,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Create Form Metadata
       tags:
       - Articles
@@ -2755,6 +2771,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Article Statistics
       tags:
       - Articles
@@ -2777,6 +2794,7 @@ paths:
               type: object
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: List Calendar Databases
       tags:
       - Calendar
@@ -2817,6 +2835,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: List Events (Dashboard)
       tags:
       - Calendar
@@ -2861,6 +2880,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Create Event
       tags:
       - Calendar
@@ -2894,6 +2914,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete Event
       tags:
       - Calendar
@@ -2939,6 +2960,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update Event
       tags:
       - Calendar
@@ -2986,6 +3008,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: List Categories (Dashboard)
       tags:
       - Categories
@@ -3030,6 +3053,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Create Category
       tags:
       - Categories
@@ -3063,6 +3087,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete Category
       tags:
       - Categories
@@ -3104,6 +3129,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Category (Dashboard)
       tags:
       - Categories
@@ -3153,6 +3179,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update Category
       tags:
       - Categories
@@ -3195,6 +3222,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Toggle Category Status
       tags:
       - Categories
@@ -3224,6 +3252,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Content Analytics
       tags:
       - Analytics
@@ -3271,6 +3300,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: List Files (Dashboard)
       tags:
       - Files
@@ -3327,6 +3357,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Upload File (Dashboard)
       tags:
       - Files
@@ -3364,6 +3395,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete File (Dashboard)
       tags:
       - Files
@@ -3405,6 +3437,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get File (Dashboard)
       tags:
       - Files
@@ -3454,6 +3487,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update File Metadata (Dashboard)
       tags:
       - Files
@@ -3491,6 +3525,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Download File (Dashboard)
       tags:
       - Files
@@ -3524,6 +3559,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete Message
       tags:
       - Messages
@@ -3561,6 +3597,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Message
       tags:
       - Messages
@@ -3594,6 +3631,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Toggle Message Importance
       tags:
       - Messages
@@ -3627,6 +3665,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Mark Message as Read
       tags:
       - Messages
@@ -3668,6 +3707,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Save Draft Message
       tags:
       - Messages
@@ -3708,6 +3748,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Draft Messages
       tags:
       - Messages
@@ -3748,6 +3789,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Inbox Messages
       tags:
       - Messages
@@ -3793,6 +3835,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Send Message
       tags:
       - Messages
@@ -3833,6 +3876,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Sent Messages
       tags:
       - Messages
@@ -3877,6 +3921,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: List Notifications
       tags:
       - Notifications
@@ -3917,6 +3962,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Create Notification
       tags:
       - Notifications
@@ -3946,6 +3992,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete Notification
       tags:
       - Notifications
@@ -3975,6 +4022,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Mark Notification Read
       tags:
       - Notifications
@@ -4015,6 +4063,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Bulk Action on Notifications
       tags:
       - Notifications
@@ -4043,6 +4092,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Latest Notifications
       tags:
       - Notifications
@@ -4067,6 +4117,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Prune Notifications
       tags:
       - Notifications
@@ -4090,6 +4141,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Mark All Notifications Read
       tags:
       - Notifications
@@ -4111,6 +4163,7 @@ paths:
               type: object
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Cache Performance
       tags:
       - Analytics
@@ -4132,6 +4185,7 @@ paths:
               type: object
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Live Performance Metrics
       tags:
       - Analytics
@@ -4153,6 +4207,7 @@ paths:
               type: object
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: API Response Time
       tags:
       - Analytics
@@ -4178,6 +4233,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Performance Summary
       tags:
       - Analytics
@@ -4204,6 +4260,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: List Permissions
       tags:
       - Roles & Permissions
@@ -4244,6 +4301,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Create Permission
       tags:
       - Roles & Permissions
@@ -4273,6 +4331,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete Permission
       tags:
       - Roles & Permissions
@@ -4309,6 +4368,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update Permission
       tags:
       - Roles & Permissions
@@ -4355,6 +4415,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Create Post
       tags:
       - Posts
@@ -4396,6 +4457,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete Post
       tags:
       - Posts
@@ -4450,6 +4512,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update Post
       tags:
       - Posts
@@ -4496,6 +4559,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Toggle Post Status
       tags:
       - Posts
@@ -4532,6 +4596,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Set Redis Key
       tags:
       - Redis
@@ -4557,6 +4622,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete Redis Key
       tags:
       - Redis
@@ -4595,6 +4661,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update Redis Config
       tags:
       - Redis
@@ -4614,6 +4681,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Clean Expired Keys
       tags:
       - Redis
@@ -4638,6 +4706,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Redis Info
       tags:
       - Redis
@@ -4667,6 +4736,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: List Redis Keys
       tags:
       - Redis
@@ -4692,6 +4762,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Test Redis Connection
       tags:
       - Redis
@@ -4718,6 +4789,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: List Roles
       tags:
       - Roles & Permissions
@@ -4758,6 +4830,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Create Role
       tags:
       - Roles & Permissions
@@ -4787,6 +4860,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete Role
       tags:
       - Roles & Permissions
@@ -4820,6 +4894,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Role
       tags:
       - Roles & Permissions
@@ -4861,6 +4936,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update Role
       tags:
       - Roles & Permissions
@@ -4900,6 +4976,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: List School Classes (Dashboard)
       tags:
       - Grades
@@ -4944,6 +5021,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Create School Class
       tags:
       - Grades
@@ -4977,6 +5055,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete School Class
       tags:
       - Grades
@@ -5026,6 +5105,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update School Class
       tags:
       - Grades
@@ -5058,6 +5138,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Secure Document Upload
       tags:
       - Files
@@ -5090,6 +5171,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Secure Image Upload
       tags:
       - Files
@@ -5120,6 +5202,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get IP Details
       tags:
       - Security
@@ -5156,6 +5239,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Block IP
       tags:
       - Security
@@ -5192,6 +5276,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Trust IP
       tags:
       - Security
@@ -5221,6 +5306,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Unblock IP
       tags:
       - Security
@@ -5250,6 +5336,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Untrust IP
       tags:
       - Security
@@ -5269,6 +5356,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Clear All Logs
       tags:
       - Security
@@ -5319,6 +5407,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: List Security Logs
       tags:
       - Security
@@ -5348,6 +5437,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete Security Log
       tags:
       - Security
@@ -5377,6 +5467,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Resolve Security Log
       tags:
       - Security
@@ -5403,6 +5494,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Security Monitor Dashboard
       tags:
       - Security
@@ -5428,6 +5520,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Security Overview
       tags:
       - Security
@@ -5453,6 +5546,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Security Statistics
       tags:
       - Security
@@ -5492,6 +5586,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: List Semesters (Dashboard)
       tags:
       - Grades
@@ -5536,6 +5631,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Create Semester
       tags:
       - Grades
@@ -5569,6 +5665,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete Semester
       tags:
       - Grades
@@ -5610,6 +5707,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Semester (Dashboard)
       tags:
       - Grades
@@ -5659,6 +5757,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update Semester
       tags:
       - Grades
@@ -5690,6 +5789,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Dashboard Settings
       tags:
       - Settings
@@ -5724,6 +5824,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update Settings
       tags:
       - Settings
@@ -5756,6 +5857,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update robots.txt
       tags:
       - Settings
@@ -5779,6 +5881,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Send Test Email
       tags:
       - Settings
@@ -5798,6 +5901,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Test SMTP Connection
       tags:
       - Settings
@@ -5837,6 +5941,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: List Subjects (Dashboard)
       tags:
       - Grades
@@ -5881,6 +5986,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Create Subject
       tags:
       - Grades
@@ -5914,6 +6020,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete Subject
       tags:
       - Grades
@@ -5955,6 +6062,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Subject (Dashboard)
       tags:
       - Grades
@@ -6004,6 +6112,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update Subject
       tags:
       - Grades
@@ -6051,6 +6160,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: List Users
       tags:
       - Users
@@ -6091,6 +6201,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Create User
       tags:
       - Users
@@ -6124,6 +6235,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Delete User
       tags:
       - Users
@@ -6161,6 +6273,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get User
       tags:
       - Users
@@ -6206,6 +6319,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update User
       tags:
       - Users
@@ -6247,6 +6361,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Update User Roles
       tags:
       - Users
@@ -6284,6 +6399,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Bulk Delete Users
       tags:
       - Users
@@ -6315,6 +6431,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Search Users
       tags:
       - Users
@@ -6352,6 +6469,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Bulk Update Users Status
       tags:
       - Users
@@ -6386,6 +6504,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Get Visitor Analytics
       tags:
       - Analytics
@@ -6427,6 +6546,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Prune Analytics
       tags:
       - Analytics
@@ -7180,6 +7300,7 @@ paths:
             $ref: '#/definitions/github_com_alemancenter_fiber-api_internal_utils.APIResponse'
       security:
       - BearerAuth: []
+      - FrontendKeyAuth: []
       summary: Secure File View
       tags:
       - Files
@@ -7246,6 +7367,8 @@ paths:
 schemes:
 - https
 - http
+security:
+- FrontendKeyAuth: []
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

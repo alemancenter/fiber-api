@@ -29,6 +29,7 @@ func New(svc services.RedisService) *Handler {
 // @Tags Redis
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param pattern query string false "Key pattern to match (e.g. *)"
 // @Success 200 {object} utils.APIResponse{data=services.RedisKeysResponse}
 // @Failure 500 {object} utils.APIResponse
@@ -60,6 +61,7 @@ type SetRedisKeyRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body SetRedisKeyRequest true "Redis key payload"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse
@@ -94,6 +96,7 @@ func (h *Handler) SetKey(c *fiber.Ctx) error {
 // @Tags Redis
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param key path string true "Redis Key"
 // @Success 200 {object} utils.APIResponse
 // @Failure 500 {object} utils.APIResponse
@@ -114,6 +117,7 @@ func (h *Handler) DeleteKey(c *fiber.Ctx) error {
 // @Tags Redis
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse
 // @Failure 500 {object} utils.APIResponse
 // @Router /dashboard/redis/expired/clean [delete]
@@ -130,6 +134,7 @@ func (h *Handler) CleanExpired(c *fiber.Ctx) error {
 // @Tags Redis
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
 // @Failure 500 {object} utils.APIResponse
 // @Router /dashboard/redis/test [get]
@@ -149,6 +154,7 @@ func (h *Handler) TestConnection(c *fiber.Ctx) error {
 // @Tags Redis
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=services.RedisInfoResponse}
 // @Failure 500 {object} utils.APIResponse
 // @Router /dashboard/redis/info [get]
@@ -170,6 +176,7 @@ func (h *Handler) GetInfo(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body map[string]string true "Key-Value pairs of Redis config"
 // @Success 200 {object} utils.APIResponse{data=map[string]string}
 // @Failure 400 {object} utils.APIResponse

@@ -143,6 +143,7 @@ func (h *Handler) UploadDocument(c *fiber.Ctx) error {
 // @Tags Files
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param type query string false "Filter by file type (e.g. image, document)"
 // @Param article_id query int false "Filter by associated article ID"
@@ -172,6 +173,7 @@ func (h *Handler) DashboardList(c *fiber.Ctx) error {
 // @Tags Files
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "File ID"
 // @Success 200 {object} utils.APIResponse{data=models.File}
@@ -202,6 +204,7 @@ func (h *Handler) DashboardShow(c *fiber.Ctx) error {
 // @Accept mpfd
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param file formData file true "File to upload"
 // @Param article_id formData int false "Associated Article ID"
@@ -272,6 +275,7 @@ func (h *Handler) DashboardUpload(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "File ID"
 // @Param request body services.UpdateFileInput true "File metadata update payload"
@@ -310,6 +314,7 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 // @Tags Files
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "File ID"
 // @Success 200 {object} utils.APIResponse
@@ -341,6 +346,7 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 // @Tags Files
 // @Produce application/octet-stream
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "File ID"
 // @Success 200 {file} file "Binary File"
@@ -379,6 +385,7 @@ func (h *Handler) DashboardDownload(c *fiber.Ctx) error {
 // @Accept mpfd
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param image formData file true "Image file to upload"
 // @Success 201 {object} utils.APIResponse{data=services.UploadResponse}
 // @Failure 400 {object} utils.APIResponse
@@ -394,6 +401,7 @@ func (h *Handler) SecureUploadImage(c *fiber.Ctx) error {
 // @Accept mpfd
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param file formData file true "Document file to upload"
 // @Success 201 {object} utils.APIResponse{data=services.UploadResponse}
 // @Failure 400 {object} utils.APIResponse
@@ -408,6 +416,7 @@ func (h *Handler) SecureUploadDocument(c *fiber.Ctx) error {
 // @Tags Files
 // @Produce application/octet-stream
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param path query string true "Relative file path"
 // @Success 200 {file} file "Binary File"
 // @Failure 400 {object} utils.APIResponse

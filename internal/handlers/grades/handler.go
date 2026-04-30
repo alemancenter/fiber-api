@@ -240,6 +240,7 @@ func (h *Handler) DownloadGradeFile(c *fiber.Ctx) error {
 // @Tags Grades
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param page query int false "Page number"
 // @Param limit query int false "Items per page"
@@ -265,6 +266,7 @@ func (h *Handler) DashboardListSchoolClasses(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param request body services.SchoolClassInput true "School class data"
 // @Success 201 {object} utils.APIResponse{data=models.SchoolClass}
@@ -298,6 +300,7 @@ func (h *Handler) DashboardCreateSchoolClass(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Class ID"
 // @Param request body services.SchoolClassInput true "School class data"
@@ -334,6 +337,7 @@ func (h *Handler) DashboardUpdateSchoolClass(c *fiber.Ctx) error {
 // @Tags Grades
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Class ID"
 // @Success 200 {object} utils.APIResponse
@@ -360,6 +364,7 @@ func (h *Handler) DashboardDeleteSchoolClass(c *fiber.Ctx) error {
 // @Tags Grades
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param page query int false "Page number"
 // @Param limit query int false "Items per page"
@@ -385,6 +390,7 @@ func (h *Handler) DashboardListSubjects(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param request body services.SubjectInput true "Subject data"
 // @Success 201 {object} utils.APIResponse{data=models.Subject}
@@ -417,6 +423,7 @@ func (h *Handler) DashboardCreateSubject(c *fiber.Ctx) error {
 // @Tags Grades
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Subject ID"
 // @Success 200 {object} utils.APIResponse{data=models.Subject}
@@ -450,6 +457,7 @@ func (h *Handler) DashboardGetSubject(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Subject ID"
 // @Param request body services.SubjectInput true "Subject data"
@@ -491,6 +499,7 @@ func (h *Handler) DashboardUpdateSubject(c *fiber.Ctx) error {
 // @Tags Grades
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Subject ID"
 // @Success 200 {object} utils.APIResponse
@@ -517,6 +526,7 @@ func (h *Handler) DashboardDeleteSubject(c *fiber.Ctx) error {
 // @Tags Grades
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param page query int false "Page number"
 // @Param limit query int false "Items per page"
@@ -542,6 +552,7 @@ func (h *Handler) DashboardListSemesters(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param request body services.SemesterInput true "Semester data"
 // @Success 201 {object} utils.APIResponse{data=models.Semester}
@@ -571,6 +582,7 @@ func (h *Handler) DashboardCreateSemester(c *fiber.Ctx) error {
 // @Tags Grades
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Semester ID"
 // @Success 200 {object} utils.APIResponse{data=models.Semester}
@@ -604,6 +616,7 @@ func (h *Handler) DashboardGetSemester(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Semester ID"
 // @Param request body services.SemesterInput true "Semester data"
@@ -640,6 +653,7 @@ func (h *Handler) DashboardUpdateSemester(c *fiber.Ctx) error {
 // @Tags Grades
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Semester ID"
 // @Success 200 {object} utils.APIResponse

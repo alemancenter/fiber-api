@@ -26,6 +26,7 @@ func New(svc services.AnalyticsService) *Handler {
 // @Tags Analytics
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param days query int false "Number of days for analysis (default: 30)"
 // @Success 200 {object} utils.APIResponse{data=services.VisitorAnalyticsResponse}
@@ -54,6 +55,7 @@ type PruneRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param request body PruneRequest false "Days to retain (default: 90)"
 // @Success 200 {object} utils.APIResponse{data=services.PruneAnalyticsResponse}
@@ -80,6 +82,7 @@ func (h *Handler) PruneAnalytics(c *fiber.Ctx) error {
 // @Tags Analytics
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Success 200 {object} utils.APIResponse{data=services.DashboardSummaryResponse}
 // @Failure 500 {object} utils.APIResponse
@@ -97,6 +100,7 @@ func (h *Handler) DashboardSummary(c *fiber.Ctx) error {
 // @Tags Analytics
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Success 200 {object} utils.APIResponse{data=services.ContentAnalyticsResponse}
 // @Failure 500 {object} utils.APIResponse
@@ -114,6 +118,7 @@ func (h *Handler) ContentAnalytics(c *fiber.Ctx) error {
 // @Tags Analytics
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=services.PerformanceSummaryResponse}
 // @Failure 500 {object} utils.APIResponse
 // @Router /dashboard/performance/summary [get]
@@ -128,6 +133,7 @@ func (h *Handler) PerformanceSummary(c *fiber.Ctx) error {
 // @Tags Analytics
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
 // @Router /dashboard/performance/live [get]
 func (h *Handler) PerformanceLive(c *fiber.Ctx) error {
@@ -141,6 +147,7 @@ func (h *Handler) PerformanceLive(c *fiber.Ctx) error {
 // @Tags Analytics
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
 // @Router /dashboard/performance/response-time [get]
 func (h *Handler) PerformanceResponseTime(c *fiber.Ctx) error {
@@ -154,6 +161,7 @@ func (h *Handler) PerformanceResponseTime(c *fiber.Ctx) error {
 // @Tags Analytics
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
 // @Router /dashboard/performance/cache [get]
 func (h *Handler) PerformanceCache(c *fiber.Ctx) error {

@@ -27,6 +27,7 @@ func New(svc services.RoleService) *Handler {
 // @Tags Roles & Permissions
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=[]models.Role}
 // @Failure 500 {object} utils.APIResponse
 // @Router /dashboard/roles [get]
@@ -44,6 +45,7 @@ func (h *Handler) ListRoles(c *fiber.Ctx) error {
 // @Tags Roles & Permissions
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param id path int true "Role ID"
 // @Success 200 {object} utils.APIResponse{data=models.Role}
 // @Failure 400 {object} utils.APIResponse
@@ -75,6 +77,7 @@ type CreateRoleRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body CreateRoleRequest true "Role data"
 // @Success 201 {object} utils.APIResponse{data=models.Role}
 // @Failure 400 {object} utils.APIResponse
@@ -114,6 +117,7 @@ type UpdateRoleRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param id path int true "Role ID"
 // @Param request body UpdateRoleRequest true "Role update data"
 // @Success 200 {object} utils.APIResponse{data=models.Role}
@@ -145,6 +149,7 @@ func (h *Handler) UpdateRole(c *fiber.Ctx) error {
 // @Tags Roles & Permissions
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param id path int true "Role ID"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse
@@ -169,6 +174,7 @@ func (h *Handler) DeleteRole(c *fiber.Ctx) error {
 // @Tags Roles & Permissions
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=[]models.Permission}
 // @Failure 500 {object} utils.APIResponse
 // @Router /dashboard/permissions [get]
@@ -191,6 +197,7 @@ type CreatePermissionRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body CreatePermissionRequest true "Permission data"
 // @Success 201 {object} utils.APIResponse{data=models.Permission}
 // @Failure 400 {object} utils.APIResponse
@@ -226,6 +233,7 @@ type UpdatePermissionRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param id path int true "Permission ID"
 // @Param request body UpdatePermissionRequest true "Permission update data"
 // @Success 200 {object} utils.APIResponse
@@ -256,6 +264,7 @@ func (h *Handler) UpdatePermission(c *fiber.Ctx) error {
 // @Tags Roles & Permissions
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param id path int true "Permission ID"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse

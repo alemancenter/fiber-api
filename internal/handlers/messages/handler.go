@@ -32,6 +32,7 @@ func getUser(c *fiber.Ctx) *models.User {
 // @Tags Messages
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param page query int false "Page number"
 // @Param limit query int false "Items per page"
 // @Success 200 {object} utils.APIResponse{data=[]models.Message}
@@ -59,6 +60,7 @@ func (h *Handler) Inbox(c *fiber.Ctx) error {
 // @Tags Messages
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param page query int false "Page number"
 // @Param limit query int false "Items per page"
 // @Success 200 {object} utils.APIResponse{data=[]models.Message}
@@ -86,6 +88,7 @@ func (h *Handler) Sent(c *fiber.Ctx) error {
 // @Tags Messages
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param page query int false "Page number"
 // @Param limit query int false "Items per page"
 // @Success 200 {object} utils.APIResponse{data=[]models.Message}
@@ -120,6 +123,7 @@ type SendMessageRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body SendMessageRequest true "Message payload"
 // @Success 201 {object} utils.APIResponse{data=models.Message}
 // @Failure 400 {object} utils.APIResponse
@@ -162,6 +166,7 @@ type SaveDraftRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body SaveDraftRequest true "Draft message payload"
 // @Success 201 {object} utils.APIResponse{data=models.Message}
 // @Failure 400 {object} utils.APIResponse
@@ -193,6 +198,7 @@ func (h *Handler) Draft(c *fiber.Ctx) error {
 // @Tags Messages
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param id path int true "Message ID"
 // @Success 200 {object} utils.APIResponse{data=models.Message}
 // @Failure 400 {object} utils.APIResponse
@@ -224,6 +230,7 @@ func (h *Handler) Get(c *fiber.Ctx) error {
 // @Tags Messages
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param id path int true "Message ID"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse
@@ -254,6 +261,7 @@ func (h *Handler) MarkAsRead(c *fiber.Ctx) error {
 // @Tags Messages
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param id path int true "Message ID"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse
@@ -284,6 +292,7 @@ func (h *Handler) ToggleImportant(c *fiber.Ctx) error {
 // @Tags Messages
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param id path int true "Message ID"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse

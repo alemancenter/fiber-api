@@ -76,6 +76,7 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 // @Tags Categories
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param search query string false "Search query"
 // @Param is_active query string false "Filter by active status (true/false)"
@@ -105,6 +106,7 @@ func (h *Handler) DashboardList(c *fiber.Ctx) error {
 // @Tags Categories
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Category ID"
 // @Success 200 {object} utils.APIResponse{data=models.Category}
@@ -123,6 +125,7 @@ func (h *Handler) DashboardShow(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param request body services.CreateCategoryRequest true "Category data"
 // @Success 201 {object} utils.APIResponse{data=models.Category}
@@ -156,6 +159,7 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Category ID"
 // @Param request body services.UpdateCategoryRequest true "Category data"
@@ -192,6 +196,7 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 // @Tags Categories
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Category ID"
 // @Success 200 {object} utils.APIResponse
@@ -219,6 +224,7 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 // @Tags Categories
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Category ID"
 // @Success 200 {object} utils.APIResponse{data=models.Category}

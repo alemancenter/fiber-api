@@ -25,6 +25,7 @@ func New(svc services.UserService) *Handler {
 // @Tags Users
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param search query string false "Search query"
 // @Param status query string false "Filter by status"
 // @Param role query string false "Filter by role"
@@ -54,6 +55,7 @@ func (h *Handler) List(c *fiber.Ctx) error {
 // @Tags Users
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param q query string false "Search query"
 // @Success 200 {object} utils.APIResponse{data=[]services.UserResponse}
 // @Failure 500 {object} utils.APIResponse
@@ -73,6 +75,7 @@ func (h *Handler) Search(c *fiber.Ctx) error {
 // @Tags Users
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param user path int true "User ID"
 // @Success 200 {object} utils.APIResponse{data=services.UserResponse}
 // @Failure 400 {object} utils.APIResponse
@@ -103,6 +106,7 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body services.CreateUserRequest true "User data"
 // @Success 201 {object} utils.APIResponse{data=services.UserResponse}
 // @Failure 400 {object} utils.APIResponse
@@ -142,6 +146,7 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param user path int true "User ID"
 // @Param request body services.UpdateUserRequest true "User data"
 // @Success 200 {object} utils.APIResponse{data=services.UserResponse}
@@ -184,6 +189,7 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param user path int true "User ID"
 // @Param request body services.RolesPermissionsRequest true "Roles and permissions data"
 // @Success 200 {object} utils.APIResponse
@@ -218,6 +224,7 @@ func (h *Handler) UpdateRolesPermissions(c *fiber.Ctx) error {
 // @Tags Users
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param user path int true "User ID"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse
@@ -259,6 +266,7 @@ type BulkDeleteRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body BulkDeleteRequest true "List of user IDs to delete"
 // @Success 200 {object} utils.APIResponse{data=services.BulkDeleteUsersResponse}
 // @Failure 400 {object} utils.APIResponse
@@ -295,6 +303,7 @@ type UpdateStatusRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body UpdateStatusRequest true "List of IDs and new status"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse

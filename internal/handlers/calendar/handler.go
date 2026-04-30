@@ -28,6 +28,7 @@ func New(svc services.CalendarService) *Handler {
 // @Tags Calendar
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=[]services.DatabaseInfo}
 // @Router /dashboard/calendar/databases [get]
 func (h *Handler) Databases(c *fiber.Ctx) error {
@@ -45,6 +46,7 @@ func (h *Handler) Databases(c *fiber.Ctx) error {
 // @Tags Calendar
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param start query string false "Start date (YYYY-MM-DD)"
 // @Param end query string false "End date (YYYY-MM-DD)"
@@ -71,6 +73,7 @@ func (h *Handler) GetEvents(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param request body services.EventInput true "Event data payload"
 // @Success 201 {object} utils.APIResponse{data=models.Event}
@@ -105,6 +108,7 @@ func (h *Handler) CreateEvent(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Event ID"
 // @Param request body services.EventInput true "Event update payload"
@@ -139,6 +143,7 @@ func (h *Handler) UpdateEvent(c *fiber.Ctx) error {
 // @Tags Calendar
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Event ID"
 // @Success 200 {object} utils.APIResponse

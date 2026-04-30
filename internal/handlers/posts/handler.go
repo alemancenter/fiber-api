@@ -154,6 +154,7 @@ func (h *Handler) IncrementView(c *fiber.Ctx) error {
 // @Accept mpfd
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param request body services.CreatePostRequest true "Post data"
 // @Success 201 {object} utils.APIResponse{data=models.Post}
@@ -235,6 +236,7 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 // @Accept mpfd
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Post ID"
 // @Param request body services.UpdatePostRequest true "Post data"
@@ -322,6 +324,7 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 // @Tags Posts
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Post ID"
 // @Success 200 {object} utils.APIResponse{data=models.Post}
@@ -371,6 +374,7 @@ func (h *Handler) DashboardToggleStatus(c *fiber.Ctx) error {
 // @Tags Posts
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Post ID"
 // @Success 200 {object} utils.APIResponse

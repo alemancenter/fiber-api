@@ -25,6 +25,7 @@ func New(svc services.NotificationService) *Handler {
 // @Tags Notifications
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param unread query string false "Filter by unread status (1 for true)"
 // @Param page query int false "Page number"
 // @Param limit query int false "Items per page"
@@ -55,6 +56,7 @@ func (h *Handler) List(c *fiber.Ctx) error {
 // @Tags Notifications
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=services.LatestNotificationsResponse}
 // @Failure 401 {object} utils.APIResponse
 // @Failure 500 {object} utils.APIResponse
@@ -82,6 +84,7 @@ func (h *Handler) Latest(c *fiber.Ctx) error {
 // @Tags Notifications
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param id path string true "Notification ID"
 // @Success 200 {object} utils.APIResponse
 // @Failure 401 {object} utils.APIResponse
@@ -107,6 +110,7 @@ func (h *Handler) MarkAsRead(c *fiber.Ctx) error {
 // @Tags Notifications
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse
 // @Failure 401 {object} utils.APIResponse
 // @Failure 500 {object} utils.APIResponse
@@ -137,6 +141,7 @@ type CreateNotificationRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body CreateNotificationRequest true "Notification payload"
 // @Success 201 {object} utils.APIResponse{data=models.Notification}
 // @Failure 400 {object} utils.APIResponse
@@ -167,6 +172,7 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 // @Tags Notifications
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param id path string true "Notification ID"
 // @Success 200 {object} utils.APIResponse
 // @Failure 401 {object} utils.APIResponse
@@ -192,6 +198,7 @@ func (h *Handler) Delete(c *fiber.Ctx) error {
 // @Tags Notifications
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=services.PruneNotificationsResponse}
 // @Failure 500 {object} utils.APIResponse
 // @Router /dashboard/notifications/prune [post]
@@ -218,6 +225,7 @@ type BulkActionRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body BulkActionRequest true "Bulk action payload"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse

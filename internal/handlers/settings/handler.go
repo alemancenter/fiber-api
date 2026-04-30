@@ -38,6 +38,7 @@ func countryIDFromContext(c *fiber.Ctx) database.CountryID {
 // @Tags Settings
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Success 200 {object} utils.APIResponse{data=map[string]string}
 // @Failure 500 {object} utils.APIResponse
@@ -66,6 +67,7 @@ var allowedSettingImageKeys = map[string]bool{
 // @Accept mpfd
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param settings body map[string]string false "Settings key-value pairs (if JSON)"
 // @Success 200 {object} utils.APIResponse
@@ -126,6 +128,7 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 // @Tags Settings
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse
 // @Router /dashboard/settings/smtp/test [post]
@@ -143,6 +146,7 @@ func (h *Handler) TestSMTP(c *fiber.Ctx) error {
 // @Tags Settings
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse
 // @Failure 401 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse
@@ -174,6 +178,7 @@ type RobotsRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param body body RobotsRequest true "robots.txt content"
 // @Success 200 {object} utils.APIResponse

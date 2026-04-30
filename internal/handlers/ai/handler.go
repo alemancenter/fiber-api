@@ -26,6 +26,7 @@ type GenerateRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body GenerateRequest true "Prompt payload containing title"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} utils.APIResponse

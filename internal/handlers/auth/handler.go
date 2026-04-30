@@ -199,6 +199,7 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 // @Tags Auth
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse
 // @Failure 500 {object} utils.APIResponse
 // @Router /auth/logout [post]
@@ -231,6 +232,7 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 // @Tags Auth
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
 // @Failure 401 {object} utils.APIResponse
 // @Router /auth/user [get]
@@ -247,6 +249,7 @@ func (h *Handler) Me(c *fiber.Ctx) error {
 // @Accept mpfd
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body services.UpdateProfileInput false "Profile Data"
 // @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
 // @Failure 400 {object} utils.APIResponse
@@ -398,6 +401,7 @@ func (h *Handler) VerifyEmail(c *fiber.Ctx) error {
 // @Tags Auth
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse
 // @Failure 500 {object} utils.APIResponse
@@ -428,6 +432,7 @@ type DeleteRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body DeleteRequest true "User Password"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse
@@ -521,6 +526,7 @@ type PushTokenRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param request body PushTokenRequest true "Push Token Data"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse

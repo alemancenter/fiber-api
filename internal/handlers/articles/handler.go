@@ -270,6 +270,7 @@ func (h *Handler) DownloadFile(c *fiber.Ctx) error {
 // @Tags Articles
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param status query int false "Filter by status"
 // @Param q query string false "Search query"
@@ -311,6 +312,7 @@ func (h *Handler) DashboardList(c *fiber.Ctx) error {
 // @Tags Articles
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
 // @Failure 500 {object} utils.APIResponse
@@ -332,6 +334,7 @@ func (h *Handler) DashboardCreateData(c *fiber.Ctx) error {
 // @Tags Articles
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Article ID"
 // @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
@@ -365,6 +368,7 @@ func (h *Handler) DashboardEditData(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param request body services.ArticleInput true "Article data"
 // @Success 201 {object} utils.APIResponse{data=models.Article}
@@ -405,6 +409,7 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Article ID"
 // @Param request body services.ArticleInput true "Article data"
@@ -449,6 +454,7 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 // @Tags Articles
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Article ID"
 // @Success 200 {object} utils.APIResponse
@@ -485,6 +491,7 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 // @Tags Articles
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Article ID"
 // @Success 200 {object} utils.APIResponse{data=models.Article}
@@ -499,6 +506,7 @@ func (h *Handler) DashboardPublish(c *fiber.Ctx) error {
 // @Tags Articles
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Param id path int true "Article ID"
 // @Success 200 {object} utils.APIResponse{data=models.Article}
@@ -532,6 +540,7 @@ func (h *Handler) setArticleStatus(c *fiber.Ctx, status int8, message string) er
 // @Tags Articles
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param X-Country-Id header string false "Country ID"
 // @Success 200 {object} utils.APIResponse{data=services.ArticleDashboardStats}
 // @Failure 500 {object} utils.APIResponse

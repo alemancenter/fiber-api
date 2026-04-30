@@ -27,6 +27,7 @@ func New(svc services.SecurityService) *Handler {
 // @Tags Security
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=services.SecurityStatsResponse}
 // @Failure 500 {object} utils.APIResponse
 // @Router /dashboard/security/stats [get]
@@ -51,6 +52,7 @@ func (h *Handler) Stats(c *fiber.Ctx) error {
 // @Tags Security
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param severity query string false "Filter by severity (low, medium, high, critical)"
 // @Param event_type query string false "Filter by event type"
 // @Param ip query string false "Filter by IP address"
@@ -82,6 +84,7 @@ func (h *Handler) Logs(c *fiber.Ctx) error {
 // @Tags Security
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param id path int true "Log ID"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse
@@ -106,6 +109,7 @@ func (h *Handler) ResolveLog(c *fiber.Ctx) error {
 // @Tags Security
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param id path int true "Log ID"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse
@@ -129,6 +133,7 @@ func (h *Handler) DeleteLog(c *fiber.Ctx) error {
 // @Tags Security
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse
 // @Failure 500 {object} utils.APIResponse
 // @Router /dashboard/security/logs [delete]
@@ -145,6 +150,7 @@ func (h *Handler) DeleteAllLogs(c *fiber.Ctx) error {
 // @Tags Security
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=services.SecurityOverviewResponse}
 // @Failure 500 {object} utils.APIResponse
 // @Router /dashboard/security/overview [get]
@@ -176,6 +182,7 @@ func (h *Handler) Overview(c *fiber.Ctx) error {
 // @Tags Security
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
 // @Failure 500 {object} utils.APIResponse
 // @Router /dashboard/security/monitor/dashboard [get]
@@ -221,6 +228,7 @@ func (h *Handler) MonitorDashboard(c *fiber.Ctx) error {
 // @Tags Security
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param ip path string true "IP Address"
 // @Success 200 {object} utils.APIResponse{data=services.IPDetailsResponse}
 // @Failure 500 {object} utils.APIResponse
@@ -252,6 +260,7 @@ func (h *Handler) IPDetails(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param ip path string true "IP Address"
 // @Param request body ipPayload false "Optional payload (reason, note)"
 // @Success 200 {object} utils.APIResponse
@@ -288,6 +297,7 @@ func (h *Handler) BlockIP(c *fiber.Ctx) error {
 // @Tags Security
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param ip path string true "IP Address"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse
@@ -314,6 +324,7 @@ func (h *Handler) UnblockIP(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param ip path string true "IP Address"
 // @Param request body ipPayload false "Optional payload (note)"
 // @Success 200 {object} utils.APIResponse
@@ -351,6 +362,7 @@ func (h *Handler) TrustIP(c *fiber.Ctx) error {
 // @Tags Security
 // @Produce json
 // @Security BearerAuth
+// @Security FrontendKeyAuth
 // @Param ip path string true "IP Address"
 // @Success 200 {object} utils.APIResponse
 // @Failure 400 {object} utils.APIResponse

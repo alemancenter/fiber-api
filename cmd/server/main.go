@@ -29,6 +29,7 @@ import (
 // @version 2.0.0
 // @description Backend API for Alemancenter Educational Platform.
 // @termsOfService http://swagger.io/terms/
+// @security FrontendKeyAuth
 
 // @contact.name API Support
 // @contact.email support@alemancenter.com
