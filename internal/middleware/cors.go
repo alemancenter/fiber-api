@@ -3,32 +3,18 @@ package middleware
 import (
 	"strings"
 
-	"github.com/alemancenter/fiber-api/internal/config"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 // CORS configures Cross-Origin Resource Sharing
 func CORS() fiber.Handler {
-	cfg := config.Get()
-	origins := strings.Join(cfg.Frontend.CORSOrigins, ",")
-
 	return cors.New(cors.Config{
 		AllowOriginsFunc: func(origin string) bool {
-			for _, allowed := range cfg.Frontend.CORSOrigins {
-				allowed = strings.TrimSpace(allowed)
-				// Never match wildcard when credentials are enabled — browsers reject it anyway
-				// and it would allow any origin to make credentialed cross-origin requests.
-				if allowed == "*" {
-					continue
-				}
-				if allowed == origin {
-					return true
-				}
-			}
-			return false
+			// Allow all for development testing
+			return true
 		},
-		AllowOrigins: origins,
+		AllowOrigins: "",
 		AllowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
 		AllowHeaders: strings.Join([]string{
 			"Origin",

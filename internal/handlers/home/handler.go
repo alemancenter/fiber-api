@@ -18,7 +18,14 @@ func New(svc services.HomeService) *Handler {
 // GetHome returns all the necessary data for the frontend home page.
 // GET /api/home
 func (h *Handler) GetHome(c *fiber.Ctx) error {
-	countryID, _ := c.Locals("country_id").(database.CountryID)
+	countryHeader := c.Get("X-Country-Id")
+	if countryHeader == "" {
+		countryHeader = c.Get("X-Country")
+	}
+	if countryHeader == "" {
+		countryHeader = c.Query("country", "1")
+	}
+	countryID := database.CountryIDFromHeader(countryHeader)
 
 	data, err := h.svc.GetHome(countryID)
 	if err != nil {
