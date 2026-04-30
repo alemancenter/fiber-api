@@ -82,9 +82,12 @@ func FrontendGuard() fiber.Handler {
 			}
 		}
 
-		// 3. Frontend API key validation (strongest signal)
+		// 3. Frontend API key validation (Frontend Marker)
+		// Note: This key is exposed in Next.js (NEXT_PUBLIC_FRONTEND_API_KEY)
+		// It is NOT a secure secret. It acts as a simple marker to identify requests
+		// claiming to originate from our frontend application.
 		if cfg.Frontend.APIKey != "" && frontendKey == cfg.Frontend.APIKey {
-			c.Locals("client_type", "api_key")
+			c.Locals("client_type", "frontend_marker")
 			return continueWithCountry(c, cfg)
 		}
 

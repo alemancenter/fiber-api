@@ -32,4 +32,8 @@ func registerAnalyticsRoutes(public, dash fiber.Router, h *Handlers) {
 	dashMonitor.Get("/visitor-analytics", h.Analytics.VisitorAnalytics)
 	dashMonitor.Post("/visitor-analytics/prune", h.Analytics.PruneAnalytics)
 	dashMonitor.Get("/performance/summary", h.Analytics.PerformanceSummary)
+	dashMonitor.Get("/performance/live", h.Analytics.PerformanceLive)
+	dashMonitor.Get("/performance/raw", h.Analytics.PerformanceRaw)
+	dashMonitor.Get("/performance/response-time", h.Analytics.PerformanceResponseTime)
+	dashMonitor.Get("/performance/cache", h.Analytics.PerformanceCache)
 }

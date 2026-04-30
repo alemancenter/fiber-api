@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/alemancenter/fiber-api/internal/services"
@@ -109,4 +110,36 @@ func (h *Handler) GetInfo(c *fiber.Ctx) error {
 	}
 
 	return utils.Success(c, "success", services.RedisInfoResponse{Info: info})
+}
+
+// UpdateEnv validates Redis settings posted from the dashboard.
+// Runtime Redis clients are initialized at process startup, so applying changes
+// still requires a service restart or deployment-level configuration update.
+// POST /api/dashboard/redis/env
+func (h *Handler) UpdateEnv(c *fiber.Ctx) error {
+	var req map[string]string
+	if err := c.BodyParser(&req); err != nil {
+		return utils.BadRequest(c, "invalid redis settings")
+	}
+
+	allowed := map[string]bool{
+		"REDIS_HOST":     true,
+		"REDIS_PORT":     true,
+		"REDIS_PASSWORD": true,
+		"REDIS_DB":       true,
+	}
+
+	sanitized := make(map[string]string)
+	for key, value := range req {
+		if !allowed[key] {
+			continue
+		}
+		sanitized[key] = strings.TrimSpace(value)
+	}
+
+	if len(sanitized) == 0 {
+		return utils.BadRequest(c, "no valid redis settings provided")
+	}
+
+	return utils.Success(c, "redis settings accepted; restart the service to apply runtime changes", sanitized)
 }

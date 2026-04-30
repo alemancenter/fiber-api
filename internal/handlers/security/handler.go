@@ -2,6 +2,7 @@ package security
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/alemancenter/fiber-api/internal/services"
@@ -116,6 +117,44 @@ func (h *Handler) Overview(c *fiber.Ctx) error {
 	})
 }
 
+// MonitorDashboard returns the frontend monitor payload.
+// GET /api/dashboard/security/monitor/dashboard
+func (h *Handler) MonitorDashboard(c *fiber.Ctx) error {
+	totalLogs, criticalLogs, resolvedLogs, blockedIPs, trustedIPs, err := h.svc.GetStats()
+	if err != nil {
+		return utils.InternalError(c)
+	}
+
+	recentLogs, _, err := h.svc.GetLogs("", "", "", "", 10, 0)
+	if err != nil {
+		return utils.InternalError(c)
+	}
+
+	unresolved := totalLogs - resolvedLogs
+	if unresolved < 0 {
+		unresolved = 0
+	}
+
+	return utils.Success(c, "success", fiber.Map{
+		"stats": fiber.Map{
+			"total_events":      totalLogs,
+			"unresolved_events": unresolved,
+			"high_risk_events":  criticalLogs,
+			"blocked_ips":       blockedIPs,
+			"trusted_ips":       trustedIPs,
+			"alerts_count":      unresolved,
+			"blocked_ips_count": blockedIPs,
+			"total_requests":    totalLogs,
+			"attack_attempts":   criticalLogs,
+			"blocked_attacks":   blockedIPs,
+			"resolved_events":   resolvedLogs,
+			"critical_events":   criticalLogs,
+		},
+		"recent_events": recentLogs,
+		"recent_logs":   recentLogs,
+	})
+}
+
 // IPDetails returns details about a specific IP
 // GET /api/dashboard/security/ip/:ip
 func (h *Handler) IPDetails(c *fiber.Ctx) error {
@@ -141,18 +180,23 @@ func (h *Handler) IPDetails(c *fiber.Ctx) error {
 // BlockIP blocks an IP address
 // POST /api/dashboard/security/ip/:ip/block
 func (h *Handler) BlockIP(c *fiber.Ctx) error {
-	ip := c.Params("ip")
-	var req struct {
-		Reason string `json:"reason" validate:"required"`
+	req, err := parseIPPayload(c)
+	if err != nil {
+		return utils.BadRequest(c, "invalid payload")
 	}
 
-	if err := c.BodyParser(&req); err != nil {
-		return utils.BadRequest(c, "بيانات غير صالحة")
+	ip := firstNonEmpty(c.Params("ip"), req.IPAddress, req.IP)
+	if ip == "" {
+		return utils.BadRequest(c, "ip address is required")
 	}
 
-	userID := c.Locals("user_id").(uint)
+	userID := currentUserID(c)
+	var blockedBy *uint
+	if userID != 0 {
+		blockedBy = &userID
+	}
 
-	if err := h.svc.BlockIP(ip, req.Reason, &userID); err != nil {
+	if err := h.svc.BlockIP(ip, req.Reason, blockedBy); err != nil {
 		return utils.InternalError(c)
 	}
 
@@ -162,7 +206,11 @@ func (h *Handler) BlockIP(c *fiber.Ctx) error {
 // UnblockIP unblocks an IP address
 // POST /api/dashboard/security/ip/:ip/unblock
 func (h *Handler) UnblockIP(c *fiber.Ctx) error {
-	ip := c.Params("ip")
+	req, _ := parseIPPayload(c)
+	ip := firstNonEmpty(c.Params("ip"), req.IPAddress, req.IP)
+	if ip == "" {
+		return utils.BadRequest(c, "ip address is required")
+	}
 
 	if err := h.svc.UnblockIP(ip); err != nil {
 		return utils.InternalError(c)
@@ -174,18 +222,24 @@ func (h *Handler) UnblockIP(c *fiber.Ctx) error {
 // TrustIP marks an IP as trusted
 // POST /api/dashboard/security/ip/:ip/trust
 func (h *Handler) TrustIP(c *fiber.Ctx) error {
-	ip := c.Params("ip")
-	var req struct {
-		Note string `json:"note"`
+	req, err := parseIPPayload(c)
+	if err != nil {
+		return utils.BadRequest(c, "invalid payload")
 	}
 
-	if err := c.BodyParser(&req); err != nil {
-		return utils.BadRequest(c, "بيانات غير صالحة")
+	ip := firstNonEmpty(c.Params("ip"), req.IPAddress, req.IP)
+	if ip == "" {
+		return utils.BadRequest(c, "ip address is required")
 	}
 
-	userID := c.Locals("user_id").(uint)
+	userID := currentUserID(c)
+	var addedBy *uint
+	if userID != 0 {
+		addedBy = &userID
+	}
 
-	if err := h.svc.TrustIP(ip, req.Note, &userID); err != nil {
+	note := firstNonEmpty(req.Note, req.Reason)
+	if err := h.svc.TrustIP(ip, note, addedBy); err != nil {
 		return utils.InternalError(c)
 	}
 
@@ -195,7 +249,11 @@ func (h *Handler) TrustIP(c *fiber.Ctx) error {
 // UntrustIP removes an IP from trusted list
 // POST /api/dashboard/security/ip/:ip/untrust
 func (h *Handler) UntrustIP(c *fiber.Ctx) error {
-	ip := c.Params("ip")
+	req, _ := parseIPPayload(c)
+	ip := firstNonEmpty(c.Params("ip"), req.IPAddress, req.IP)
+	if ip == "" {
+		return utils.BadRequest(c, "ip address is required")
+	}
 
 	if err := h.svc.UntrustIP(ip); err != nil {
 		return utils.InternalError(c)
@@ -269,4 +327,49 @@ func (h *Handler) GeoDistribution(c *fiber.Ctx) error {
 	}
 
 	return utils.Success(c, "success", geo)
+}
+
+type ipPayload struct {
+	IP        string `json:"ip"`
+	IPAddress string `json:"ip_address"`
+	Reason    string `json:"reason"`
+	Note      string `json:"note"`
+}
+
+func parseIPPayload(c *fiber.Ctx) (ipPayload, error) {
+	var req ipPayload
+	if len(c.Body()) == 0 {
+		return req, nil
+	}
+	err := c.BodyParser(&req)
+	req.IP = strings.TrimSpace(req.IP)
+	req.IPAddress = strings.TrimSpace(req.IPAddress)
+	req.Reason = strings.TrimSpace(req.Reason)
+	req.Note = strings.TrimSpace(req.Note)
+	return req, err
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func currentUserID(c *fiber.Ctx) uint {
+	switch v := c.Locals("user_id").(type) {
+	case uint:
+		return v
+	case int:
+		if v > 0 {
+			return uint(v)
+		}
+	case float64:
+		if v > 0 {
+			return uint(v)
+		}
+	}
+	return 0
 }

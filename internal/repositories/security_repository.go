@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/alemancenter/fiber-api/internal/database"
@@ -233,6 +234,9 @@ func (r *securityRepository) BlockIP(ip string, blocked models.BlockedIP) error 
 }
 
 func (r *securityRepository) UnblockIP(ip string) error {
+	if id, err := strconv.ParseUint(ip, 10, 64); err == nil {
+		return database.DB().Where("id = ?", id).Delete(&models.BlockedIP{}).Error
+	}
 	return database.DB().Where("ip_address = ?", ip).Delete(&models.BlockedIP{}).Error
 }
 
@@ -243,6 +247,9 @@ func (r *securityRepository) TrustIP(ip string, trusted models.TrustedIP) error 
 }
 
 func (r *securityRepository) UntrustIP(ip string) error {
+	if id, err := strconv.ParseUint(ip, 10, 64); err == nil {
+		return database.DB().Where("id = ?", id).Delete(&models.TrustedIP{}).Error
+	}
 	return database.DB().Where("ip_address = ?", ip).Delete(&models.TrustedIP{}).Error
 }
 

@@ -1,8 +1,12 @@
 package settings
 
 import (
+	"fmt"
+	"html"
+	"net/mail"
 	"strings"
 
+	"github.com/alemancenter/fiber-api/internal/config"
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/alemancenter/fiber-api/internal/services"
@@ -149,4 +153,87 @@ func (h *Handler) GetPublic(c *fiber.Ctx) error {
 		return utils.InternalError(c)
 	}
 	return utils.Success(c, "success", result)
+}
+
+// Contact accepts public contact form submissions.
+// POST /api/front/contact
+func (h *Handler) Contact(c *fiber.Ctx) error {
+	type contactRequest struct {
+		Name      string `json:"name"`
+		Email     string `json:"email"`
+		Phone     string `json:"phone"`
+		Subject   string `json:"subject"`
+		Message   string `json:"message"`
+		Recaptcha string `json:"g-recaptcha-response"`
+		PageURL   string `json:"page_url"`
+		FormTime  int64  `json:"form_time_ms"`
+	}
+
+	var req contactRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.BadRequest(c, "invalid contact payload")
+	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	req.Email = strings.TrimSpace(req.Email)
+	req.Phone = strings.TrimSpace(req.Phone)
+	req.Subject = strings.TrimSpace(req.Subject)
+	req.Message = strings.TrimSpace(req.Message)
+	req.Recaptcha = strings.TrimSpace(req.Recaptcha)
+	req.PageURL = strings.TrimSpace(req.PageURL)
+
+	if req.Name == "" || req.Email == "" || req.Subject == "" || req.Message == "" {
+		return utils.BadRequest(c, "name, email, subject and message are required")
+	}
+	if _, err := mail.ParseAddress(req.Email); err != nil {
+		return utils.BadRequest(c, "invalid email address")
+	}
+	if req.Recaptcha == "" {
+		return utils.BadRequest(c, "recaptcha token is required")
+	}
+	if req.FormTime > 0 && req.FormTime < 1200 {
+		return utils.BadRequest(c, "contact form submitted too quickly")
+	}
+
+	settings, _ := h.svc.GetPublic(c.Context())
+	recipient := firstSetting(settings, "contact_email", "site_email")
+	if recipient == "" {
+		recipient = config.Get().Mail.FromAddress
+	}
+	if recipient == "" {
+		return utils.BadRequest(c, "contact email is not configured")
+	}
+
+	body := fmt.Sprintf(`
+<div dir="rtl" style="font-family: Arial, sans-serif; line-height: 1.8">
+  <h2>Contact form message</h2>
+  <p><strong>Name:</strong> %s</p>
+  <p><strong>Email:</strong> %s</p>
+  <p><strong>Phone:</strong> %s</p>
+  <p><strong>Page:</strong> %s</p>
+  <hr>
+  <p>%s</p>
+</div>`,
+		html.EscapeString(req.Name),
+		html.EscapeString(req.Email),
+		html.EscapeString(req.Phone),
+		html.EscapeString(req.PageURL),
+		html.EscapeString(req.Message),
+	)
+
+	subject := "Contact form: " + req.Subject
+	if err := services.NewMailService().Send(recipient, subject, body, true); err != nil {
+		return utils.InternalError(c, "failed to send contact message")
+	}
+
+	return utils.Success(c, "contact message sent successfully", nil)
+}
+
+func firstSetting(settings map[string]string, keys ...string) string {
+	for _, key := range keys {
+		if value := strings.TrimSpace(settings[key]); value != "" {
+			return value
+		}
+	}
+	return ""
 }

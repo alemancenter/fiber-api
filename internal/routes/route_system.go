@@ -16,6 +16,7 @@ func registerSystemRoutes(api, public, dash fiber.Router, h *Handlers) {
 	// Front Page Settings
 	front := api.Group("/front", middleware.OptionalAuth())
 	front.Get("/settings", h.Settings.GetPublic)
+	front.Post("/contact", h.Settings.Contact)
 
 	// Legal Pages
 	legal := api.Group("/legal")
@@ -61,11 +62,13 @@ func registerSystemRoutes(api, public, dash fiber.Router, h *Handlers) {
 	dashSettings.Post("/robots", h.Settings.UpdateRobots)
 	dashSettings.Get("", h.Settings.GetAll)
 	dashSettings.Post("", h.Settings.Update)
+	dashSettings.Post("/update", h.Settings.Update)
 
 	// Sitemap
 	dashSitemap := dash.Group("/sitemap", middleware.Can("manage sitemap"))
 	dashSitemap.Get("/status", h.Sitemap.Status)
 	dashSitemap.Post("/generate", h.Sitemap.GenerateAll)
+	dashSitemap.Delete("/delete/:type/:database", h.Sitemap.Delete)
 
 	// Security
 	dashSecurity := dash.Group("/security", middleware.Can("manage security"))
@@ -76,8 +79,13 @@ func registerSystemRoutes(api, public, dash fiber.Router, h *Handlers) {
 	dashSecurity.Get("/analytics/geo", h.Security.GeoDistribution)
 	dashSecurity.Get("/analytics", h.Security.Analytics)
 	dashSecurity.Get("/overview", h.Security.Overview)
+	dashSecurity.Get("/monitor/dashboard", h.Security.MonitorDashboard)
 	dashSecurity.Post("/logs/:id/resolve", h.Security.ResolveLog)
 	dashSecurity.Delete("/logs/:id", h.Security.DeleteLog)
+	dashSecurity.Get("/blocked-ips", h.Security.BlockedIPs)
+	dashSecurity.Delete("/blocked-ips/:ip", h.Security.UnblockIP)
+	dashSecurity.Get("/trusted-ips", h.Security.TrustedIPs)
+	dashSecurity.Delete("/trusted-ips/:ip", h.Security.UntrustIP)
 
 	// IPs Management (Inside Security)
 	dashIPs := dashSecurity.Group("/ip")
@@ -86,6 +94,10 @@ func registerSystemRoutes(api, public, dash fiber.Router, h *Handlers) {
 	dashIPs.Post("/unblock", h.Security.UnblockIP)
 	dashIPs.Post("/trust", h.Security.TrustIP)
 	dashIPs.Post("/untrust", h.Security.UntrustIP)
+	dashIPs.Post("/:ip/block", h.Security.BlockIP)
+	dashIPs.Post("/:ip/unblock", h.Security.UnblockIP)
+	dashIPs.Post("/:ip/trust", h.Security.TrustIP)
+	dashIPs.Post("/:ip/untrust", h.Security.UntrustIP)
 
 	// Blocked IPs shortcut
 	dashBlockedIPs := dash.Group("/blocked-ips", middleware.Can("manage security"))
@@ -102,5 +114,6 @@ func registerSystemRoutes(api, public, dash fiber.Router, h *Handlers) {
 	dashRedis.Delete("/expired/clean", h.Redis.CleanExpired)
 	dashRedis.Get("/test", h.Redis.TestConnection)
 	dashRedis.Get("/info", h.Redis.GetInfo)
+	dashRedis.Post("/env", h.Redis.UpdateEnv)
 	dashRedis.Delete("/:key", h.Redis.DeleteKey)
 }

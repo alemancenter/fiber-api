@@ -16,7 +16,7 @@ import (
 type ArticleInput struct {
 	Title           string `json:"title" form:"title" validate:"required,min=3,max=500"`
 	Content         string `json:"content" form:"content" validate:"required"`
-	GradeLevel      string `json:"grade_level" form:"class_id"`
+	GradeLevel      string `json:"grade_level" form:"grade_level"`
 	SubjectID       *uint  `json:"subject_id" form:"subject_id"`
 	SemesterID      *uint  `json:"semester_id" form:"semester_id"`
 	MetaDescription string `json:"meta_description" form:"meta_description" validate:"omitempty,max=500"`
