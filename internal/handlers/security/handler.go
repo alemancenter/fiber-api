@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -21,7 +22,14 @@ func New(svc services.SecurityService) *Handler {
 }
 
 // Stats returns security statistics
-// GET /api/dashboard/security/stats
+// @Summary Security Statistics
+// @Description Get overall security statistics including total logs, critical logs, and blocked IPs
+// @Tags Security
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse{data=services.SecurityStatsResponse}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/security/stats [get]
 func (h *Handler) Stats(c *fiber.Ctx) error {
 	totalLogs, criticalLogs, resolvedLogs, blockedIPs, trustedIPs, err := h.svc.GetStats()
 	if err != nil {
@@ -38,7 +46,20 @@ func (h *Handler) Stats(c *fiber.Ctx) error {
 }
 
 // Logs returns paginated security logs
-// GET /api/dashboard/security/logs
+// @Summary List Security Logs
+// @Description Returns paginated security logs with optional filters
+// @Tags Security
+// @Produce json
+// @Security BearerAuth
+// @Param severity query string false "Filter by severity (low, medium, high, critical)"
+// @Param event_type query string false "Filter by event type"
+// @Param ip query string false "Filter by IP address"
+// @Param resolved query string false "Filter by resolution status (true/false)"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.SecurityLog}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/security/logs [get]
 func (h *Handler) Logs(c *fiber.Ctx) error {
 	pag := utils.GetPagination(c)
 
@@ -56,7 +77,16 @@ func (h *Handler) Logs(c *fiber.Ctx) error {
 }
 
 // ResolveLog marks a security log as resolved
-// POST /api/dashboard/security/logs/:id/resolve
+// @Summary Resolve Security Log
+// @Description Marks a specific security log entry as resolved
+// @Tags Security
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Log ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Router /dashboard/security/logs/{id}/resolve [post]
 func (h *Handler) ResolveLog(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -71,7 +101,16 @@ func (h *Handler) ResolveLog(c *fiber.Ctx) error {
 }
 
 // DeleteLog deletes a security log
-// DELETE /api/dashboard/security/logs/:id
+// @Summary Delete Security Log
+// @Description Delete a specific security log entry by ID
+// @Tags Security
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Log ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/security/logs/{id} [delete]
 func (h *Handler) DeleteLog(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -85,7 +124,14 @@ func (h *Handler) DeleteLog(c *fiber.Ctx) error {
 }
 
 // DeleteAllLogs deletes all security logs
-// DELETE /api/dashboard/security/logs
+// @Summary Clear All Logs
+// @Description Delete all security logs
+// @Tags Security
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/security/logs [delete]
 func (h *Handler) DeleteAllLogs(c *fiber.Ctx) error {
 	if err := h.svc.DeleteAllLogs(); err != nil {
 		return utils.InternalError(c)
@@ -94,7 +140,14 @@ func (h *Handler) DeleteAllLogs(c *fiber.Ctx) error {
 }
 
 // Overview returns a security overview
-// GET /api/dashboard/security/overview
+// @Summary Security Overview
+// @Description Returns an overview of security metrics (last 24h, 7d, total attacks, and top IPs)
+// @Tags Security
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse{data=services.SecurityOverviewResponse}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/security/overview [get]
 func (h *Handler) Overview(c *fiber.Ctx) error {
 	last24h := time.Now().Add(-24 * time.Hour)
 	last7d := time.Now().Add(-7 * 24 * time.Hour)
@@ -118,7 +171,14 @@ func (h *Handler) Overview(c *fiber.Ctx) error {
 }
 
 // MonitorDashboard returns the frontend monitor payload.
-// GET /api/dashboard/security/monitor/dashboard
+// @Summary Security Monitor Dashboard
+// @Description Returns a comprehensive payload (stats, recent logs) for the frontend monitor view
+// @Tags Security
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/security/monitor/dashboard [get]
 func (h *Handler) MonitorDashboard(c *fiber.Ctx) error {
 	totalLogs, criticalLogs, resolvedLogs, blockedIPs, trustedIPs, err := h.svc.GetStats()
 	if err != nil {
@@ -156,7 +216,15 @@ func (h *Handler) MonitorDashboard(c *fiber.Ctx) error {
 }
 
 // IPDetails returns details about a specific IP
-// GET /api/dashboard/security/ip/:ip
+// @Summary Get IP Details
+// @Description Returns details, status, and recent logs for a specific IP address
+// @Tags Security
+// @Produce json
+// @Security BearerAuth
+// @Param ip path string true "IP Address"
+// @Success 200 {object} utils.APIResponse{data=services.IPDetailsResponse}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/security/ip/{ip} [get]
 func (h *Handler) IPDetails(c *fiber.Ctx) error {
 	ip := c.Params("ip")
 
@@ -178,7 +246,18 @@ func (h *Handler) IPDetails(c *fiber.Ctx) error {
 }
 
 // BlockIP blocks an IP address
-// POST /api/dashboard/security/ip/:ip/block
+// @Summary Block IP
+// @Description Block a specific IP address
+// @Tags Security
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param ip path string true "IP Address"
+// @Param request body ipPayload false "Optional payload (reason, note)"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/security/ip/{ip}/block [post]
 func (h *Handler) BlockIP(c *fiber.Ctx) error {
 	req, err := parseIPPayload(c)
 	if err != nil {
@@ -204,7 +283,16 @@ func (h *Handler) BlockIP(c *fiber.Ctx) error {
 }
 
 // UnblockIP unblocks an IP address
-// POST /api/dashboard/security/ip/:ip/unblock
+// @Summary Unblock IP
+// @Description Unblock a previously blocked IP address
+// @Tags Security
+// @Produce json
+// @Security BearerAuth
+// @Param ip path string true "IP Address"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/security/ip/{ip}/unblock [post]
 func (h *Handler) UnblockIP(c *fiber.Ctx) error {
 	req, _ := parseIPPayload(c)
 	ip := firstNonEmpty(c.Params("ip"), req.IPAddress, req.IP)
@@ -220,7 +308,18 @@ func (h *Handler) UnblockIP(c *fiber.Ctx) error {
 }
 
 // TrustIP marks an IP as trusted
-// POST /api/dashboard/security/ip/:ip/trust
+// @Summary Trust IP
+// @Description Mark a specific IP address as trusted (bypassing certain limits)
+// @Tags Security
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param ip path string true "IP Address"
+// @Param request body ipPayload false "Optional payload (note)"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/security/ip/{ip}/trust [post]
 func (h *Handler) TrustIP(c *fiber.Ctx) error {
 	req, err := parseIPPayload(c)
 	if err != nil {
@@ -247,7 +346,16 @@ func (h *Handler) TrustIP(c *fiber.Ctx) error {
 }
 
 // UntrustIP removes an IP from trusted list
-// POST /api/dashboard/security/ip/:ip/untrust
+// @Summary Untrust IP
+// @Description Remove a specific IP address from the trusted list
+// @Tags Security
+// @Produce json
+// @Security BearerAuth
+// @Param ip path string true "IP Address"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/security/ip/{ip}/untrust [post]
 func (h *Handler) UntrustIP(c *fiber.Ctx) error {
 	req, _ := parseIPPayload(c)
 	ip := firstNonEmpty(c.Params("ip"), req.IPAddress, req.IP)

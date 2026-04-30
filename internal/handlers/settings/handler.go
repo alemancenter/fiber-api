@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/alemancenter/fiber-api/internal/config"
+	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/alemancenter/fiber-api/internal/services"
@@ -24,10 +25,25 @@ func New(svc services.SettingService) *Handler {
 	return &Handler{svc: svc}
 }
 
+func countryIDFromContext(c *fiber.Ctx) database.CountryID {
+	if countryID, ok := c.Locals("country_id").(database.CountryID); ok && countryID != 0 {
+		return countryID
+	}
+	return database.CountryJordan
+}
+
 // GetAll returns all settings as a flat key→value map for the dashboard.
-// GET /api/dashboard/settings
+// @Summary Get Dashboard Settings
+// @Description Returns all system settings as a key-value map for the admin dashboard
+// @Tags Settings
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Success 200 {object} utils.APIResponse{data=map[string]string}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/settings [get]
 func (h *Handler) GetAll(c *fiber.Ctx) error {
-	m, err := h.svc.GetAll(c.Context())
+	m, err := h.svc.GetAll(c.Context(), countryIDFromContext(c))
 	if err != nil {
 		return utils.InternalError(c)
 	}
@@ -43,7 +59,18 @@ var allowedSettingImageKeys = map[string]bool{
 
 // Update saves settings using a batch upsert (INSERT … ON DUPLICATE KEY UPDATE).
 // Accepts both application/json (key/value map) and multipart/form-data (for image uploads).
-// POST /api/dashboard/settings  |  POST /api/dashboard/settings/update
+// @Summary Update Settings
+// @Description Update system settings. Supports both JSON and Multipart Form Data for logo/favicon uploads.
+// @Tags Settings
+// @Accept json
+// @Accept mpfd
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param settings body map[string]string false "Settings key-value pairs (if JSON)"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Router /dashboard/settings [post]
 func (h *Handler) Update(c *fiber.Ctx) error {
 	updates := make(map[string]string)
 
@@ -86,7 +113,7 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 		userID = user.ID
 	}
 
-	if err := h.svc.Update(c.Context(), updates, userID); err != nil {
+	if err := h.svc.Update(c.Context(), countryIDFromContext(c), updates, userID); err != nil {
 		return utils.InternalError(c, "فشل حفظ الإعدادات")
 	}
 
@@ -94,7 +121,14 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 }
 
 // TestSMTP tests the SMTP connection
-// POST /api/dashboard/settings/smtp/test
+// @Summary Test SMTP Connection
+// @Description Tests the configured SMTP server connection
+// @Tags Settings
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Router /dashboard/settings/smtp/test [post]
 func (h *Handler) TestSMTP(c *fiber.Ctx) error {
 	mailSvc := services.NewMailService()
 	if err := mailSvc.TestSMTP(); err != nil {
@@ -104,7 +138,15 @@ func (h *Handler) TestSMTP(c *fiber.Ctx) error {
 }
 
 // SendTestEmail sends a test email to the current user
-// POST /api/dashboard/settings/smtp/send-test
+// @Summary Send Test Email
+// @Description Sends a test email via SMTP to the authenticated user's email address
+// @Tags Settings
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Router /dashboard/settings/smtp/send-test [post]
 func (h *Handler) SendTestEmail(c *fiber.Ctx) error {
 	user, _ := c.Locals("user").(*models.User)
 	if user == nil {
@@ -120,13 +162,24 @@ func (h *Handler) SendTestEmail(c *fiber.Ctx) error {
 	return utils.Success(c, "تم إرسال رسالة الاختبار بنجاح", nil)
 }
 
-// UpdateRobots updates the robots.txt content
-// POST /api/dashboard/settings/robots
-func (h *Handler) UpdateRobots(c *fiber.Ctx) error {
-	type RobotsRequest struct {
-		Content string `json:"content" validate:"required"`
-	}
+// RobotsRequest represents the robots.txt update payload
+type RobotsRequest struct {
+	Content string `json:"content" validate:"required"`
+}
 
+// UpdateRobots updates the robots.txt content
+// @Summary Update robots.txt
+// @Description Updates the site's robots.txt content
+// @Tags Settings
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param body body RobotsRequest true "robots.txt content"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Router /dashboard/settings/robots [post]
+func (h *Handler) UpdateRobots(c *fiber.Ctx) error {
 	var req RobotsRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
@@ -137,7 +190,7 @@ func (h *Handler) UpdateRobots(c *fiber.Ctx) error {
 		userID = user.ID
 	}
 
-	if err := h.svc.Update(c.Context(), map[string]string{"robots_txt": req.Content}, userID); err != nil {
+	if err := h.svc.Update(c.Context(), countryIDFromContext(c), map[string]string{"robots_txt": req.Content}, userID); err != nil {
 		return utils.InternalError(c, "فشل تحديث ملف robots.txt")
 	}
 
@@ -146,30 +199,47 @@ func (h *Handler) UpdateRobots(c *fiber.Ctx) error {
 
 // GetPublic returns public-facing settings.
 // Result is cached in Redis for settingsCacheTTL to avoid a full table scan on every request.
-// GET /api/front/settings
+// @Summary Get Public Settings
+// @Description Returns public-facing settings required by the frontend application
+// @Tags Public
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Success 200 {object} utils.APIResponse{data=map[string]string}
+// @Router /front/settings [get]
 func (h *Handler) GetPublic(c *fiber.Ctx) error {
-	result, err := h.svc.GetPublic(c.Context())
+	result, err := h.svc.GetPublic(c.Context(), countryIDFromContext(c))
 	if err != nil {
 		return utils.InternalError(c)
 	}
 	return utils.Success(c, "success", result)
 }
 
-// Contact accepts public contact form submissions.
-// POST /api/front/contact
-func (h *Handler) Contact(c *fiber.Ctx) error {
-	type contactRequest struct {
-		Name      string `json:"name"`
-		Email     string `json:"email"`
-		Phone     string `json:"phone"`
-		Subject   string `json:"subject"`
-		Message   string `json:"message"`
-		Recaptcha string `json:"g-recaptcha-response"`
-		PageURL   string `json:"page_url"`
-		FormTime  int64  `json:"form_time_ms"`
-	}
+// ContactRequest represents the contact form data
+type ContactRequest struct {
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	Phone     string `json:"phone"`
+	Subject   string `json:"subject"`
+	Message   string `json:"message"`
+	Recaptcha string `json:"g-recaptcha-response"`
+	PageURL   string `json:"page_url"`
+	FormTime  int64  `json:"form_time_ms"`
+}
 
-	var req contactRequest
+// Contact accepts public contact form submissions.
+// @Summary Submit Contact Form
+// @Description Accepts public contact form submissions and sends an email to the site administrator
+// @Tags Public
+// @Accept json
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param request body ContactRequest true "Contact form data"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /front/contact [post]
+func (h *Handler) Contact(c *fiber.Ctx) error {
+	var req ContactRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "invalid contact payload")
 	}
@@ -195,7 +265,7 @@ func (h *Handler) Contact(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "contact form submitted too quickly")
 	}
 
-	settings, _ := h.svc.GetPublic(c.Context())
+	settings, _ := h.svc.GetPublic(c.Context(), countryIDFromContext(c))
 	recipient := firstSetting(settings, "contact_email", "site_email")
 	if recipient == "" {
 		recipient = config.Get().Mail.FromAddress

@@ -16,7 +16,14 @@ func New(svc services.HomeService) *Handler {
 }
 
 // GetHome returns all the necessary data for the frontend home page.
-// GET /api/home
+// @Summary Get Homepage Data
+// @Description Returns all necessary aggregated data for the public homepage (Settings, Slider, Featured Posts, Events, Articles, etc.)
+// @Tags Public
+// @Produce json
+// @Param X-Country-Id header string false "Country ID (e.g. 1 for Jordan)"
+// @Success 200 {object} utils.APIResponse{data=services.HomeData}
+// @Failure 500 {object} utils.APIResponse
+// @Router /home [get]
 func (h *Handler) GetHome(c *fiber.Ctx) error {
 	var countryID database.CountryID
 	if cid, ok := c.Locals("country_id").(database.CountryID); ok && cid != 0 {
@@ -32,7 +39,7 @@ func (h *Handler) GetHome(c *fiber.Ctx) error {
 		countryID = database.CountryIDFromHeader(countryHeader)
 	}
 
-	data, err := h.svc.GetHome(countryID)
+	data, err := h.svc.GetHome(c.Context(), countryID)
 	if err != nil {
 		return utils.InternalError(c, "فشل جلب بيانات الصفحة الرئيسية")
 	}

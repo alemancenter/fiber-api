@@ -1,12 +1,15 @@
 package services
 
 import (
+	"context"
 	"time"
 
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/alemancenter/fiber-api/internal/utils"
+	"github.com/alemancenter/fiber-api/pkg/logger"
+	"go.uber.org/zap"
 )
 
 type HomeData struct {
@@ -15,10 +18,11 @@ type HomeData struct {
 	FeaturedPosts []models.Post        `json:"featured_posts"`
 	Categories    []models.Category    `json:"categories"`
 	Classes       []models.SchoolClass `json:"classes"`
+	Settings      map[string]string    `json:"settings"`
 }
 
 type HomeService interface {
-	GetHome(countryID database.CountryID) (*HomeData, error)
+	GetHome(ctx context.Context, countryID database.CountryID) (*HomeData, error)
 }
 
 type homeService struct {
@@ -27,6 +31,7 @@ type homeService struct {
 	categoryRepo repositories.CategoryRepository
 	gradeRepo    repositories.GradeRepository
 	cache        CacheService
+	settings     SettingService
 }
 
 func NewHomeService(
@@ -35,6 +40,7 @@ func NewHomeService(
 	categoryRepo repositories.CategoryRepository,
 	gradeRepo repositories.GradeRepository,
 	cache CacheService,
+	settings SettingService,
 ) HomeService {
 	return &homeService{
 		articleRepo:  articleRepo,
@@ -42,17 +48,24 @@ func NewHomeService(
 		categoryRepo: categoryRepo,
 		gradeRepo:    gradeRepo,
 		cache:        cache,
+		settings:     settings,
 	}
 }
 
-func (s *homeService) GetHome(countryID database.CountryID) (*HomeData, error) {
-	cacheKey := utils.CacheKey("home", countryID)
+func (s *homeService) GetHome(ctx context.Context, countryID database.CountryID) (*HomeData, error) {
+	countryCode := database.CountryCode(countryID)
+	cacheKey := database.Redis().Key("home", countryCode)
 
 	var cached HomeData
 	if s.cache != nil && s.cache.Get(cacheKey, &cached) {
+		if err := s.attachSettings(ctx, countryID, &cached); err != nil {
+			return nil, err
+		}
+		logger.Debug("cache hit:", zap.String("key", cacheKey))
 		return &cached, nil
 	}
 
+	logger.Debug("cache miss:", zap.String("key", cacheKey))
 	data := &HomeData{}
 
 	// Get Articles
@@ -104,8 +117,30 @@ func (s *homeService) GetHome(countryID database.CountryID) (*HomeData, error) {
 	data.Classes = classes
 
 	if s.cache != nil {
-		_ = s.cache.Set(cacheKey, data, 10*time.Minute)
+		cacheData := *data
+		// Keep settings in their own country-scoped cache so settings updates
+		// do not invalidate the heavier home page payload.
+		cacheData.Settings = nil
+		_ = s.cache.Set(cacheKey, &cacheData, 5*time.Minute)
+	}
+
+	if err := s.attachSettings(ctx, countryID, data); err != nil {
+		return nil, err
 	}
 
 	return data, nil
+}
+
+func (s *homeService) attachSettings(ctx context.Context, countryID database.CountryID, data *HomeData) error {
+	if s.settings == nil {
+		data.Settings = map[string]string{}
+		return nil
+	}
+
+	settings, err := s.settings.GetPublic(ctx, countryID)
+	if err != nil {
+		return MapError(err)
+	}
+	data.Settings = settings
+	return nil
 }

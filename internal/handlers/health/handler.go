@@ -18,7 +18,12 @@ func New(svc services.HealthService) *Handler {
 }
 
 // Ping returns a simple health check response
-// GET /api/ping
+// @Summary Simple health check
+// @Description Returns a simple ping/pong response to verify the API is running
+// @Tags Health
+// @Produce json
+// @Success 200 {object} services.PingResponse
+// @Router /ping [get]
 func (h *Handler) Ping(c *fiber.Ctx) error {
 	return c.JSON(services.PingResponse{
 		Status:  "ok",
@@ -27,7 +32,13 @@ func (h *Handler) Ping(c *fiber.Ctx) error {
 }
 
 // Health returns detailed health check information
-// GET /api/health
+// @Summary Detailed health check
+// @Description Returns health status of the API, Databases, and Redis
+// @Tags Health
+// @Produce json
+// @Success 200 {object} services.HealthStatusResponse
+// @Failure 503 {object} services.HealthStatusResponse
+// @Router /health [get]
 func (h *Handler) Health(c *fiber.Ctx) error {
 	data, httpStatus, _ := h.svc.GetHealthStatus()
 

@@ -52,15 +52,24 @@ func loadUserCached(userID uint) (*models.User, error) {
 // Kept as a shim so existing callers in this package don't need to import services.
 func InvalidateUserCache(userID uint) { services.InvalidateUserCache(userID) }
 
-// Auth validates JWT bearer token and loads the current user (with Redis caching).
+// authTokenFromRequest accepts the current Bearer header and the transitional
+// HttpOnly token cookie used by the Next.js frontend.
+func authTokenFromRequest(c *fiber.Ctx) string {
+	authHeader := c.Get("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+	}
+	return strings.TrimSpace(c.Cookies("token"))
+}
+
+// Auth validates JWT token and loads the current user (with Redis caching).
 func Auth() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		authHeader := c.Get("Authorization")
-		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		tokenStr := authTokenFromRequest(c)
+		if tokenStr == "" {
 			return utils.Unauthorized(c)
 		}
 
-		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 		jwtSvc := services.NewJWTService()
 
 		claims, err := jwtSvc.ValidateToken(tokenStr)
@@ -89,6 +98,7 @@ func Auth() fiber.Handler {
 
 		c.Locals("user", user)
 		c.Locals("user_id", user.ID)
+		c.Locals("auth_token", tokenStr)
 		// If country_id was not set by FrontendGuard (e.g. mobile client) but the
 		// token carries one, use it so downstream handlers always have a country.
 		if c.Locals("country_id") == nil && claims.CountryID != 0 {
@@ -101,13 +111,12 @@ func Auth() fiber.Handler {
 // OptionalAuth loads user if token present, but doesn't require it (with Redis caching).
 func OptionalAuth() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		authHeader := c.Get("Authorization")
-		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		tokenStr := authTokenFromRequest(c)
+		if tokenStr == "" {
 			logger.Debug("[OA] no token, passing through", zap.String("path", c.Path()))
 			return c.Next()
 		}
 
-		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 		jwtSvc := services.NewJWTService()
 		claims, err := jwtSvc.ValidateToken(tokenStr)
 		if err != nil {
@@ -117,6 +126,7 @@ func OptionalAuth() fiber.Handler {
 		if user, err := loadUserCached(claims.UserID); err == nil {
 			c.Locals("user", user)
 			c.Locals("user_id", user.ID)
+			c.Locals("auth_token", tokenStr)
 		}
 		return c.Next()
 	}

@@ -45,22 +45,26 @@ func registerContentRoutes(api, public, dash fiber.Router, h *Handlers) {
 	// =====================
 	// USER AUTHENTICATED ROUTES
 	// =====================
-	userRoutes := api.Group("", middleware.Auth(), middleware.UpdateLastActivity())
+	// NOTE: Do NOT use api.Group("", Auth, ...) — in Fiber v2, an empty-prefix Group
+	// adds its middleware as global USE middleware for ALL /api/* routes, breaking public endpoints.
+	// Use per-route inline middleware instead.
+	authM := middleware.Auth()
+	activityM := middleware.UpdateLastActivity()
 
 	// Reactions (Comments)
-	userRoutes.Post("/reactions", h.Comments.CreateReaction)
-	userRoutes.Delete("/reactions/:comment_id", h.Comments.DeleteReaction)
-	userRoutes.Get("/reactions/:comment_id", h.Comments.GetReactions)
+	api.Post("/reactions", authM, activityM, h.Comments.CreateReaction)
+	api.Delete("/reactions/:comment_id", authM, activityM, h.Comments.DeleteReaction)
+	api.Get("/reactions/:comment_id", authM, activityM, h.Comments.GetReactions)
 
 	// File upload
-	userRoutes.Post("/upload/image", h.Files.UploadImage)
-	userRoutes.Post("/upload/file", h.Files.UploadDocument)
+	api.Post("/upload/image", authM, activityM, h.Files.UploadImage)
+	api.Post("/upload/file", authM, activityM, h.Files.UploadDocument)
 
 	// Secure file view
-	userRoutes.Get("/secure/view", h.Files.SecureView)
+	api.Get("/secure/view", authM, activityM, h.Files.SecureView)
 
 	// AI generation (User dashboard)
-	userRoutes.Post("/ai/generate", h.AI.Generate)
+	api.Post("/ai/generate", authM, activityM, h.AI.Generate)
 
 	// =====================
 	// ADMIN DASHBOARD ROUTES
@@ -83,7 +87,7 @@ func registerContentRoutes(api, public, dash fiber.Router, h *Handlers) {
 	dashPosts := dash.Group("/posts", middleware.Can("manage posts"))
 	dashPosts.Post("", h.Posts.DashboardCreate)
 	dashPosts.Post("/:id/toggle-status", h.Posts.DashboardToggleStatus)
-	dashPosts.Post("/:id", h.Posts.DashboardUpdate)
+	dashPosts.Put("/:id", h.Posts.DashboardUpdate)
 	dashPosts.Delete("/:id", h.Posts.DashboardDelete)
 
 	// Categories management
@@ -91,7 +95,7 @@ func registerContentRoutes(api, public, dash fiber.Router, h *Handlers) {
 	dashCategories.Get("", h.Categories.DashboardList)
 	dashCategories.Post("", h.Categories.DashboardCreate)
 	dashCategories.Get("/:id", h.Categories.DashboardShow)
-	dashCategories.Post("/:id/update", h.Categories.DashboardUpdate)
+	dashCategories.Put("/:id", h.Categories.DashboardUpdate)
 	dashCategories.Post("/:id/toggle", h.Categories.DashboardToggleStatus)
 	dashCategories.Delete("/:id", h.Categories.DashboardDelete)
 

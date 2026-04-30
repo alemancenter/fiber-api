@@ -44,7 +44,15 @@ func FrontendGuard() fiber.Handler {
 		userAgent := c.Get("User-Agent")
 		requestedWith := c.Get("X-Requested-With")
 		referer := c.Get("Referer")
-		authHeader := c.Get("Authorization")
+		authToken := authTokenFromRequest(c)
+
+		// 0. Frontend API key — highest priority, always checked first.
+		// Next.js must send: headers: { "X-Frontend-Key": NEXT_PUBLIC_FRONTEND_API_KEY }
+		// This bypasses Origin/Referer checks for SSR and curl requests.
+		if cfg.Frontend.APIKey != "" && frontendKey == cfg.Frontend.APIKey {
+			c.Locals("client_type", "frontend_marker")
+			return continueWithCountry(c, cfg)
+		}
 
 		// 1. Localhost bypass — any request from the same machine is trusted
 		if utils.IsLocalhost(clientIP) || utils.IsLocalhost(c.IP()) {
@@ -90,22 +98,13 @@ func FrontendGuard() fiber.Handler {
 			)
 		}
 
-		// 3. Frontend API key validation (Frontend Marker)
-		// Note: This key is exposed in Next.js (NEXT_PUBLIC_FRONTEND_API_KEY)
-		// It is NOT a secure secret. It acts as a simple marker to identify requests
-		// claiming to originate from our frontend application.
-		if cfg.Frontend.APIKey != "" && frontendKey == cfg.Frontend.APIKey {
-			c.Locals("client_type", "frontend_marker")
+		// 3. Authenticated token: Authorization bearer or transitional HttpOnly cookie
+		if authToken != "" {
+			c.Locals("client_type", "auth_token")
 			return continueWithCountry(c, cfg)
 		}
 
-		// 4. Authenticated bearer token
-		if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
-			c.Locals("client_type", "bearer")
-			return continueWithCountry(c, cfg)
-		}
-
-		// 5. Origin + Referer validation (browser CORS)
+		// 4. Origin + Referer validation (browser CORS)
 		if origin != "" {
 			if isAllowedOrigin(origin, cfg.Frontend.CORSOrigins) {
 				// Allow if requested with XMLHttpRequest or if referer is set
@@ -122,8 +121,8 @@ func FrontendGuard() fiber.Handler {
 			}
 		}
 
-		// 6. Public API access (cURL, Postman) without strict CORS
-		if origin == "" && frontendKey == "" && authHeader == "" {
+		// 5. Public API access (cURL, Postman) without strict CORS
+		if origin == "" && frontendKey == "" && authToken == "" {
 			if !cfg.App.IsProduction() {
 				c.Locals("client_type", "unknown")
 				return continueWithCountry(c, cfg)

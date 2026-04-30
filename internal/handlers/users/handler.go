@@ -20,7 +20,19 @@ func New(svc services.UserService) *Handler {
 }
 
 // List returns a paginated list of users
-// GET /api/dashboard/users
+// @Summary List Users
+// @Description Returns a paginated list of all users
+// @Tags Users
+// @Produce json
+// @Security BearerAuth
+// @Param search query string false "Search query"
+// @Param status query string false "Filter by status"
+// @Param role query string false "Filter by role"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]services.UserResponse}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/users [get]
 func (h *Handler) List(c *fiber.Ctx) error {
 	pag := utils.GetPagination(c)
 	search := c.Query("search")
@@ -37,7 +49,15 @@ func (h *Handler) List(c *fiber.Ctx) error {
 
 // Search searches users by name or email (autocomplete for messaging).
 // Accepts ?search= or ?q= for compatibility.
-// GET /api/dashboard/users/search
+// @Summary Search Users
+// @Description Search users by name or email (used for autocomplete)
+// @Tags Users
+// @Produce json
+// @Security BearerAuth
+// @Param q query string false "Search query"
+// @Success 200 {object} utils.APIResponse{data=[]services.UserResponse}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/users/search [get]
 func (h *Handler) Search(c *fiber.Ctx) error {
 	q := c.Query("search", c.Query("q", ""))
 	users, err := h.svc.Search(q)
@@ -48,7 +68,17 @@ func (h *Handler) Search(c *fiber.Ctx) error {
 }
 
 // Show returns a single user
-// GET /api/dashboard/users/:user
+// @Summary Get User
+// @Description Get user details by ID
+// @Tags Users
+// @Produce json
+// @Security BearerAuth
+// @Param user path int true "User ID"
+// @Success 200 {object} utils.APIResponse{data=services.UserResponse}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/users/{user} [get]
 func (h *Handler) Show(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("user"), 10, 64)
 	if err != nil {
@@ -67,7 +97,18 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 }
 
 // Create creates a new user
-// POST /api/dashboard/users
+// @Summary Create User
+// @Description Create a new user from the dashboard
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body services.CreateUserRequest true "User data"
+// @Success 201 {object} utils.APIResponse{data=services.UserResponse}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/users [post]
 func (h *Handler) Create(c *fiber.Ctx) error {
 	var req services.CreateUserRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -95,7 +136,19 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 }
 
 // Update updates a user
-// PUT /api/dashboard/users/:user
+// @Summary Update User
+// @Description Update an existing user from the dashboard
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param user path int true "User ID"
+// @Param request body services.UpdateUserRequest true "User data"
+// @Success 200 {object} utils.APIResponse{data=services.UserResponse}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/users/{user} [put]
 func (h *Handler) Update(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("user"), 10, 64)
 	if err != nil {
@@ -125,7 +178,19 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 }
 
 // UpdateRolesPermissions updates user roles and permissions
-// PUT /api/dashboard/users/:user/roles-permissions
+// @Summary Update User Roles
+// @Description Update the roles and direct permissions for a specific user
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param user path int true "User ID"
+// @Param request body services.RolesPermissionsRequest true "Roles and permissions data"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/users/{user}/roles-permissions [put]
 func (h *Handler) UpdateRolesPermissions(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("user"), 10, 64)
 	if err != nil {
@@ -148,7 +213,17 @@ func (h *Handler) UpdateRolesPermissions(c *fiber.Ctx) error {
 }
 
 // Delete deletes a user
-// DELETE /api/dashboard/users/:user
+// @Summary Delete User
+// @Description Delete a user by ID
+// @Tags Users
+// @Produce json
+// @Security BearerAuth
+// @Param user path int true "User ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/users/{user} [delete]
 func (h *Handler) Delete(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("user"), 10, 64)
 	if err != nil {
@@ -173,13 +248,23 @@ func (h *Handler) Delete(c *fiber.Ctx) error {
 	return utils.Success(c, "تم حذف المستخدم بنجاح", nil)
 }
 
-// BulkDelete deletes multiple users
-// POST /api/dashboard/users/bulk-delete
-func (h *Handler) BulkDelete(c *fiber.Ctx) error {
-	type BulkDeleteRequest struct {
-		IDs []uint `json:"ids" validate:"required,min=1"`
-	}
+type BulkDeleteRequest struct {
+	IDs []uint `json:"ids" validate:"required,min=1"`
+}
 
+// BulkDelete deletes multiple users
+// @Summary Bulk Delete Users
+// @Description Delete multiple users by providing a list of IDs
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body BulkDeleteRequest true "List of user IDs to delete"
+// @Success 200 {object} utils.APIResponse{data=services.BulkDeleteUsersResponse}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/users/bulk-delete [post]
+func (h *Handler) BulkDelete(c *fiber.Ctx) error {
 	var req BulkDeleteRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
@@ -198,14 +283,25 @@ func (h *Handler) BulkDelete(c *fiber.Ctx) error {
 	return utils.Success(c, "تم حذف المستخدمين المحددين", services.BulkDeleteUsersResponse{Deleted: deletedCount})
 }
 
-// UpdateStatus updates status for multiple users
-// POST /api/dashboard/users/update-status
-func (h *Handler) UpdateStatus(c *fiber.Ctx) error {
-	type UpdateStatusRequest struct {
-		IDs    []uint `json:"ids" validate:"required,min=1"`
-		Status string `json:"status" validate:"required,oneof=active inactive banned"`
-	}
+type UpdateStatusRequest struct {
+	IDs    []uint `json:"ids" validate:"required,min=1"`
+	Status string `json:"status" validate:"required,oneof=active inactive banned"`
+}
 
+// UpdateStatus updates status for multiple users
+// @Summary Bulk Update Users Status
+// @Description Update the status (active, inactive, banned) for multiple users simultaneously
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body UpdateStatusRequest true "List of IDs and new status"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/users/update-status [post]
+func (h *Handler) UpdateStatus(c *fiber.Ctx) error {
 	var req UpdateStatusRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")

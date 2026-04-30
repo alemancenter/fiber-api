@@ -10,14 +10,13 @@ import (
 )
 
 const (
-	settingsCacheTTL = 10 * time.Minute
-	settingsCacheKey = "settings:public"
+	settingsCacheTTL = 2 * time.Hour
 )
 
 type SettingService interface {
-	GetAll(ctx context.Context) (map[string]string, error)
-	GetPublic(ctx context.Context) (map[string]string, error)
-	Update(ctx context.Context, updates map[string]string, userID uint) error
+	GetAll(ctx context.Context, countryID database.CountryID) (map[string]string, error)
+	GetPublic(ctx context.Context, countryID database.CountryID) (map[string]string, error)
+	Update(ctx context.Context, countryID database.CountryID, updates map[string]string, userID uint) error
 }
 
 type settingService struct {
@@ -28,8 +27,8 @@ func NewSettingService(repo repositories.SettingRepository) SettingService {
 	return &settingService{repo: repo}
 }
 
-func (s *settingService) GetAll(ctx context.Context) (map[string]string, error) {
-	rows, err := s.repo.GetAll(ctx)
+func (s *settingService) GetAll(ctx context.Context, countryID database.CountryID) (map[string]string, error) {
+	rows, err := s.repo.GetAll(ctx, countryID)
 	if err != nil {
 		return nil, MapError(err)
 	}
@@ -45,11 +44,12 @@ func (s *settingService) GetAll(ctx context.Context) (map[string]string, error) 
 	return m, nil
 }
 
-func (s *settingService) GetPublic(ctx context.Context) (map[string]string, error) {
-	key := database.Redis().Key(settingsCacheKey)
+func (s *settingService) GetPublic(ctx context.Context, countryID database.CountryID) (map[string]string, error) {
+	countryCode := database.CountryCode(countryID)
+	key := database.Redis().Key("settings", countryCode)
 
 	result, err := GetOrSet[map[string]string](ctx, key, settingsCacheTTL, func() (map[string]string, error) {
-		rows, err := s.repo.GetAll(ctx)
+		rows, err := s.repo.GetAll(ctx, countryID)
 		if err != nil {
 			return nil, MapError(err)
 		}
@@ -66,14 +66,15 @@ func (s *settingService) GetPublic(ctx context.Context) (map[string]string, erro
 	return result, MapError(err)
 }
 
-func (s *settingService) Update(ctx context.Context, updates map[string]string, userID uint) error {
+func (s *settingService) Update(ctx context.Context, countryID database.CountryID, updates map[string]string, userID uint) error {
 	for key, value := range updates {
-		if err := s.repo.Upsert(ctx, key, value); err != nil {
+		if err := s.repo.Upsert(ctx, countryID, key, value); err != nil {
 			return MapError(err)
 		}
 	}
 
-	InvalidateCache(database.Redis().Key(settingsCacheKey))
+	countryCode := database.CountryCode(countryID)
+	InvalidateCache(database.Redis().Key("settings", countryCode))
 
 	if userID != 0 {
 		LogActivity("حدّث الإعدادات", "Setting", 0, userID)

@@ -44,7 +44,19 @@ func New(svc services.PostService) *Handler {
 }
 
 // List returns a paginated list of published posts
-// GET /api/posts
+// @Summary List Public Posts
+// @Description Returns a paginated list of active/published posts
+// @Tags Posts
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param category_id query int false "Filter by category ID"
+// @Param search query string false "Search query"
+// @Param featured query string false "Filter by featured status (1 or 0)"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.Post}
+// @Failure 500 {object} utils.APIResponse
+// @Router /posts [get]
 func (h *Handler) List(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	pag := utils.GetPagination(c)
@@ -72,7 +84,17 @@ func (h *Handler) List(c *fiber.Ctx) error {
 }
 
 // Show returns a single post
-// GET /api/posts/:id
+// @Summary Get Post
+// @Description Get a single active post by ID
+// @Tags Posts
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Post ID"
+// @Success 200 {object} utils.APIResponse{data=models.Post}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /posts/{id} [get]
 func (h *Handler) Show(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -99,7 +121,16 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 }
 
 // IncrementView increments the post view count
-// POST /api/posts/:id/increment-view
+// @Summary Increment View Count
+// @Description Increment the view counter for a specific post
+// @Tags Posts
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Post ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /posts/{id}/increment-view [post]
 func (h *Handler) IncrementView(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -116,7 +147,20 @@ func (h *Handler) IncrementView(c *fiber.Ctx) error {
 }
 
 // DashboardCreate creates a new post
-// POST /api/dashboard/posts
+// @Summary Create Post
+// @Description Create a new post from the dashboard
+// @Tags Posts
+// @Accept json
+// @Accept mpfd
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param request body services.CreatePostRequest true "Post data"
+// @Success 201 {object} utils.APIResponse{data=models.Post}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/posts [post]
 func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 	var req services.CreatePostRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -184,7 +228,22 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 }
 
 // DashboardUpdate updates a post
-// POST /api/dashboard/posts/:id
+// @Summary Update Post
+// @Description Update an existing post from the dashboard
+// @Tags Posts
+// @Accept json
+// @Accept mpfd
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Post ID"
+// @Param request body services.UpdatePostRequest true "Post data"
+// @Success 200 {object} utils.APIResponse{data=models.Post}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 403 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/posts/{id} [put]
 func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -258,7 +317,19 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 }
 
 // DashboardToggleStatus toggles post active status
-// POST /api/dashboard/posts/:id/toggle-status
+// @Summary Toggle Post Status
+// @Description Toggle the is_active status of a post
+// @Tags Posts
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Post ID"
+// @Success 200 {object} utils.APIResponse{data=models.Post}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 403 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/posts/{id}/toggle-status [post]
 func (h *Handler) DashboardToggleStatus(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -295,7 +366,19 @@ func (h *Handler) DashboardToggleStatus(c *fiber.Ctx) error {
 }
 
 // DashboardDelete deletes a post
-// DELETE /api/dashboard/posts/:id
+// @Summary Delete Post
+// @Description Delete a post by ID
+// @Tags Posts
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Post ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 403 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/posts/{id} [delete]
 func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {

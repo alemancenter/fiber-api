@@ -27,7 +27,17 @@ func getUser(c *fiber.Ctx) *models.User {
 }
 
 // Inbox returns received messages for the current user.
-// GET /api/dashboard/messages/inbox
+// @Summary Get Inbox Messages
+// @Description Returns a paginated list of received messages for the authenticated user
+// @Tags Messages
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.Message}
+// @Failure 401 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/messages/inbox [get]
 func (h *Handler) Inbox(c *fiber.Ctx) error {
 	user := getUser(c)
 	if user == nil {
@@ -44,7 +54,17 @@ func (h *Handler) Inbox(c *fiber.Ctx) error {
 }
 
 // Sent returns messages sent by the current user.
-// GET /api/dashboard/messages/sent
+// @Summary Get Sent Messages
+// @Description Returns a paginated list of messages sent by the authenticated user
+// @Tags Messages
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.Message}
+// @Failure 401 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/messages/sent [get]
 func (h *Handler) Sent(c *fiber.Ctx) error {
 	user := getUser(c)
 	if user == nil {
@@ -61,7 +81,17 @@ func (h *Handler) Sent(c *fiber.Ctx) error {
 }
 
 // Drafts returns draft messages for the current user.
-// GET /api/dashboard/messages/drafts
+// @Summary Get Draft Messages
+// @Description Returns a paginated list of draft messages for the authenticated user
+// @Tags Messages
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.Message}
+// @Failure 401 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/messages/drafts [get]
 func (h *Handler) Drafts(c *fiber.Ctx) error {
 	user := getUser(c)
 	if user == nil {
@@ -77,21 +107,33 @@ func (h *Handler) Drafts(c *fiber.Ctx) error {
 	return utils.Paginated(c, "success", msgs, pag.BuildMeta(total))
 }
 
+type SendMessageRequest struct {
+	RecipientID uint   `json:"recipient_id" validate:"required"`
+	Subject     string `json:"subject"`
+	Body        string `json:"body" validate:"required,min=1"`
+}
+
 // Send sends a new message.
-// POST /api/dashboard/messages/send
+// @Summary Send Message
+// @Description Send a new message to another user
+// @Tags Messages
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body SendMessageRequest true "Message payload"
+// @Success 201 {object} utils.APIResponse{data=models.Message}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/messages/send [post]
 func (h *Handler) Send(c *fiber.Ctx) error {
 	user := getUser(c)
 	if user == nil {
 		return utils.Unauthorized(c)
 	}
 
-	type SendRequest struct {
-		RecipientID uint   `json:"recipient_id" validate:"required"`
-		Subject     string `json:"subject"`
-		Body        string `json:"body" validate:"required,min=1"`
-	}
-
-	var req SendRequest
+	var req SendMessageRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
@@ -107,21 +149,32 @@ func (h *Handler) Send(c *fiber.Ctx) error {
 	return utils.Created(c, "تم إرسال الرسالة بنجاح", msg)
 }
 
+type SaveDraftRequest struct {
+	RecipientID uint   `json:"recipient_id"`
+	Subject     string `json:"subject"`
+	Body        string `json:"body" validate:"required"`
+}
+
 // Draft saves a draft message.
-// POST /api/dashboard/messages/draft
+// @Summary Save Draft Message
+// @Description Save a message as a draft for later sending
+// @Tags Messages
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body SaveDraftRequest true "Draft message payload"
+// @Success 201 {object} utils.APIResponse{data=models.Message}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/messages/draft [post]
 func (h *Handler) Draft(c *fiber.Ctx) error {
 	user := getUser(c)
 	if user == nil {
 		return utils.Unauthorized(c)
 	}
 
-	type DraftRequest struct {
-		RecipientID uint   `json:"recipient_id"`
-		Subject     string `json:"subject"`
-		Body        string `json:"body" validate:"required"`
-	}
-
-	var req DraftRequest
+	var req SaveDraftRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
@@ -135,7 +188,17 @@ func (h *Handler) Draft(c *fiber.Ctx) error {
 }
 
 // Get returns a single message.
-// GET /api/dashboard/messages/:id
+// @Summary Get Message
+// @Description Returns the details of a single message by ID
+// @Tags Messages
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Message ID"
+// @Success 200 {object} utils.APIResponse{data=models.Message}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Router /dashboard/messages/{id} [get]
 func (h *Handler) Get(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -156,7 +219,17 @@ func (h *Handler) Get(c *fiber.Ctx) error {
 }
 
 // MarkAsRead marks a message as read.
-// POST /api/dashboard/messages/:id/read
+// @Summary Mark Message as Read
+// @Description Mark a specific received message as read
+// @Tags Messages
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Message ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/messages/{id}/read [post]
 func (h *Handler) MarkAsRead(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -176,7 +249,17 @@ func (h *Handler) MarkAsRead(c *fiber.Ctx) error {
 }
 
 // ToggleImportant toggles the important flag on a message.
-// POST /api/dashboard/messages/:id/important
+// @Summary Toggle Message Importance
+// @Description Toggle the importance flag (star) on a message
+// @Tags Messages
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Message ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Router /dashboard/messages/{id}/important [post]
 func (h *Handler) ToggleImportant(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -196,7 +279,17 @@ func (h *Handler) ToggleImportant(c *fiber.Ctx) error {
 }
 
 // Delete soft-deletes a message.
-// DELETE /api/dashboard/messages/:id
+// @Summary Delete Message
+// @Description Soft-delete a message
+// @Tags Messages
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Message ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/messages/{id} [delete]
 func (h *Handler) Delete(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {

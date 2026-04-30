@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/alemancenter/fiber-api/internal/database"
+	_ "github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -20,7 +21,14 @@ func New(svc services.CategoryService) *Handler {
 }
 
 // List returns all active categories (cached per country).
-// GET /api/categories
+// @Summary List Active Categories
+// @Description Returns all active categories for the specified country
+// @Tags Categories
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Success 200 {object} utils.APIResponse{data=[]models.Category}
+// @Failure 500 {object} utils.APIResponse
+// @Router /categories [get]
 func (h *Handler) List(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
@@ -32,7 +40,17 @@ func (h *Handler) List(c *fiber.Ctx) error {
 }
 
 // Show returns a single category
-// GET /api/categories/:id
+// @Summary Get Category
+// @Description Get a category by its ID
+// @Tags Categories
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Category ID"
+// @Success 200 {object} utils.APIResponse{data=models.Category}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /categories/{id} [get]
 func (h *Handler) Show(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -53,7 +71,19 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 }
 
 // DashboardList returns all categories for dashboard management
-// GET /api/dashboard/categories
+// @Summary List Categories (Dashboard)
+// @Description Returns a paginated list of categories for dashboard management
+// @Tags Categories
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param search query string false "Search query"
+// @Param is_active query string false "Filter by active status (true/false)"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.Category}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/categories [get]
 func (h *Handler) DashboardList(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	pag := utils.GetPagination(c)
@@ -70,13 +100,36 @@ func (h *Handler) DashboardList(c *fiber.Ctx) error {
 }
 
 // DashboardShow returns a single category (dashboard)
-// GET /api/dashboard/categories/:id
+// @Summary Get Category (Dashboard)
+// @Description Get a single category for dashboard viewing/editing
+// @Tags Categories
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Category ID"
+// @Success 200 {object} utils.APIResponse{data=models.Category}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/categories/{id} [get]
 func (h *Handler) DashboardShow(c *fiber.Ctx) error {
 	return h.Show(c)
 }
 
 // DashboardCreate creates a new category
-// POST /api/dashboard/categories
+// @Summary Create Category
+// @Description Create a new category
+// @Tags Categories
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param request body services.CreateCategoryRequest true "Category data"
+// @Success 201 {object} utils.APIResponse{data=models.Category}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/categories [post]
 func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 	var req services.CreateCategoryRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -97,7 +150,20 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 }
 
 // DashboardUpdate updates a category
-// POST /api/dashboard/categories/:id/update
+// @Summary Update Category
+// @Description Update an existing category
+// @Tags Categories
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Category ID"
+// @Param request body services.UpdateCategoryRequest true "Category data"
+// @Success 200 {object} utils.APIResponse{data=models.Category}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/categories/{id} [put]
 func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -121,7 +187,17 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 }
 
 // DashboardDelete deletes a category
-// DELETE /api/dashboard/categories/:id
+// @Summary Delete Category
+// @Description Delete a category by ID
+// @Tags Categories
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Category ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/categories/{id} [delete]
 func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -138,7 +214,18 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 }
 
 // DashboardToggleStatus toggles category active status
-// POST /api/dashboard/categories/:id/toggle
+// @Summary Toggle Category Status
+// @Description Toggle the is_active status of a category
+// @Tags Categories
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Category ID"
+// @Success 200 {object} utils.APIResponse{data=models.Category}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/categories/{id}/toggle [post]
 func (h *Handler) DashboardToggleStatus(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {

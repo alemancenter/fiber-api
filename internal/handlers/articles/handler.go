@@ -25,7 +25,21 @@ func New(svc services.ArticleService) *Handler {
 }
 
 // List returns a paginated list of published articles
-// GET /api/articles
+// @Summary List Public Articles
+// @Description Returns a paginated list of active/published articles
+// @Tags Articles
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param grade_level query string false "Filter by grade level"
+// @Param subject_id query int false "Filter by subject ID"
+// @Param semester_id query int false "Filter by semester ID"
+// @Param search query string false "Search query"
+// @Param file_category query string false "Filter by file category (e.g. worksheet, exam)"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.Article}
+// @Failure 500 {object} utils.APIResponse
+// @Router /articles [get]
 func (h *Handler) List(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	pag := utils.GetPagination(c)
@@ -69,7 +83,17 @@ func (h *Handler) List(c *fiber.Ctx) error {
 }
 
 // Show returns a single article
-// GET /api/articles/:id
+// @Summary Get Article
+// @Description Get a single published article by ID
+// @Tags Articles
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Article ID"
+// @Success 200 {object} utils.APIResponse{data=models.Article}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /articles/{id} [get]
 func (h *Handler) Show(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -94,7 +118,17 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 }
 
 // ByClass returns articles filtered by grade level
-// GET /api/articles/by-class/:grade_level
+// @Summary List Articles by Grade Level
+// @Description Returns a paginated list of published articles for a specific grade level
+// @Tags Articles
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param grade_level path string true "Grade Level"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.Article}
+// @Failure 500 {object} utils.APIResponse
+// @Router /articles/by-class/{grade_level} [get]
 func (h *Handler) ByClass(c *fiber.Ctx) error {
 	gradeLevel := c.Params("grade_level")
 	countryID, _ := c.Locals("country_id").(database.CountryID)
@@ -109,7 +143,17 @@ func (h *Handler) ByClass(c *fiber.Ctx) error {
 }
 
 // ByKeyword returns articles filtered by keyword
-// GET /api/articles/by-keyword/:keyword
+// @Summary List Articles by Keyword
+// @Description Returns a paginated list of published articles containing a specific keyword
+// @Tags Articles
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param keyword path string true "Keyword"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.Article}
+// @Failure 500 {object} utils.APIResponse
+// @Router /articles/by-keyword/{keyword} [get]
 func (h *Handler) ByKeyword(c *fiber.Ctx) error {
 	keyword := c.Params("keyword")
 	countryID, _ := c.Locals("country_id").(database.CountryID)
@@ -127,7 +171,17 @@ func (h *Handler) ByKeyword(c *fiber.Ctx) error {
 }
 
 // GetDownloadToken returns a short-lived signed token for a file download.
-// GET /api/articles/file/:id/download-url
+// @Summary Get File Download Token
+// @Description Generates a short-lived, signed token allowing a user to download an article's file securely
+// @Tags Articles
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "File ID"
+// @Success 200 {object} utils.APIResponse{data=map[string]string}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /articles/file/{id}/download-url [get]
 func (h *Handler) GetDownloadToken(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -148,7 +202,15 @@ func (h *Handler) GetDownloadToken(c *fiber.Ctx) error {
 }
 
 // DownloadFileSigned validates a signed token and serves the file.
-// GET /api/articles/download?token=...
+// @Summary Download File via Token
+// @Description Serves the actual file binary if the provided download token is valid and unexpired
+// @Tags Articles
+// @Produce application/octet-stream
+// @Param token query string true "Signed Token"
+// @Success 200 {file} file "Binary File"
+// @Failure 400 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Router /articles/download [get]
 func (h *Handler) DownloadFileSigned(c *fiber.Ctx) error {
 	token := c.Query("token")
 	if token == "" {
@@ -167,7 +229,17 @@ func (h *Handler) DownloadFileSigned(c *fiber.Ctx) error {
 }
 
 // DownloadFile serves an article file for download (legacy — prefer signed URL via GetDownloadToken)
-// GET /api/articles/file/:id/download
+// @Summary Download File Directly (Legacy)
+// @Description Direct file download. Note: Use GetDownloadToken instead for secure downloads
+// @Tags Articles
+// @Produce application/octet-stream
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "File ID"
+// @Success 200 {file} file "Binary File"
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /articles/file/{id}/download [get]
 func (h *Handler) DownloadFile(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -193,7 +265,19 @@ func (h *Handler) DownloadFile(c *fiber.Ctx) error {
 // ------- Dashboard Article Handlers -------
 
 // DashboardList returns all articles for dashboard management
-// GET /api/dashboard/articles
+// @Summary List Articles (Dashboard)
+// @Description Returns a paginated list of all articles for dashboard management
+// @Tags Articles
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param status query int false "Filter by status"
+// @Param q query string false "Search query"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.Article}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/articles [get]
 func (h *Handler) DashboardList(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	pag := utils.GetPagination(c)
@@ -222,7 +306,15 @@ func (h *Handler) DashboardList(c *fiber.Ctx) error {
 }
 
 // DashboardCreateData returns metadata needed by the create article form.
-// GET /api/dashboard/articles/create
+// @Summary Get Create Form Metadata
+// @Description Returns necessary data (subjects, classes, semesters) to populate the article creation form
+// @Tags Articles
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/articles/create [get]
 func (h *Handler) DashboardCreateData(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
@@ -235,7 +327,18 @@ func (h *Handler) DashboardCreateData(c *fiber.Ctx) error {
 }
 
 // DashboardEditData returns the article with auxiliary lists for the edit form.
-// GET /api/dashboard/articles/:id/edit
+// @Summary Get Edit Form Data
+// @Description Returns the article details along with necessary data (subjects, classes) to populate the edit form
+// @Tags Articles
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Article ID"
+// @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/articles/{id}/edit [get]
 func (h *Handler) DashboardEditData(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -256,7 +359,19 @@ func (h *Handler) DashboardEditData(c *fiber.Ctx) error {
 }
 
 // DashboardCreate creates a new article
-// POST /api/dashboard/articles
+// @Summary Create Article
+// @Description Create a new article from the dashboard
+// @Tags Articles
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param request body services.ArticleInput true "Article data"
+// @Success 201 {object} utils.APIResponse{data=models.Article}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/articles [post]
 func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 	var req services.ArticleInput
 	if err := c.BodyParser(&req); err != nil {
@@ -284,7 +399,20 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 }
 
 // DashboardUpdate updates an existing article
-// PUT /api/dashboard/articles/:id
+// @Summary Update Article
+// @Description Update an existing article from the dashboard
+// @Tags Articles
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Article ID"
+// @Param request body services.ArticleInput true "Article data"
+// @Success 200 {object} utils.APIResponse{data=models.Article}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/articles/{id} [put]
 func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -316,7 +444,18 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 }
 
 // DashboardDelete deletes an article
-// DELETE /api/dashboard/articles/:id
+// @Summary Delete Article
+// @Description Delete an article by ID
+// @Tags Articles
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Article ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/articles/{id} [delete]
 func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -341,13 +480,29 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 }
 
 // DashboardPublish publishes an article
-// POST /api/dashboard/articles/:id/publish
+// @Summary Publish Article
+// @Description Change article status to published
+// @Tags Articles
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Article ID"
+// @Success 200 {object} utils.APIResponse{data=models.Article}
+// @Router /dashboard/articles/{id}/publish [post]
 func (h *Handler) DashboardPublish(c *fiber.Ctx) error {
 	return h.setArticleStatus(c, 1, "تم نشر المقالة بنجاح")
 }
 
 // DashboardUnpublish unpublishes an article
-// POST /api/dashboard/articles/:id/unpublish
+// @Summary Unpublish Article
+// @Description Change article status to draft/unpublished
+// @Tags Articles
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Article ID"
+// @Success 200 {object} utils.APIResponse{data=models.Article}
+// @Router /dashboard/articles/{id}/unpublish [post]
 func (h *Handler) DashboardUnpublish(c *fiber.Ctx) error {
 	return h.setArticleStatus(c, 0, "تم إلغاء نشر المقالة بنجاح")
 }
@@ -372,7 +527,15 @@ func (h *Handler) setArticleStatus(c *fiber.Ctx, status int8, message string) er
 }
 
 // DashboardStats returns article statistics
-// GET /api/dashboard/articles/stats
+// @Summary Get Article Statistics
+// @Description Returns dashboard statistics for articles (total, published, draft, pending)
+// @Tags Articles
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Success 200 {object} utils.APIResponse{data=services.ArticleDashboardStats}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/articles/stats [get]
 func (h *Handler) DashboardStats(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 

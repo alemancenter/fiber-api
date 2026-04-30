@@ -118,7 +118,7 @@ func NewDependencies() *Handlers {
 
 	aiSvc := services.NewAIService()
 
-	homeSvc := services.NewHomeService(articleRepo, postRepo, categoryRepo, gradeRepo, cacheSvc)
+	homeSvc := services.NewHomeService(articleRepo, postRepo, categoryRepo, gradeRepo, cacheSvc, settingSvc)
 
 	return &Handlers{
 		Dashboard:     dashboard.New(dashboardSvc),

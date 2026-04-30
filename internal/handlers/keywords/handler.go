@@ -17,7 +17,18 @@ func New(svc services.KeywordService) *Handler {
 }
 
 // Index returns keywords with pagination
-// GET /api/keywords
+// @Summary List Keywords
+// @Description Returns a paginated list of keywords used in articles and/or posts
+// @Tags Keywords
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param q query string false "Search query"
+// @Param type query string false "Type: all, article, post"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
+// @Failure 500 {object} utils.APIResponse
+// @Router /keywords [get]
 func (h *Handler) Index(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
@@ -73,7 +84,19 @@ func (h *Handler) Index(c *fiber.Ctx) error {
 }
 
 // Show returns articles and posts for a keyword
-// GET /api/keywords/:keyword
+// @Summary Get Keyword Content
+// @Description Returns a list of articles and posts associated with a specific keyword
+// @Tags Keywords
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param keyword path string true "The exact keyword text"
+// @Param q query string false "Search query inside keyword results"
+// @Param sort query string false "Sort order (latest, popular)"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
+// @Failure 404 {object} utils.APIResponse
+// @Router /keywords/{keyword} [get]
 func (h *Handler) Show(c *fiber.Ctx) error {
 	keyword := c.Params("keyword")
 	countryID, _ := c.Locals("country_id").(database.CountryID)

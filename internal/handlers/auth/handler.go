@@ -58,7 +58,17 @@ func New(svc services.AuthService) *Handler {
 }
 
 // Register handles user registration
-// POST /api/auth/register
+// @Summary Register User
+// @Description Register a new user account
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body RegisterRequest true "Registration data"
+// @Success 201 {object} services.RegisterResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /auth/register [post]
 func (h *Handler) Register(c *fiber.Ctx) error {
 	var req RegisterRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -99,7 +109,17 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 }
 
 // Login handles user authentication
-// POST /api/auth/login
+// @Summary Login User
+// @Description Authenticate user and return JWT token
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body LoginRequest true "Login credentials"
+// @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Router /auth/login [post]
 func (h *Handler) Login(c *fiber.Ctx) error {
 	var req LoginRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -137,13 +157,23 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	})
 }
 
-// RefreshToken issues a new access token from a valid refresh token
-// POST /api/auth/refresh
-func (h *Handler) RefreshToken(c *fiber.Ctx) error {
-	type RefreshRequest struct {
-		RefreshToken string `json:"refresh_token" validate:"required"`
-	}
+// RefreshRequest contains the refresh token
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
 
+// RefreshToken issues a new access token from a valid refresh token
+// @Summary Refresh Token
+// @Description Issue a new JWT access token using a refresh token
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body RefreshRequest true "Refresh Token"
+// @Success 200 {object} utils.APIResponse{data=map[string]string}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Router /auth/refresh [post]
+func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	var req RefreshRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
@@ -164,12 +194,23 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 }
 
 // Logout invalidates the current token
-// POST /api/auth/logout
+// @Summary Logout User
+// @Description Invalidate the current JWT token
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /auth/logout [post]
 func (h *Handler) Logout(c *fiber.Ctx) error {
 	authHeader := c.Get("Authorization")
 	var tokenStr string
-	if len(authHeader) > 7 {
+	if token, ok := c.Locals("auth_token").(string); ok {
+		tokenStr = token
+	} else if len(authHeader) > 7 {
 		tokenStr = authHeader[7:]
+	} else {
+		tokenStr = c.Cookies("token")
 	}
 
 	var user *models.User
@@ -185,14 +226,32 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 }
 
 // Me returns the current authenticated user
-// GET /api/auth/user
+// @Summary Get Current User
+// @Description Returns the profile data of the currently authenticated user
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
+// @Failure 401 {object} utils.APIResponse
+// @Router /auth/user [get]
 func (h *Handler) Me(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
 	return utils.Success(c, "success", buildUserResponse(user, h.cfg.Storage.URL))
 }
 
 // UpdateProfile updates the authenticated user's profile
-// PUT /api/auth/profile
+// @Summary Update User Profile
+// @Description Updates the profile details (name, bio, job title, photo) of the authenticated user
+// @Tags Auth
+// @Accept json
+// @Accept mpfd
+// @Produce json
+// @Security BearerAuth
+// @Param request body services.UpdateProfileInput false "Profile Data"
+// @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Router /auth/profile [put]
 func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
 
@@ -241,7 +300,15 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 }
 
 // ForgotPassword initiates password reset
-// POST /api/auth/password/forgot
+// @Summary Forgot Password
+// @Description Initiates the password reset process by sending an email
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body ForgotPasswordRequest true "User email"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Router /auth/password/forgot [post]
 func (h *Handler) ForgotPassword(c *fiber.Ctx) error {
 	var req ForgotPasswordRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -259,7 +326,16 @@ func (h *Handler) ForgotPassword(c *fiber.Ctx) error {
 }
 
 // ResetPassword processes the password reset
-// POST /api/auth/password/reset
+// @Summary Reset Password
+// @Description Reset user password using the token sent to their email
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body ResetPasswordRequest true "Reset password data"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Router /auth/password/reset [post]
 func (h *Handler) ResetPassword(c *fiber.Ctx) error {
 	var req ResetPasswordRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -288,7 +364,16 @@ func (h *Handler) ResetPassword(c *fiber.Ctx) error {
 }
 
 // VerifyEmail verifies a user's email address
-// GET /api/auth/email/verify/:id/:hash
+// @Summary Verify Email
+// @Description Verifies a user's email address using ID and Hash from email link
+// @Tags Auth
+// @Produce json
+// @Param id path string true "User ID"
+// @Param hash path string true "Verification Hash"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Router /auth/email/verify/{id}/{hash} [get]
 func (h *Handler) VerifyEmail(c *fiber.Ctx) error {
 	id := c.Params("id")
 	hash := c.Params("hash")
@@ -308,7 +393,15 @@ func (h *Handler) VerifyEmail(c *fiber.Ctx) error {
 }
 
 // ResendVerification resends the email verification
-// POST /api/auth/email/resend
+// @Summary Resend Verification Email
+// @Description Resends the verification email to the authenticated user
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /auth/email/resend [post]
 func (h *Handler) ResendVerification(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
 
@@ -323,14 +416,26 @@ func (h *Handler) ResendVerification(c *fiber.Ctx) error {
 	return utils.Success(c, "تم إرسال رسالة التحقق", nil)
 }
 
+// DeleteRequest contains the password for account deletion
+type DeleteRequest struct {
+	Password string `json:"password" validate:"required"`
+}
+
 // DeleteAccount permanently deletes the user account
-// POST /api/auth/account/delete
+// @Summary Delete Account
+// @Description Permanently deletes the authenticated user's account (requires password)
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body DeleteRequest true "User Password"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /auth/account/delete [post]
 func (h *Handler) DeleteAccount(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
-
-	type DeleteRequest struct {
-		Password string `json:"password" validate:"required"`
-	}
 
 	var req DeleteRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -373,13 +478,23 @@ func (h *Handler) GoogleCallback(c *fiber.Ctx) error {
 	return h.loginOrRegisterGoogleUser(c, userInfo)
 }
 
-// GoogleTokenLogin handles mobile Google OAuth token
-// POST /api/auth/google/token
-func (h *Handler) GoogleTokenLogin(c *fiber.Ctx) error {
-	type TokenRequest struct {
-		Token string `json:"token" validate:"required"`
-	}
+// TokenRequest contains the Google OAuth token
+type TokenRequest struct {
+	Token string `json:"token" validate:"required"`
+}
 
+// GoogleTokenLogin handles mobile Google OAuth token
+// @Summary Google Login via Token
+// @Description Authenticate user using a Google OAuth Token (from mobile apps or frontend)
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body TokenRequest true "Google OAuth Token"
+// @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Router /auth/google/token [post]
+func (h *Handler) GoogleTokenLogin(c *fiber.Ctx) error {
 	var req TokenRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
@@ -393,15 +508,26 @@ func (h *Handler) GoogleTokenLogin(c *fiber.Ctx) error {
 	return h.loginOrRegisterGoogleUser(c, userInfo)
 }
 
+// PushTokenRequest represents the push token registration payload
+type PushTokenRequest struct {
+	Token    string `json:"token" validate:"required"`
+	Platform string `json:"platform" validate:"required,oneof=fcm onesignal apns web"`
+}
+
 // RegisterPushToken saves an FCM/OneSignal push token
-// POST /api/auth/push-token
+// @Summary Register Push Token
+// @Description Register a device push token for the authenticated user
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body PushTokenRequest true "Push Token Data"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /auth/push-token [post]
 func (h *Handler) RegisterPushToken(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
-
-	type PushTokenRequest struct {
-		Token    string `json:"token" validate:"required"`
-		Platform string `json:"platform" validate:"required,oneof=fcm onesignal apns web"`
-	}
 
 	var req PushTokenRequest
 	if err := c.BodyParser(&req); err != nil {

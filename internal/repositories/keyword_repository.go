@@ -14,7 +14,6 @@ type KeywordDTO struct {
 }
 
 type KeywordRepository interface {
-	GetDB(countryID database.CountryID) *gorm.DB
 	FindByKeyword(countryID database.CountryID, keyword string) (*models.Keyword, error)
 	ListKeywords(countryID database.CountryID, keywordType, search string, limit, offset int) ([]KeywordDTO, int64, error)
 	ListArticlesByKeyword(countryID database.CountryID, keywordID uint, search, sort string, limit, offset int) ([]models.Article, int64, error)
@@ -27,18 +26,18 @@ func NewKeywordRepository() KeywordRepository {
 	return &keywordRepository{}
 }
 
-func (r *keywordRepository) GetDB(countryID database.CountryID) *gorm.DB {
+func (r *keywordRepository) getDB(countryID database.CountryID) *gorm.DB {
 	return database.DBForCountry(countryID)
 }
 
 func (r *keywordRepository) FindByKeyword(countryID database.CountryID, keyword string) (*models.Keyword, error) {
 	var k models.Keyword
-	err := r.GetDB(countryID).Where("keyword = ?", keyword).First(&k).Error
+	err := r.getDB(countryID).Where("keyword = ?", keyword).First(&k).Error
 	return &k, err
 }
 
 func (r *keywordRepository) ListKeywords(countryID database.CountryID, keywordType, search string, limit, offset int) ([]KeywordDTO, int64, error) {
-	db := r.GetDB(countryID).Model(&models.Keyword{})
+	db := r.getDB(countryID).Model(&models.Keyword{})
 
 	if search != "" {
 		db = db.Where("keywords.keyword LIKE ?", "%"+search+"%")
@@ -85,7 +84,7 @@ func (r *keywordRepository) ListKeywords(countryID database.CountryID, keywordTy
 }
 
 func (r *keywordRepository) ListArticlesByKeyword(countryID database.CountryID, keywordID uint, search, sort string, limit, offset int) ([]models.Article, int64, error) {
-	db := r.GetDB(countryID).Model(&models.Article{}).
+	db := r.getDB(countryID).Model(&models.Article{}).
 		Joins("JOIN article_keyword ON article_keyword.article_id = articles.id").
 		Where("article_keyword.keyword_id = ?", keywordID).
 		Where("articles.status = 1")
@@ -112,7 +111,7 @@ func (r *keywordRepository) ListArticlesByKeyword(countryID database.CountryID, 
 }
 
 func (r *keywordRepository) ListPostsByKeyword(countryID database.CountryID, keywordID uint, search, sort string, limit, offset int) ([]models.Post, int64, error) {
-	db := r.GetDB(countryID).Model(&models.Post{}).
+	db := r.getDB(countryID).Model(&models.Post{}).
 		Joins("JOIN post_keyword ON post_keyword.post_id = posts.id").
 		Where("post_keyword.keyword_id = ?", keywordID).
 		Where("posts.is_active = ?", true)

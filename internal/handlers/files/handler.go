@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/alemancenter/fiber-api/internal/database"
+	_ "github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -20,7 +21,17 @@ func New(svc *services.FileService) *Handler {
 }
 
 // Info returns file metadata with its parent article or post.
-// GET /api/files/:id/info
+// @Summary Get File Info
+// @Description Returns metadata about a file along with its parent article or post
+// @Tags Files
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "File ID"
+// @Success 200 {object} utils.APIResponse{data=services.FileInfoResponse}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /files/{id}/info [get]
 func (h *Handler) Info(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -41,7 +52,16 @@ func (h *Handler) Info(c *fiber.Ctx) error {
 }
 
 // IncrementView increments the file view count
-// POST /api/files/:id/increment-view
+// @Summary Increment File View
+// @Description Increment the view counter for a specific file
+// @Tags Files
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "File ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /files/{id}/increment-view [post]
 func (h *Handler) IncrementView(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -58,7 +78,15 @@ func (h *Handler) IncrementView(c *fiber.Ctx) error {
 }
 
 // UploadImage handles public image upload
-// POST /api/upload/image
+// @Summary Upload Image
+// @Description Upload a public image (e.g. avatar, basic photo)
+// @Tags Files
+// @Accept mpfd
+// @Produce json
+// @Param image formData file true "Image file to upload"
+// @Success 201 {object} utils.APIResponse{data=services.UploadResponse}
+// @Failure 400 {object} utils.APIResponse
+// @Router /upload/image [post]
 func (h *Handler) UploadImage(c *fiber.Ctx) error {
 	photo, err := c.FormFile("image")
 	if err != nil {
@@ -80,7 +108,15 @@ func (h *Handler) UploadImage(c *fiber.Ctx) error {
 }
 
 // UploadDocument handles public document upload
-// POST /api/upload/file
+// @Summary Upload Document
+// @Description Upload a public document (e.g. PDF, DOCX)
+// @Tags Files
+// @Accept mpfd
+// @Produce json
+// @Param file formData file true "Document file to upload"
+// @Success 201 {object} utils.APIResponse{data=services.UploadResponse}
+// @Failure 400 {object} utils.APIResponse
+// @Router /upload/file [post]
 func (h *Handler) UploadDocument(c *fiber.Ctx) error {
 	doc, err := c.FormFile("file")
 	if err != nil {
@@ -102,7 +138,19 @@ func (h *Handler) UploadDocument(c *fiber.Ctx) error {
 }
 
 // DashboardList returns all files for dashboard management
-// GET /api/dashboard/files
+// @Summary List Files (Dashboard)
+// @Description Returns a paginated list of all files for dashboard management
+// @Tags Files
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param type query string false "Filter by file type (e.g. image, document)"
+// @Param article_id query int false "Filter by associated article ID"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.File}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/files [get]
 func (h *Handler) DashboardList(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	pag := utils.GetPagination(c)
@@ -119,7 +167,18 @@ func (h *Handler) DashboardList(c *fiber.Ctx) error {
 }
 
 // DashboardShow returns a single file (flat, no parent join)
-// GET /api/dashboard/files/:id
+// @Summary Get File (Dashboard)
+// @Description Get metadata for a specific file by ID
+// @Tags Files
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "File ID"
+// @Success 200 {object} utils.APIResponse{data=models.File}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/files/{id} [get]
 func (h *Handler) DashboardShow(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -137,7 +196,22 @@ func (h *Handler) DashboardShow(c *fiber.Ctx) error {
 }
 
 // DashboardUpload uploads a file and creates a record
-// POST /api/dashboard/files
+// @Summary Upload File (Dashboard)
+// @Description Upload a file and attach it to an article or post, or upload it independently
+// @Tags Files
+// @Accept mpfd
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param file formData file true "File to upload"
+// @Param article_id formData int false "Associated Article ID"
+// @Param post_id formData int false "Associated Post ID"
+// @Param file_name formData string false "Custom file name"
+// @Param file_category formData string false "Category (e.g. worksheet, exam, attachment)"
+// @Success 201 {object} utils.APIResponse{data=models.File}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/files [post]
 func (h *Handler) DashboardUpload(c *fiber.Ctx) error {
 	uploadedFile, err := c.FormFile("file")
 	if err != nil {
@@ -192,7 +266,20 @@ func (h *Handler) DashboardUpload(c *fiber.Ctx) error {
 }
 
 // DashboardUpdate updates file metadata
-// PUT /api/dashboard/files/:id
+// @Summary Update File Metadata (Dashboard)
+// @Description Update the metadata (name, category, association) of a file
+// @Tags Files
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "File ID"
+// @Param request body services.UpdateFileInput true "File metadata update payload"
+// @Success 200 {object} utils.APIResponse{data=models.File}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/files/{id} [put]
 func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -218,7 +305,18 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 }
 
 // DashboardDelete deletes a file
-// DELETE /api/dashboard/files/:id
+// @Summary Delete File (Dashboard)
+// @Description Delete a file record and remove the file from storage
+// @Tags Files
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "File ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/files/{id} [delete]
 func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -238,7 +336,18 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 }
 
 // DashboardDownload serves a file for download
-// GET /api/dashboard/files/:id/download
+// @Summary Download File (Dashboard)
+// @Description Direct download of a file via dashboard
+// @Tags Files
+// @Produce application/octet-stream
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "File ID"
+// @Success 200 {file} file "Binary File"
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/files/{id}/download [get]
 func (h *Handler) DashboardDownload(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -264,19 +373,45 @@ func (h *Handler) DashboardDownload(c *fiber.Ctx) error {
 }
 
 // SecureUploadImage uploads an image securely (with extra validation)
-// POST /api/dashboard/secure/upload-image
+// @Summary Secure Image Upload
+// @Description Securely upload an image (e.g. from authenticated dashboard)
+// @Tags Files
+// @Accept mpfd
+// @Produce json
+// @Security BearerAuth
+// @Param image formData file true "Image file to upload"
+// @Success 201 {object} utils.APIResponse{data=services.UploadResponse}
+// @Failure 400 {object} utils.APIResponse
+// @Router /dashboard/secure/upload-image [post]
 func (h *Handler) SecureUploadImage(c *fiber.Ctx) error {
 	return h.UploadImage(c)
 }
 
 // SecureUploadDocument uploads a document securely
-// POST /api/dashboard/secure/upload-document
+// @Summary Secure Document Upload
+// @Description Securely upload a document
+// @Tags Files
+// @Accept mpfd
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "Document file to upload"
+// @Success 201 {object} utils.APIResponse{data=services.UploadResponse}
+// @Failure 400 {object} utils.APIResponse
+// @Router /dashboard/secure/upload-document [post]
 func (h *Handler) SecureUploadDocument(c *fiber.Ctx) error {
 	return h.UploadDocument(c)
 }
 
 // SecureView serves a file securely
-// GET /api/secure/view
+// @Summary Secure File View
+// @Description Serve a file securely using its relative path
+// @Tags Files
+// @Produce application/octet-stream
+// @Security BearerAuth
+// @Param path query string true "Relative file path"
+// @Success 200 {file} file "Binary File"
+// @Failure 400 {object} utils.APIResponse
+// @Router /secure/view [get]
 func (h *Handler) SecureView(c *fiber.Ctx) error {
 	relPath := c.Query("path")
 	if relPath == "" {

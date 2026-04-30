@@ -20,7 +20,18 @@ func New(svc services.NotificationService) *Handler {
 }
 
 // List returns paginated notifications for the current user
-// GET /api/dashboard/notifications
+// @Summary List Notifications
+// @Description Returns a paginated list of notifications for the authenticated user
+// @Tags Notifications
+// @Produce json
+// @Security BearerAuth
+// @Param unread query string false "Filter by unread status (1 for true)"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.Notification}
+// @Failure 401 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/notifications [get]
 func (h *Handler) List(c *fiber.Ctx) error {
 	user, _ := c.Locals("user").(*models.User)
 	if user == nil {
@@ -39,7 +50,15 @@ func (h *Handler) List(c *fiber.Ctx) error {
 }
 
 // Latest returns the latest 10 notifications
-// GET /api/dashboard/notifications/latest
+// @Summary Latest Notifications
+// @Description Returns the 10 most recent notifications and the total unread count
+// @Tags Notifications
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse{data=services.LatestNotificationsResponse}
+// @Failure 401 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/notifications/latest [get]
 func (h *Handler) Latest(c *fiber.Ctx) error {
 	user, _ := c.Locals("user").(*models.User)
 	if user == nil {
@@ -58,7 +77,16 @@ func (h *Handler) Latest(c *fiber.Ctx) error {
 }
 
 // MarkAsRead marks a notification as read
-// POST /api/dashboard/notifications/:id/read
+// @Summary Mark Notification Read
+// @Description Mark a specific notification as read
+// @Tags Notifications
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Notification ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/notifications/{id}/read [post]
 func (h *Handler) MarkAsRead(c *fiber.Ctx) error {
 	id := c.Params("id")
 	user, _ := c.Locals("user").(*models.User)
@@ -74,7 +102,15 @@ func (h *Handler) MarkAsRead(c *fiber.Ctx) error {
 }
 
 // MarkAllRead marks all notifications as read
-// POST /api/dashboard/notifications/read-all
+// @Summary Mark All Notifications Read
+// @Description Mark all notifications as read for the authenticated user
+// @Tags Notifications
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/notifications/read-all [post]
 func (h *Handler) MarkAllRead(c *fiber.Ctx) error {
 	user, _ := c.Locals("user").(*models.User)
 	if user == nil {
@@ -88,16 +124,27 @@ func (h *Handler) MarkAllRead(c *fiber.Ctx) error {
 	return utils.Success(c, "تم تعليم جميع الإشعارات كمقروءة", nil)
 }
 
-// Create creates a new notification
-// POST /api/dashboard/notifications
-func (h *Handler) Create(c *fiber.Ctx) error {
-	type CreateRequest struct {
-		Type         string `json:"type" validate:"required"`
-		NotifiableID uint   `json:"notifiable_id" validate:"required"`
-		Data         string `json:"data" validate:"required"`
-	}
+type CreateNotificationRequest struct {
+	Type         string `json:"type" validate:"required"`
+	NotifiableID uint   `json:"notifiable_id" validate:"required"`
+	Data         string `json:"data" validate:"required"`
+}
 
-	var req CreateRequest
+// Create creates a new notification
+// @Summary Create Notification
+// @Description Programmatically create a new notification for a user
+// @Tags Notifications
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateNotificationRequest true "Notification payload"
+// @Success 201 {object} utils.APIResponse{data=models.Notification}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/notifications [post]
+func (h *Handler) Create(c *fiber.Ctx) error {
+	var req CreateNotificationRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
@@ -115,7 +162,16 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 }
 
 // Delete deletes a notification
-// DELETE /api/dashboard/notifications/:id
+// @Summary Delete Notification
+// @Description Delete a specific notification by ID
+// @Tags Notifications
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Notification ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/notifications/{id} [delete]
 func (h *Handler) Delete(c *fiber.Ctx) error {
 	id := c.Params("id")
 	user, _ := c.Locals("user").(*models.User)
@@ -131,7 +187,14 @@ func (h *Handler) Delete(c *fiber.Ctx) error {
 }
 
 // Prune deletes old read notifications
-// POST /api/dashboard/notifications/prune
+// @Summary Prune Notifications
+// @Description Delete old, already-read notifications (e.g., older than 30 days)
+// @Tags Notifications
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse{data=services.PruneNotificationsResponse}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/notifications/prune [post]
 func (h *Handler) Prune(c *fiber.Ctx) error {
 	deletedCount, err := h.svc.Prune(30)
 	if err != nil {
@@ -143,15 +206,27 @@ func (h *Handler) Prune(c *fiber.Ctx) error {
 	})
 }
 
-// BulkAction performs a bulk action on notifications
-// POST /api/dashboard/notifications/bulk
-func (h *Handler) BulkAction(c *fiber.Ctx) error {
-	type BulkRequest struct {
-		Action string   `json:"action" validate:"required,oneof=read delete"`
-		IDs    []string `json:"ids" validate:"required"`
-	}
+type BulkActionRequest struct {
+	Action string   `json:"action" validate:"required,oneof=read delete"`
+	IDs    []string `json:"ids" validate:"required"`
+}
 
-	var req BulkRequest
+// BulkAction performs a bulk action on notifications
+// @Summary Bulk Action on Notifications
+// @Description Perform an action (e.g., read, delete) on multiple notifications
+// @Tags Notifications
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body BulkActionRequest true "Bulk action payload"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 401 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/notifications/bulk [post]
+func (h *Handler) BulkAction(c *fiber.Ctx) error {
+	var req BulkActionRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}

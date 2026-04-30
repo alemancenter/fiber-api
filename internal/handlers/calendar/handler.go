@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/alemancenter/fiber-api/internal/database"
+	_ "github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -22,7 +23,13 @@ func New(svc services.CalendarService) *Handler {
 }
 
 // Databases returns available calendar databases (countries)
-// GET /api/dashboard/calendar/databases
+// @Summary List Calendar Databases
+// @Description Returns available calendar databases/countries
+// @Tags Calendar
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse{data=[]services.DatabaseInfo}
+// @Router /dashboard/calendar/databases [get]
 func (h *Handler) Databases(c *fiber.Ctx) error {
 	return utils.Success(c, "success", []services.DatabaseInfo{
 		{ID: 1, Code: "jo", Name: "الأردن"},
@@ -33,7 +40,17 @@ func (h *Handler) Databases(c *fiber.Ctx) error {
 }
 
 // GetEvents returns calendar events for the dashboard
-// GET /api/dashboard/calendar/events
+// @Summary List Events (Dashboard)
+// @Description Returns a list of calendar events for dashboard management, optionally filtered by date range
+// @Tags Calendar
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param start query string false "Start date (YYYY-MM-DD)"
+// @Param end query string false "End date (YYYY-MM-DD)"
+// @Success 200 {object} utils.APIResponse{data=[]models.Event}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/calendar/events [get]
 func (h *Handler) GetEvents(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	start := c.Query("start")
@@ -48,7 +65,19 @@ func (h *Handler) GetEvents(c *fiber.Ctx) error {
 }
 
 // CreateEvent creates a calendar event
-// POST /api/dashboard/calendar/events
+// @Summary Create Event
+// @Description Create a new calendar event
+// @Tags Calendar
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param request body services.EventInput true "Event data payload"
+// @Success 201 {object} utils.APIResponse{data=models.Event}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/calendar/events [post]
 func (h *Handler) CreateEvent(c *fiber.Ctx) error {
 	var req services.EventInput
 	if err := c.BodyParser(&req); err != nil {
@@ -70,7 +99,19 @@ func (h *Handler) CreateEvent(c *fiber.Ctx) error {
 }
 
 // UpdateEvent updates a calendar event
-// PUT /api/dashboard/calendar/events/:id
+// @Summary Update Event
+// @Description Update an existing calendar event by ID
+// @Tags Calendar
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Event ID"
+// @Param request body services.EventInput true "Event update payload"
+// @Success 200 {object} utils.APIResponse{data=models.Event}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Router /dashboard/calendar/events/{id} [put]
 func (h *Handler) UpdateEvent(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -93,7 +134,17 @@ func (h *Handler) UpdateEvent(c *fiber.Ctx) error {
 }
 
 // DeleteEvent deletes a calendar event
-// DELETE /api/dashboard/calendar/events/:id
+// @Summary Delete Event
+// @Description Delete an existing calendar event by ID
+// @Tags Calendar
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Event ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Router /dashboard/calendar/events/{id} [delete]
 func (h *Handler) DeleteEvent(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -109,7 +160,14 @@ func (h *Handler) DeleteEvent(c *fiber.Ctx) error {
 }
 
 // PublicEvents returns upcoming calendar events
-// GET /api/home/calendar
+// @Summary List Public Events
+// @Description Returns upcoming public calendar events
+// @Tags Calendar
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Success 200 {object} utils.APIResponse{data=[]models.Event}
+// @Failure 500 {object} utils.APIResponse
+// @Router /home/calendar [get]
 func (h *Handler) PublicEvents(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
@@ -122,7 +180,16 @@ func (h *Handler) PublicEvents(c *fiber.Ctx) error {
 }
 
 // PublicEventDetail returns a single public event
-// GET /api/home/event/:id
+// @Summary Get Public Event
+// @Description Returns details of a specific public calendar event by ID
+// @Tags Calendar
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Event ID"
+// @Success 200 {object} utils.APIResponse{data=models.Event}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Router /home/event/{id} [get]
 func (h *Handler) PublicEventDetail(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {

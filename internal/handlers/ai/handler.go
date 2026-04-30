@@ -1,6 +1,7 @@
 package ai
 
 import (
+	_ "github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -14,14 +15,24 @@ func New(svc services.AIService) *Handler {
 	return &Handler{svc: svc}
 }
 
-// Generate creates content from a title
-// POST /api/ai/generate
-func (h *Handler) Generate(c *fiber.Ctx) error {
-	type Request struct {
-		Title string `json:"title" validate:"required,min=3,max=255"`
-	}
+type GenerateRequest struct {
+	Title string `json:"title" validate:"required,min=3,max=255"`
+}
 
-	var req Request
+// Generate creates content from a title
+// @Summary AI Content Generation
+// @Description Generate article content automatically using AI based on a provided title
+// @Tags AI
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body GenerateRequest true "Prompt payload containing title"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /ai/generate [post]
+func (h *Handler) Generate(c *fiber.Ctx) error {
+	var req GenerateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صالحة")
 	}

@@ -16,11 +16,39 @@ import (
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/alemancenter/fiber-api/pkg/logger"
 
+	_ "github.com/alemancenter/fiber-api/docs" // Swagger docs
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/swagger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
+
+// @title Alemancenter API
+// @version 2.0.0
+// @description Backend API for Alemancenter Educational Platform.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.email support@alemancenter.com
+
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+
+// @host api.alemancenter.com
+// @BasePath /api
+// @schemes https http
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
+
+// @securityDefinitions.apikey FrontendKeyAuth
+// @in header
+// @name X-Frontend-Key
+// @description Frontend identifier key for public endpoints.
 
 func main() {
 	// Load configuration
@@ -61,6 +89,7 @@ func main() {
 		&models.SecurityLog{},
 		&models.VisitorTracking{},
 		&models.VisitorSession{},
+		&models.Comment{},
 	}
 	seen := make(map[*gorm.DB]bool)
 	for _, id := range []database.CountryID{database.CountryJordan, database.CountrySaudi, database.CountryEgypt, database.CountryPalestine} {
@@ -177,6 +206,9 @@ func main() {
 
 	// Register all routes
 	routes.Setup(app)
+
+	// Setup Swagger UI route
+	app.Get("/swagger/*", swagger.HandlerDefault)
 
 	// 404 handler
 	app.Use(func(c *fiber.Ctx) error {

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -23,7 +24,15 @@ func New(svc services.RedisService) *Handler {
 }
 
 // ListKeys lists Redis keys matching a pattern
-// GET /api/dashboard/redis/keys
+// @Summary List Redis Keys
+// @Description Returns a list of Redis keys matching a specific pattern
+// @Tags Redis
+// @Produce json
+// @Security BearerAuth
+// @Param pattern query string false "Key pattern to match (e.g. *)"
+// @Success 200 {object} utils.APIResponse{data=services.RedisKeysResponse}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/redis/keys [get]
 func (h *Handler) ListKeys(c *fiber.Ctx) error {
 	pattern := c.Query("pattern", "*")
 
@@ -38,16 +47,27 @@ func (h *Handler) ListKeys(c *fiber.Ctx) error {
 	})
 }
 
-// SetKey sets a Redis key
-// POST /api/dashboard/redis
-func (h *Handler) SetKey(c *fiber.Ctx) error {
-	type SetRequest struct {
-		Key   string `json:"key" validate:"required"`
-		Value string `json:"value" validate:"required"`
-		TTL   int    `json:"ttl"` // seconds
-	}
+type SetRedisKeyRequest struct {
+	Key   string `json:"key" validate:"required"`
+	Value string `json:"value" validate:"required"`
+	TTL   int    `json:"ttl"` // seconds
+}
 
-	var req SetRequest
+// SetKey sets a Redis key
+// @Summary Set Redis Key
+// @Description Set a key-value pair in Redis with an optional TTL
+// @Tags Redis
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body SetRedisKeyRequest true "Redis key payload"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/redis [post]
+func (h *Handler) SetKey(c *fiber.Ctx) error {
+	var req SetRedisKeyRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
 	}
@@ -69,7 +89,15 @@ func (h *Handler) SetKey(c *fiber.Ctx) error {
 }
 
 // DeleteKey deletes a Redis key
-// DELETE /api/dashboard/redis/:key
+// @Summary Delete Redis Key
+// @Description Delete a specific Redis key
+// @Tags Redis
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "Redis Key"
+// @Success 200 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/redis/{key} [delete]
 func (h *Handler) DeleteKey(c *fiber.Ctx) error {
 	key := c.Params("key")
 
@@ -81,7 +109,14 @@ func (h *Handler) DeleteKey(c *fiber.Ctx) error {
 }
 
 // CleanExpired removes expired keys
-// DELETE /api/dashboard/redis/expired/clean
+// @Summary Clean Expired Keys
+// @Description Clean up expired keys from Redis
+// @Tags Redis
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/redis/expired/clean [delete]
 func (h *Handler) CleanExpired(c *fiber.Ctx) error {
 	if err := h.svc.CleanExpired(context.Background()); err != nil {
 		return utils.InternalError(c)
@@ -90,7 +125,14 @@ func (h *Handler) CleanExpired(c *fiber.Ctx) error {
 }
 
 // TestConnection tests the Redis connection
-// GET /api/dashboard/redis/test
+// @Summary Test Redis Connection
+// @Description Ping the Redis server to check connectivity and health
+// @Tags Redis
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/redis/test [get]
 func (h *Handler) TestConnection(c *fiber.Ctx) error {
 	health, allOk := h.svc.TestConnection()
 
@@ -102,7 +144,14 @@ func (h *Handler) TestConnection(c *fiber.Ctx) error {
 }
 
 // GetInfo returns Redis server information
-// GET /api/dashboard/redis/info
+// @Summary Get Redis Info
+// @Description Returns internal Redis server information and statistics
+// @Tags Redis
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse{data=services.RedisInfoResponse}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/redis/info [get]
 func (h *Handler) GetInfo(c *fiber.Ctx) error {
 	info, err := h.svc.GetInfo(context.Background())
 	if err != nil {
@@ -115,7 +164,16 @@ func (h *Handler) GetInfo(c *fiber.Ctx) error {
 // UpdateEnv validates Redis settings posted from the dashboard.
 // Runtime Redis clients are initialized at process startup, so applying changes
 // still requires a service restart or deployment-level configuration update.
-// POST /api/dashboard/redis/env
+// @Summary Update Redis Config
+// @Description Validate and update Redis connection settings (Requires restart to apply fully)
+// @Tags Redis
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body map[string]string true "Key-Value pairs of Redis config"
+// @Success 200 {object} utils.APIResponse{data=map[string]string}
+// @Failure 400 {object} utils.APIResponse
+// @Router /dashboard/redis/env [post]
 func (h *Handler) UpdateEnv(c *fiber.Ctx) error {
 	var req map[string]string
 	if err := c.BodyParser(&req); err != nil {

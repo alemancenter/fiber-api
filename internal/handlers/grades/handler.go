@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/alemancenter/fiber-api/internal/database"
+	_ "github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -30,7 +31,14 @@ func New(svc services.GradeService, fileSvc *services.FileService) *Handler {
 
 // ListSchoolClasses returns all school classes.
 // Result is cached per country for 1 hour — this data changes only via admin dashboard.
-// GET /api/school-classes
+// @Summary List School Classes
+// @Description Returns all school classes for the specified country (Cached for 1 hour)
+// @Tags Grades
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Success 200 {object} utils.APIResponse{data=[]models.SchoolClass}
+// @Failure 500 {object} utils.APIResponse
+// @Router /school-classes [get]
 func (h *Handler) ListSchoolClasses(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
@@ -43,7 +51,17 @@ func (h *Handler) ListSchoolClasses(c *fiber.Ctx) error {
 }
 
 // GetSchoolClass returns a single school class with its subjects
-// GET /api/school-classes/:id
+// @Summary Get School Class
+// @Description Get a single school class by ID along with its subjects
+// @Tags Grades
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Class ID"
+// @Success 200 {object} utils.APIResponse{data=models.SchoolClass}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /school-classes/{id} [get]
 func (h *Handler) GetSchoolClass(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -64,7 +82,16 @@ func (h *Handler) GetSchoolClass(c *fiber.Ctx) error {
 }
 
 // ListSubjects returns subjects for a class
-// GET /api/filter/subjects/:classId
+// @Summary List Subjects for a Class
+// @Description Get a list of subjects associated with a specific school class
+// @Tags Grades
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param classId path int true "Class ID"
+// @Success 200 {object} utils.APIResponse{data=[]models.Subject}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /filter/subjects/{classId} [get]
 func (h *Handler) ListSubjects(c *fiber.Ctx) error {
 	classID, err := strconv.ParseUint(c.Params("classId"), 10, 64)
 	if err != nil {
@@ -82,7 +109,17 @@ func (h *Handler) ListSubjects(c *fiber.Ctx) error {
 }
 
 // ListSemesters returns semesters for a subject's grade level
-// GET /api/filter/semesters/:subjectId
+// @Summary List Semesters for a Subject
+// @Description Get a list of semesters associated with the grade level of a specific subject
+// @Tags Grades
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param subjectId path int true "Subject ID"
+// @Success 200 {object} utils.APIResponse{data=services.SemestersResponse}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /filter/semesters/{subjectId} [get]
 func (h *Handler) ListSemesters(c *fiber.Ctx) error {
 	subjectID, err := strconv.ParseUint(c.Params("subjectId"), 10, 64)
 	if err != nil {
@@ -108,7 +145,14 @@ func (h *Handler) ListSemesters(c *fiber.Ctx) error {
 }
 
 // FilterMeta returns top-level filter metadata (cached per country).
-// GET /api/filter
+// @Summary Get Filter Metadata
+// @Description Returns top-level metadata including school classes to populate frontend filters
+// @Tags Grades
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Success 200 {object} utils.APIResponse{data=services.FilterMetaResponse}
+// @Failure 500 {object} utils.APIResponse
+// @Router /filter [get]
 func (h *Handler) FilterMeta(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
@@ -121,7 +165,18 @@ func (h *Handler) FilterMeta(c *fiber.Ctx) error {
 }
 
 // GetGradeArticles returns articles for a specific grade
-// GET /api/grades/articles/:id
+// @Summary List Articles for a Grade
+// @Description Get a paginated list of articles associated with a specific school class (grade level)
+// @Tags Grades
+// @Produce json
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Class ID (Grade Level)"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.Article}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /grades/articles/{id} [get]
 func (h *Handler) GetGradeArticles(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -140,7 +195,17 @@ func (h *Handler) GetGradeArticles(c *fiber.Ctx) error {
 }
 
 // DownloadGradeFile downloads a file for a grade article
-// GET /api/grades/files/:id/download
+// @Summary Download Grade File
+// @Description Direct download of a file attached to a grade article
+// @Tags Grades
+// @Produce application/octet-stream
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "File ID"
+// @Success 200 {file} file "Binary File"
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /grades/files/{id}/download [get]
 func (h *Handler) DownloadGradeFile(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -170,7 +235,17 @@ func (h *Handler) DownloadGradeFile(c *fiber.Ctx) error {
 // ── Dashboard ────────────────────────────────────────────────────────────────
 
 // DashboardListSchoolClasses returns all classes for dashboard
-// GET /api/dashboard/school-classes
+// @Summary List School Classes (Dashboard)
+// @Description Get a paginated list of school classes for dashboard management
+// @Tags Grades
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.SchoolClass}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/school-classes [get]
 func (h *Handler) DashboardListSchoolClasses(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	pag := utils.GetPagination(c)
@@ -184,7 +259,19 @@ func (h *Handler) DashboardListSchoolClasses(c *fiber.Ctx) error {
 }
 
 // DashboardCreateSchoolClass creates a school class
-// POST /api/dashboard/school-classes
+// @Summary Create School Class
+// @Description Create a new school class
+// @Tags Grades
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param request body services.SchoolClassInput true "School class data"
+// @Success 201 {object} utils.APIResponse{data=models.SchoolClass}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/school-classes [post]
 func (h *Handler) DashboardCreateSchoolClass(c *fiber.Ctx) error {
 	var req services.SchoolClassInput
 	if err := c.BodyParser(&req); err != nil {
@@ -205,7 +292,20 @@ func (h *Handler) DashboardCreateSchoolClass(c *fiber.Ctx) error {
 }
 
 // DashboardUpdateSchoolClass updates a school class
-// PUT /api/dashboard/school-classes/:id
+// @Summary Update School Class
+// @Description Update an existing school class
+// @Tags Grades
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Class ID"
+// @Param request body services.SchoolClassInput true "School class data"
+// @Success 200 {object} utils.APIResponse{data=models.SchoolClass}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/school-classes/{id} [put]
 func (h *Handler) DashboardUpdateSchoolClass(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -229,7 +329,17 @@ func (h *Handler) DashboardUpdateSchoolClass(c *fiber.Ctx) error {
 }
 
 // DashboardDeleteSchoolClass deletes a school class
-// DELETE /api/dashboard/school-classes/:id
+// @Summary Delete School Class
+// @Description Delete a school class by ID
+// @Tags Grades
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Class ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/school-classes/{id} [delete]
 func (h *Handler) DashboardDeleteSchoolClass(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -245,6 +355,17 @@ func (h *Handler) DashboardDeleteSchoolClass(c *fiber.Ctx) error {
 }
 
 // DashboardListSubjects returns all subjects for dashboard
+// @Summary List Subjects (Dashboard)
+// @Description Get a paginated list of subjects for dashboard management
+// @Tags Grades
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.Subject}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/subjects [get]
 func (h *Handler) DashboardListSubjects(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	pag := utils.GetPagination(c)
@@ -258,6 +379,19 @@ func (h *Handler) DashboardListSubjects(c *fiber.Ctx) error {
 }
 
 // DashboardCreateSubject creates a subject
+// @Summary Create Subject
+// @Description Create a new subject
+// @Tags Grades
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param request body services.SubjectInput true "Subject data"
+// @Success 201 {object} utils.APIResponse{data=models.Subject}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/subjects [post]
 func (h *Handler) DashboardCreateSubject(c *fiber.Ctx) error {
 	var req services.SubjectInput
 	if err := c.BodyParser(&req); err != nil {
@@ -278,6 +412,18 @@ func (h *Handler) DashboardCreateSubject(c *fiber.Ctx) error {
 }
 
 // DashboardGetSubject returns a subject
+// @Summary Get Subject (Dashboard)
+// @Description Get a single subject by ID
+// @Tags Grades
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Subject ID"
+// @Success 200 {object} utils.APIResponse{data=models.Subject}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/subjects/{id} [get]
 func (h *Handler) DashboardGetSubject(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -298,6 +444,20 @@ func (h *Handler) DashboardGetSubject(c *fiber.Ctx) error {
 }
 
 // DashboardUpdateSubject updates a subject
+// @Summary Update Subject
+// @Description Update an existing subject
+// @Tags Grades
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Subject ID"
+// @Param request body services.SubjectInput true "Subject data"
+// @Success 200 {object} utils.APIResponse{data=models.Subject}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/subjects/{id} [put]
 func (h *Handler) DashboardUpdateSubject(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -326,6 +486,17 @@ func (h *Handler) DashboardUpdateSubject(c *fiber.Ctx) error {
 }
 
 // DashboardDeleteSubject deletes a subject
+// @Summary Delete Subject
+// @Description Delete a subject by ID
+// @Tags Grades
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Subject ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/subjects/{id} [delete]
 func (h *Handler) DashboardDeleteSubject(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -341,6 +512,17 @@ func (h *Handler) DashboardDeleteSubject(c *fiber.Ctx) error {
 }
 
 // DashboardListSemesters returns all semesters for dashboard
+// @Summary List Semesters (Dashboard)
+// @Description Get a paginated list of semesters for dashboard management
+// @Tags Grades
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} utils.APIResponse{data=[]models.Semester}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/semesters [get]
 func (h *Handler) DashboardListSemesters(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	pag := utils.GetPagination(c)
@@ -354,6 +536,19 @@ func (h *Handler) DashboardListSemesters(c *fiber.Ctx) error {
 }
 
 // DashboardCreateSemester creates a semester
+// @Summary Create Semester
+// @Description Create a new semester
+// @Tags Grades
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param request body services.SemesterInput true "Semester data"
+// @Success 201 {object} utils.APIResponse{data=models.Semester}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 422 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/semesters [post]
 func (h *Handler) DashboardCreateSemester(c *fiber.Ctx) error {
 	var req services.SemesterInput
 	if err := c.BodyParser(&req); err != nil {
@@ -371,6 +566,18 @@ func (h *Handler) DashboardCreateSemester(c *fiber.Ctx) error {
 }
 
 // DashboardGetSemester returns a semester
+// @Summary Get Semester (Dashboard)
+// @Description Get a single semester by ID
+// @Tags Grades
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Semester ID"
+// @Success 200 {object} utils.APIResponse{data=models.Semester}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/semesters/{id} [get]
 func (h *Handler) DashboardGetSemester(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -391,6 +598,20 @@ func (h *Handler) DashboardGetSemester(c *fiber.Ctx) error {
 }
 
 // DashboardUpdateSemester updates a semester
+// @Summary Update Semester
+// @Description Update an existing semester
+// @Tags Grades
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Semester ID"
+// @Param request body services.SemesterInput true "Semester data"
+// @Success 200 {object} utils.APIResponse{data=models.Semester}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 404 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/semesters/{id} [put]
 func (h *Handler) DashboardUpdateSemester(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
@@ -414,6 +635,17 @@ func (h *Handler) DashboardUpdateSemester(c *fiber.Ctx) error {
 }
 
 // DashboardDeleteSemester deletes a semester
+// @Summary Delete Semester
+// @Description Delete a semester by ID
+// @Tags Grades
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param id path int true "Semester ID"
+// @Success 200 {object} utils.APIResponse
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/semesters/{id} [delete]
 func (h *Handler) DashboardDeleteSemester(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {

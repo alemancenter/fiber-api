@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/alemancenter/fiber-api/internal/database"
+	_ "github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -20,7 +21,16 @@ func New(svc services.AnalyticsService) *Handler {
 }
 
 // VisitorAnalytics returns the full analytics payload expected by the frontend.
-// GET /api/dashboard/visitor-analytics?days=30
+// @Summary Get Visitor Analytics
+// @Description Returns comprehensive visitor analytics (e.g., page views, unique visitors, browser stats)
+// @Tags Analytics
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param days query int false "Number of days for analysis (default: 30)"
+// @Success 200 {object} utils.APIResponse{data=services.VisitorAnalyticsResponse}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/visitor-analytics [get]
 func (h *Handler) VisitorAnalytics(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
@@ -33,13 +43,24 @@ func (h *Handler) VisitorAnalytics(c *fiber.Ctx) error {
 	return utils.Success(c, "success", data)
 }
 
-// PruneAnalytics deletes old visitor data
-// POST /api/dashboard/visitor-analytics/prune
-func (h *Handler) PruneAnalytics(c *fiber.Ctx) error {
-	type PruneRequest struct {
-		Days int `json:"days"`
-	}
+type PruneRequest struct {
+	Days int `json:"days"`
+}
 
+// PruneAnalytics deletes old visitor data
+// @Summary Prune Analytics
+// @Description Delete visitor analytics data older than a specified number of days
+// @Tags Analytics
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Param request body PruneRequest false "Days to retain (default: 90)"
+// @Success 200 {object} utils.APIResponse{data=services.PruneAnalyticsResponse}
+// @Failure 400 {object} utils.APIResponse
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/visitor-analytics/prune [post]
+func (h *Handler) PruneAnalytics(c *fiber.Ctx) error {
 	var req PruneRequest
 	if err := c.BodyParser(&req); err != nil || req.Days == 0 {
 		req.Days = 90
@@ -54,7 +75,15 @@ func (h *Handler) PruneAnalytics(c *fiber.Ctx) error {
 }
 
 // DashboardSummary returns the main dashboard data expected by the frontend.
-// GET /api/dashboard
+// @Summary Dashboard Summary
+// @Description Returns the main dashboard summary including articles, posts, and file counts
+// @Tags Analytics
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Success 200 {object} utils.APIResponse{data=services.DashboardSummaryResponse}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard [get]
 func (h *Handler) DashboardSummary(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
@@ -63,7 +92,15 @@ func (h *Handler) DashboardSummary(c *fiber.Ctx) error {
 }
 
 // ContentAnalytics returns content performance
-// GET /api/dashboard/content-analytics
+// @Summary Content Analytics
+// @Description Get performance metrics for articles and posts (e.g., views)
+// @Tags Analytics
+// @Produce json
+// @Security BearerAuth
+// @Param X-Country-Id header string false "Country ID"
+// @Success 200 {object} utils.APIResponse{data=services.ContentAnalyticsResponse}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/content-analytics [get]
 func (h *Handler) ContentAnalytics(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 
@@ -72,28 +109,53 @@ func (h *Handler) ContentAnalytics(c *fiber.Ctx) error {
 }
 
 // PerformanceSummary returns app performance metrics
-// GET /api/dashboard/performance/summary
+// @Summary Performance Summary
+// @Description Get comprehensive backend performance metrics (uptime, memory, GC)
+// @Tags Analytics
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse{data=services.PerformanceSummaryResponse}
+// @Failure 500 {object} utils.APIResponse
+// @Router /dashboard/performance/summary [get]
 func (h *Handler) PerformanceSummary(c *fiber.Ctx) error {
 	data := h.svc.GetPerformanceSummary()
 	return utils.Success(c, "success", data)
 }
 
 // PerformanceLive returns lightweight live metrics expected by the dashboard.
-// GET /api/dashboard/performance/live
+// @Summary Live Performance Metrics
+// @Description Fast lightweight endpoint for polling live server load (CPU, Mem)
+// @Tags Analytics
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
+// @Router /dashboard/performance/live [get]
 func (h *Handler) PerformanceLive(c *fiber.Ctx) error {
 	data := h.svc.GetPerformanceLive()
 	return utils.Success(c, "success", data)
 }
 
 // PerformanceResponseTime measures a cheap internal Redis ping.
-// GET /api/dashboard/performance/response-time
+// @Summary API Response Time
+// @Description Returns the latency of an internal cache (Redis) ping
+// @Tags Analytics
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
+// @Router /dashboard/performance/response-time [get]
 func (h *Handler) PerformanceResponseTime(c *fiber.Ctx) error {
 	data := h.svc.GetPerformanceResponseTime()
 	return utils.Success(c, "success", data)
 }
 
 // PerformanceCache returns Redis cache hit ratio and size.
-// GET /api/dashboard/performance/cache
+// @Summary Cache Performance
+// @Description Returns the Redis cache hit ratio and total keys
+// @Tags Analytics
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.APIResponse{data=map[string]interface{}}
+// @Router /dashboard/performance/cache [get]
 func (h *Handler) PerformanceCache(c *fiber.Ctx) error {
 	data := h.svc.GetPerformanceCache()
 	return utils.Success(c, "success", data)
