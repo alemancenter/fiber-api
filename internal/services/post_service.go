@@ -1,6 +1,8 @@
 package services
 
 import (
+	"time"
+
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/repositories"
@@ -38,16 +40,42 @@ type UpdatePostRequest struct {
 }
 
 type postService struct {
-	repo repositories.PostRepository
+	repo  repositories.PostRepository
+	cache CacheService
 }
 
-func NewPostService(repo repositories.PostRepository) PostService {
-	return &postService{repo: repo}
+func NewPostService(repo repositories.PostRepository, cache CacheService) PostService {
+	return &postService{repo: repo, cache: cache}
 }
 
 func (s *postService) List(countryID database.CountryID, filter *models.PostFilter, limit, offset int) ([]models.Post, int64, error) {
+	cacheKey := utils.CacheKey("posts:list", countryID, limit, offset, filter)
+
+	var cached struct {
+		Posts []models.Post `json:"posts"`
+		Total int64         `json:"total"`
+	}
+
+	if s.cache != nil && s.cache.Get(cacheKey, &cached) {
+		return cached.Posts, cached.Total, nil
+	}
+
 	posts, total, err := s.repo.ListPaginated(countryID, filter, limit, offset)
-	return posts, total, MapError(err)
+	if err != nil {
+		return nil, 0, MapError(err)
+	}
+
+	if s.cache != nil {
+		_ = s.cache.Set(cacheKey, struct {
+			Posts []models.Post `json:"posts"`
+			Total int64         `json:"total"`
+		}{
+			Posts: posts,
+			Total: total,
+		}, 5*time.Minute)
+	}
+
+	return posts, total, nil
 }
 
 func (s *postService) GetByID(countryID database.CountryID, id uint64) (*models.Post, error) {
@@ -100,6 +128,11 @@ func (s *postService) Create(countryID database.CountryID, countryCode string, u
 		return nil, MapError(err)
 	}
 
+	if s.cache != nil {
+		_ = s.cache.DeletePattern("posts:list:*")
+		_ = s.cache.DeletePattern("home:*")
+	}
+
 	return post, nil
 }
 
@@ -143,6 +176,11 @@ func (s *postService) Update(countryID database.CountryID, id uint64, req *Updat
 		return nil, MapError(err)
 	}
 
+	if s.cache != nil {
+		_ = s.cache.DeletePattern("posts:list:*")
+		_ = s.cache.DeletePattern("home:*")
+	}
+
 	return post, nil
 }
 
@@ -156,5 +194,10 @@ func (s *postService) Delete(countryID database.CountryID, id uint64, callerID u
 		return ErrForbidden
 	}
 
-	return s.repo.Delete(countryID, id)
+	err = s.repo.Delete(countryID, id)
+	if err == nil && s.cache != nil {
+		_ = s.cache.DeletePattern("posts:list:*")
+		_ = s.cache.DeletePattern("home:*")
+	}
+	return MapError(err)
 }

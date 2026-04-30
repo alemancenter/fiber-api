@@ -83,7 +83,7 @@ func TestPostService_GetByID(t *testing.T) {
 	t.Setenv("FRONTEND_URL", "http://localhost:3000")
 
 	mockRepo := &MockPostRepository{}
-	svc := NewPostService(mockRepo)
+	svc := NewPostService(mockRepo, nil)
 
 	t.Run("Success", func(t *testing.T) {
 		expectedPost := &models.Post{
@@ -125,7 +125,7 @@ func TestPostService_Create(t *testing.T) {
 	t.Setenv("FRONTEND_URL", "http://localhost:3000")
 
 	mockRepo := &MockPostRepository{}
-	svc := NewPostService(mockRepo)
+	svc := NewPostService(mockRepo, nil)
 
 	t.Run("Success", func(t *testing.T) {
 		req := &CreatePostRequest{

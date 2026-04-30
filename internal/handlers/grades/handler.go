@@ -54,7 +54,10 @@ func (h *Handler) GetSchoolClass(c *fiber.Ctx) error {
 
 	class, err := h.svc.GetSchoolClass(countryID, id)
 	if err != nil {
-		return utils.NotFound(c)
+		if err == services.ErrNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c)
 	}
 
 	return utils.Success(c, "success", class)
@@ -148,7 +151,10 @@ func (h *Handler) DownloadGradeFile(c *fiber.Ctx) error {
 
 	file, err := h.fileSvc.FindByID(countryID, id)
 	if err != nil {
-		return utils.NotFound(c)
+		if err == services.ErrNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c)
 	}
 
 	absPath := h.fileSvc.GetAbsPath(file.FilePath)
@@ -213,7 +219,10 @@ func (h *Handler) DashboardUpdateSchoolClass(c *fiber.Ctx) error {
 
 	class, err := h.svc.UpdateSchoolClass(countryID, id, &req)
 	if err != nil {
-		return utils.NotFound(c)
+		if err == services.ErrNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c, "فشل تحديث الصف")
 	}
 
 	return utils.Success(c, "تم تحديث الصف بنجاح", class)
@@ -279,7 +288,10 @@ func (h *Handler) DashboardGetSubject(c *fiber.Ctx) error {
 
 	subject, err := h.svc.GetSubject(countryID, id)
 	if err != nil {
-		return utils.NotFound(c)
+		if err == services.ErrNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c)
 	}
 
 	return utils.Success(c, "success", subject)
@@ -304,7 +316,10 @@ func (h *Handler) DashboardUpdateSubject(c *fiber.Ctx) error {
 
 	subject, err := h.svc.UpdateSubject(countryID, id, &req)
 	if err != nil {
-		return utils.NotFound(c)
+		if err == services.ErrNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c, "فشل تحديث المادة")
 	}
 
 	return utils.Success(c, "تم تحديث المادة بنجاح", subject)
@@ -366,7 +381,10 @@ func (h *Handler) DashboardGetSemester(c *fiber.Ctx) error {
 
 	semester, err := h.svc.GetSemester(countryID, id)
 	if err != nil {
-		return utils.NotFound(c)
+		if err == services.ErrNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c)
 	}
 
 	return utils.Success(c, "success", semester)
@@ -386,7 +404,10 @@ func (h *Handler) DashboardUpdateSemester(c *fiber.Ctx) error {
 
 	semester, err := h.svc.UpdateSemester(countryID, id, &req)
 	if err != nil {
-		return utils.NotFound(c)
+		if err == services.ErrNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c, "فشل تحديث الفصل الدراسي")
 	}
 
 	return utils.Success(c, "تم تحديث الفصل الدراسي بنجاح", semester)

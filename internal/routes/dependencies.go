@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/handlers/ai"
 	"github.com/alemancenter/fiber-api/internal/handlers/analytics"
 	"github.com/alemancenter/fiber-api/internal/handlers/articles"
@@ -12,6 +13,7 @@ import (
 	"github.com/alemancenter/fiber-api/internal/handlers/files"
 	"github.com/alemancenter/fiber-api/internal/handlers/grades"
 	"github.com/alemancenter/fiber-api/internal/handlers/health"
+	"github.com/alemancenter/fiber-api/internal/handlers/home"
 	"github.com/alemancenter/fiber-api/internal/handlers/keywords"
 	"github.com/alemancenter/fiber-api/internal/handlers/messages"
 	"github.com/alemancenter/fiber-api/internal/handlers/notifications"
@@ -46,16 +48,20 @@ type Handlers struct {
 	Roles         *roles.Handler
 	Redis         *redisHandler.Handler
 	Health        *health.Handler
+	Home          *home.Handler
 	Keywords      *keywords.Handler
 	AI            *ai.Handler
 }
 
 func NewDependencies() *Handlers {
 	// Initialize Dependencies
+
+	cacheSvc := services.NewCacheService(database.Redis().Cache())
+
 	fileRepo := repositories.NewFileRepository()
 	fileSvc := services.NewFileService(fileRepo)
 	articleRepo := repositories.NewArticleRepository()
-	articleSvc := services.NewArticleService(articleRepo, fileSvc)
+	articleSvc := services.NewArticleService(articleRepo, fileSvc, cacheSvc)
 
 	userRepo := repositories.NewUserRepository()
 	jwtSvc := services.NewJWTService()
@@ -64,15 +70,15 @@ func NewDependencies() *Handlers {
 	userSvc := services.NewUserService(userRepo)
 
 	categoryRepo := repositories.NewCategoryRepository()
-	categorySvc := services.NewCategoryService(categoryRepo)
+	categorySvc := services.NewCategoryService(categoryRepo, cacheSvc)
 
 	commentRepo := repositories.NewCommentRepository()
 	commentSvc := services.NewCommentService(commentRepo)
 	postRepo := repositories.NewPostRepository()
-	postSvc := services.NewPostService(postRepo)
+	postSvc := services.NewPostService(postRepo, cacheSvc)
 
 	gradeRepo := repositories.NewGradeRepository()
-	gradeSvc := services.NewGradeService(gradeRepo)
+	gradeSvc := services.NewGradeService(gradeRepo, cacheSvc)
 
 	calendarRepo := repositories.NewCalendarRepository()
 	calendarSvc := services.NewCalendarService(calendarRepo)
@@ -112,6 +118,8 @@ func NewDependencies() *Handlers {
 
 	aiSvc := services.NewAIService()
 
+	homeSvc := services.NewHomeService(articleRepo, postRepo, categoryRepo, gradeRepo, cacheSvc)
+
 	return &Handlers{
 		Dashboard:     dashboard.New(dashboardSvc),
 		Auth:          auth.New(authSvc),
@@ -132,6 +140,7 @@ func NewDependencies() *Handlers {
 		Roles:         roles.New(roleSvc),
 		Redis:         redisHandler.New(redisSvc),
 		Health:        health.New(healthSvc),
+		Home:          home.New(homeSvc),
 		Keywords:      keywords.New(keywordSvc),
 		AI:            ai.New(aiSvc),
 	}

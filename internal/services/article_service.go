@@ -66,18 +66,45 @@ type ArticleService interface {
 type articleService struct {
 	repo    repositories.ArticleRepository
 	fileSvc *FileService
+	cache   CacheService
 }
 
-func NewArticleService(repo repositories.ArticleRepository, fileSvc *FileService) ArticleService {
+func NewArticleService(repo repositories.ArticleRepository, fileSvc *FileService, cache CacheService) ArticleService {
 	return &articleService{
 		repo:    repo,
 		fileSvc: fileSvc,
+		cache:   cache,
 	}
 }
 
 func (s *articleService) List(countryID database.CountryID, pag utils.Pagination, filter *models.ArticleFilter) ([]models.Article, int64, error) {
+	cacheKey := utils.CacheKey("articles:list", countryID, pag.Page, pag.PerPage, filter)
+
+	var cached struct {
+		Articles []models.Article `json:"articles"`
+		Total    int64            `json:"total"`
+	}
+
+	if s.cache != nil && s.cache.Get(cacheKey, &cached) {
+		return cached.Articles, cached.Total, nil
+	}
+
 	articles, total, err := s.repo.List(countryID, pag, filter)
-	return articles, total, MapError(err)
+	if err != nil {
+		return nil, 0, MapError(err)
+	}
+
+	if s.cache != nil {
+		_ = s.cache.Set(cacheKey, struct {
+			Articles []models.Article `json:"articles"`
+			Total    int64            `json:"total"`
+		}{
+			Articles: articles,
+			Total:    total,
+		}, 5*time.Minute)
+	}
+
+	return articles, total, nil
 }
 
 func (s *articleService) GetByID(countryID database.CountryID, id uint64) (*models.Article, error) {
@@ -261,6 +288,12 @@ func (s *articleService) CreateArticle(countryID database.CountryID, req *Articl
 	if err != nil {
 		return nil, MapError(err)
 	}
+
+	if s.cache != nil {
+		_ = s.cache.DeletePattern("articles:list:*")
+		_ = s.cache.DeletePattern("home:*")
+	}
+
 	if authorID != nil {
 		LogActivity("أنشأ مقالة: "+article.Title, "Article", article.ID, *authorID)
 	}
@@ -303,6 +336,11 @@ func (s *articleService) UpdateArticle(countryID database.CountryID, id uint64, 
 		return nil, MapError(err)
 	}
 
+	if s.cache != nil {
+		_ = s.cache.DeletePattern("articles:list:*")
+		_ = s.cache.DeletePattern("home:*")
+	}
+
 	if authorID != nil {
 		LogActivity("حدّث مقالة: "+article.Title, "Article", article.ID, *authorID)
 	}
@@ -317,8 +355,14 @@ func (s *articleService) DeleteArticle(countryID database.CountryID, id uint64, 
 	}
 
 	err = s.repo.Delete(countryID, article)
-	if err == nil && authorID != nil {
-		LogActivity("حذف مقالة: "+article.Title, "Article", article.ID, *authorID)
+	if err == nil {
+		if s.cache != nil {
+			_ = s.cache.DeletePattern("articles:list:*")
+			_ = s.cache.DeletePattern("home:*")
+		}
+		if authorID != nil {
+			LogActivity("حذف مقالة: "+article.Title, "Article", article.ID, *authorID)
+		}
 	}
 
 	return MapError(err)
@@ -332,6 +376,12 @@ func (s *articleService) SetArticleStatus(countryID database.CountryID, id uint6
 
 	article.Status = status
 	err = s.repo.Update(countryID, article)
+
+	if err == nil && s.cache != nil {
+		_ = s.cache.DeletePattern("articles:list:*")
+		_ = s.cache.DeletePattern("home:*")
+	}
+
 	return article, MapError(err)
 }
 

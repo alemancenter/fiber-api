@@ -39,11 +39,12 @@ type UpdateCategoryRequest struct {
 }
 
 type categoryService struct {
-	repo repositories.CategoryRepository
+	repo  repositories.CategoryRepository
+	cache CacheService
 }
 
-func NewCategoryService(repo repositories.CategoryRepository) CategoryService {
-	return &categoryService{repo: repo}
+func NewCategoryService(repo repositories.CategoryRepository, cache CacheService) CategoryService {
+	return &categoryService{repo: repo, cache: cache}
 }
 
 func categoriesKey(countryID database.CountryID) string {
@@ -51,6 +52,9 @@ func categoriesKey(countryID database.CountryID) string {
 }
 
 func (s *categoryService) invalidateCache(countryID database.CountryID) {
+	if s.cache != nil {
+		_ = s.cache.DeletePattern("home:*")
+	}
 	InvalidateCache(categoriesKey(countryID))
 }
 

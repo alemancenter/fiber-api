@@ -2,7 +2,6 @@ package routes
 
 import (
 	"github.com/alemancenter/fiber-api/internal/middleware"
-	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -14,9 +13,7 @@ func registerAnalyticsRoutes(public, dash fiber.Router, h *Handlers) {
 	// =====================
 
 	// Basic public home
-	public.Get("/home", func(c *fiber.Ctx) error {
-		return utils.Success(c, "success", "مرحباً بك في Alemancenter API")
-	})
+	public.Get("/home", h.Home.GetHome)
 
 	// =====================
 	// ADMIN DASHBOARD ROUTES

@@ -71,7 +71,7 @@ func TestArticleService_GetByID(t *testing.T) {
 
 	mockRepo := &MockArticleRepository{}
 	// FileService can be nil for this test as we don't use it in GetByID
-	svc := NewArticleService(mockRepo, nil)
+	svc := NewArticleService(mockRepo, nil, nil)
 
 	t.Run("Success", func(t *testing.T) {
 		expectedArticle := &models.Article{
@@ -118,7 +118,7 @@ func TestArticleService_CreateArticle(t *testing.T) {
 	t.Setenv("FRONTEND_URL", "http://localhost:3000")
 
 	mockRepo := &MockArticleRepository{}
-	svc := NewArticleService(mockRepo, nil)
+	svc := NewArticleService(mockRepo, nil, nil)
 
 	t.Run("Success", func(t *testing.T) {
 		newArticle := &ArticleInput{
