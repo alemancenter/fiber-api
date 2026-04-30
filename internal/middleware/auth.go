@@ -12,7 +12,9 @@ import (
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
+	"github.com/alemancenter/fiber-api/pkg/logger"
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 )
 
 // userCacheTTL is intentionally short so permission revocations take effect quickly.
@@ -101,6 +103,7 @@ func OptionalAuth() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			logger.Debug("[OA] no token, passing through", zap.String("path", c.Path()))
 			return c.Next()
 		}
 

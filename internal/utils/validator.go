@@ -153,3 +153,18 @@ func sanitizeValue(v reflect.Value) {
 		}
 	}
 }
+
+func SplitKeywords(keywordsStr string) []string {
+	if keywordsStr == "" {
+		return nil
+	}
+	parts := strings.Split(keywordsStr, ",")
+	var result []string
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}

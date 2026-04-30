@@ -14,7 +14,6 @@ type Article struct {
 	SemesterID      *uint      `gorm:"index" json:"semester_id,omitempty"`
 	AuthorID        *uint      `gorm:"index" json:"author_id,omitempty"`
 	MetaDescription *string    `gorm:"type:varchar(500)" json:"meta_description,omitempty"`
-	Keywords        *string    `gorm:"type:text" json:"keywords,omitempty"`
 	Status          int8       `gorm:"default:0" json:"status"` // 0=draft, 1=published
 	VisitCount      int        `gorm:"default:0" json:"visit_count"`
 	PublishedAt     *time.Time `json:"published_at,omitempty"`

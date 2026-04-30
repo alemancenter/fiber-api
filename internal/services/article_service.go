@@ -14,14 +14,14 @@ import (
 )
 
 type ArticleInput struct {
-	Title           string `json:"title" validate:"required,min=3,max=500"`
-	Content         string `json:"content" validate:"required"`
-	GradeLevel      string `json:"grade_level"`
-	SubjectID       *uint  `json:"subject_id"`
-	SemesterID      *uint  `json:"semester_id"`
-	MetaDescription string `json:"meta_description" validate:"omitempty,max=500"`
-	Keywords        string `json:"keywords"`
-	Status          *int8  `json:"status" validate:"omitempty,oneof=0 1"`
+	Title           string `json:"title" form:"title" validate:"required,min=3,max=500"`
+	Content         string `json:"content" form:"content" validate:"required"`
+	GradeLevel      string `json:"grade_level" form:"class_id"`
+	SubjectID       *uint  `json:"subject_id" form:"subject_id"`
+	SemesterID      *uint  `json:"semester_id" form:"semester_id"`
+	MetaDescription string `json:"meta_description" form:"meta_description" validate:"omitempty,max=500"`
+	Keywords        string `json:"keywords" form:"keywords"`
+	Status          *int8  `json:"status" form:"status" validate:"omitempty,oneof=0 1"`
 }
 
 type ArticleDashboardCreateData struct {
@@ -276,9 +276,6 @@ func (s *articleService) CreateArticle(countryID database.CountryID, req *Articl
 	if req.MetaDescription != "" {
 		article.MetaDescription = &req.MetaDescription
 	}
-	if req.Keywords != "" {
-		article.Keywords = &req.Keywords
-	}
 
 	if authorID != nil {
 		article.AuthorID = authorID
@@ -287,6 +284,14 @@ func (s *articleService) CreateArticle(countryID database.CountryID, req *Articl
 	err := s.repo.Create(countryID, article)
 	if err != nil {
 		return nil, MapError(err)
+	}
+
+	// Handle Keywords using KeywordsRel many-to-many relationship
+	if req.Keywords != "" {
+		if err := s.repo.UpdateKeywords(countryID, article.ID, req.Keywords); err != nil {
+			// Log the error but don't fail the article creation
+			fmt.Printf("failed to update keywords for article %d: %v\n", article.ID, err)
+		}
 	}
 
 	if s.cache != nil {
@@ -324,9 +329,9 @@ func (s *articleService) UpdateArticle(countryID database.CountryID, id uint64, 
 	if req.MetaDescription != "" {
 		article.MetaDescription = &req.MetaDescription
 	}
-	if req.Keywords != "" {
-		article.Keywords = &req.Keywords
-	}
+
+	// TODO: Handle Keywords using KeywordsRel many-to-many relationship
+
 	if req.Status != nil {
 		article.Status = *req.Status
 	}
@@ -334,6 +339,14 @@ func (s *articleService) UpdateArticle(countryID database.CountryID, id uint64, 
 	err = s.repo.Update(countryID, article)
 	if err != nil {
 		return nil, MapError(err)
+	}
+
+	// Handle Keywords using KeywordsRel many-to-many relationship
+	if req.Keywords != "" {
+		if err := s.repo.UpdateKeywords(countryID, article.ID, req.Keywords); err != nil {
+			// Log the error but don't fail the article update
+			fmt.Printf("failed to update keywords for article %d: %v\n", article.ID, err)
+		}
 	}
 
 	if s.cache != nil {
@@ -375,6 +388,12 @@ func (s *articleService) SetArticleStatus(countryID database.CountryID, id uint6
 	}
 
 	article.Status = status
+	if status == 1 && article.PublishedAt == nil {
+		now := time.Now()
+		article.PublishedAt = &now
+	} else if status == 0 {
+		article.PublishedAt = nil
+	}
 	err = s.repo.Update(countryID, article)
 
 	if err == nil && s.cache != nil {

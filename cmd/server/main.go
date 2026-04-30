@@ -10,6 +10,7 @@ import (
 	"github.com/alemancenter/fiber-api/internal/config"
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/middleware"
+	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/routes"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
@@ -18,6 +19,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -50,6 +52,20 @@ func main() {
 			logger.Info("Database connected", zap.String("country", country))
 		} else {
 			logger.Error("Database connection failed", zap.String("country", country))
+		}
+	}
+
+	// Auto-migrate: add any missing columns (safe — never drops existing data)
+	migrateTargets := []interface{}{&models.Article{}}
+	seen := make(map[*gorm.DB]bool)
+	for _, id := range []database.CountryID{database.CountryJordan, database.CountrySaudi, database.CountryEgypt, database.CountryPalestine} {
+		db := dbManager.Get(id)
+		if seen[db] {
+			continue
+		}
+		seen[db] = true
+		if err := db.AutoMigrate(migrateTargets...); err != nil {
+			logger.Warn("auto-migrate failed", zap.String("country", database.CountryCode(id)), zap.Error(err))
 		}
 	}
 

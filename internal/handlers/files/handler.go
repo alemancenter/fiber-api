@@ -173,7 +173,17 @@ func (h *Handler) DashboardUpload(c *fiber.Ctx) error {
 		}
 	}
 
-	file, err := h.svc.CreateRecord(countryID, uploaded, articleIDPtr, postIDPtr)
+	var fileNamePtr *string
+	if fn := c.FormValue("file_name"); fn != "" {
+		fileNamePtr = &fn
+	}
+
+	var fileCatPtr *string
+	if fc := c.FormValue("file_category"); fc != "" {
+		fileCatPtr = &fc
+	}
+
+	file, err := h.svc.CreateRecord(countryID, uploaded, articleIDPtr, postIDPtr, fileNamePtr, fileCatPtr)
 	if err != nil {
 		return utils.InternalError(c, "فشل حفظ بيانات الملف")
 	}

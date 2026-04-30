@@ -162,7 +162,7 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 					)
 					continue
 				}
-				if _, recErr := fileSvc.CreateRecord(countryID, uploaded, nil, &postID); recErr != nil {
+				if _, recErr := fileSvc.CreateRecord(countryID, uploaded, nil, &postID, nil, nil); recErr != nil {
 					logger.Warn("post attachment record creation failed",
 						zap.String("path", uploaded.Path),
 						zap.Error(recErr),
@@ -236,7 +236,7 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 					)
 					continue
 				}
-				if _, recErr := fileSvc.CreateRecord(countryID, uploaded, nil, &postID); recErr != nil {
+				if _, recErr := fileSvc.CreateRecord(countryID, uploaded, nil, &postID, nil, nil); recErr != nil {
 					logger.Warn("post attachment record creation failed",
 						zap.String("path", uploaded.Path),
 						zap.Error(recErr),

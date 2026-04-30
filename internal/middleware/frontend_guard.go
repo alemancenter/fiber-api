@@ -50,8 +50,16 @@ func FrontendGuard() fiber.Handler {
 		// 1. Localhost bypass — any request from the same machine is trusted
 		if utils.IsLocalhost(clientIP) {
 			c.Locals("client_type", "localhost")
+			logger.Debug("[FG] tier-1 localhost bypass",
+				zap.String("path", path),
+				zap.String("ip", clientIP),
+			)
 			return continueWithCountry(c, cfg)
 		}
+		logger.Debug("[FG] tier-1 NOT localhost",
+			zap.String("path", path),
+			zap.String("ip", clientIP),
+		)
 
 		// 2. SSR (Server-Side Rendering) detection — Node.js/Next.js
 		if utils.IsSSRUserAgent(userAgent) {

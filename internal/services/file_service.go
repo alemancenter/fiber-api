@@ -134,8 +134,9 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 	}
 
 	// Validate MIME type
-	if !isAllowedMime(mtype.String(), allowed) {
-		return nil, fmt.Errorf("نوع الملف غير مسموح: %s", mtype.String())
+	baseMime := strings.Split(mtype.String(), ";")[0]
+	if !isAllowedMime(baseMime, allowed) {
+		return nil, fmt.Errorf("نوع الملف غير مسموح: %s", baseMime)
 	}
 
 	// Validate that the uploaded filename's extension matches the detected MIME type.
@@ -143,7 +144,7 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 	// MIME detection but would execute if served directly).
 	uploadedExt := strings.ToLower(filepath.Ext(header.Filename))
 	if uploadedExt != "" {
-		allowedExts := allowedExtensionsForMime(mtype.String())
+		allowedExts := allowedExtensionsForMime(baseMime)
 		if len(allowedExts) > 0 && !containsStr(allowedExts, uploadedExt) {
 			return nil, fmt.Errorf("امتداد الملف غير مطابق لنوعه: %s", uploadedExt)
 		}
@@ -301,7 +302,7 @@ func (s *FileService) IncrementViewCount(countryID database.CountryID, id uint64
 	return ViewCounter.IncrementFileView(countryID, id)
 }
 
-func (s *FileService) CreateRecord(countryID database.CountryID, uploaded *UploadedFile, articleID *uint, postID *uint) (*models.File, error) {
+func (s *FileService) CreateRecord(countryID database.CountryID, uploaded *UploadedFile, articleID *uint, postID *uint, fileName *string, fileCategory *string) (*models.File, error) {
 	file := &models.File{
 		FilePath:  uploaded.Path,
 		FileType:  uploaded.Ext,
@@ -310,6 +311,13 @@ func (s *FileService) CreateRecord(countryID database.CountryID, uploaded *Uploa
 		MimeType:  uploaded.MimeType,
 		ArticleID: articleID,
 		PostID:    postID,
+	}
+
+	if fileName != nil && *fileName != "" {
+		file.FileName = *fileName
+	}
+	if fileCategory != nil && *fileCategory != "" {
+		file.FileCategory = fileCategory
 	}
 
 	if err := s.repo.Create(countryID, file); err != nil {
@@ -321,9 +329,10 @@ func (s *FileService) CreateRecord(countryID database.CountryID, uploaded *Uploa
 
 // UpdateFileInput represents allowed file updates
 type UpdateFileInput struct {
-	FileName  string `json:"file_name"`
-	ArticleID *uint  `json:"article_id"`
-	PostID    *uint  `json:"post_id"`
+	FileName     string  `json:"file_name"`
+	FileCategory *string `json:"file_category"`
+	ArticleID    *uint   `json:"article_id"`
+	PostID       *uint   `json:"post_id"`
 }
 
 func (s *FileService) UpdateRecord(countryID database.CountryID, id uint64, req *UpdateFileInput) (*models.File, error) {
@@ -334,6 +343,9 @@ func (s *FileService) UpdateRecord(countryID database.CountryID, id uint64, req 
 
 	if req.FileName != "" {
 		file.FileName = req.FileName
+	}
+	if req.FileCategory != nil {
+		file.FileCategory = req.FileCategory
 	}
 	if req.ArticleID != nil {
 		file.ArticleID = req.ArticleID

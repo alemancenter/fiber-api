@@ -21,6 +21,9 @@ type MockArticleRepository struct {
 	FindByIDWithCommentsFunc func(countryID database.CountryID, id uint64) (*models.Article, error)
 	IncrementViewFunc        func(countryID database.CountryID, id uint64) error
 	CreateFunc               func(countryID database.CountryID, article *models.Article) error
+	UpdateFunc               func(countryID database.CountryID, article *models.Article) error
+	DeleteFunc               func(countryID database.CountryID, article *models.Article) error
+	GetFileByIDFunc          func(countryID database.CountryID, fileID uint64) (*models.File, error)
 }
 
 func (m *MockArticleRepository) List(countryID database.CountryID, pag utils.Pagination, filters *models.ArticleFilter) ([]models.Article, int64, error) {
@@ -59,6 +62,27 @@ func (m *MockArticleRepository) Create(countryID database.CountryID, article *mo
 		return m.CreateFunc(countryID, article)
 	}
 	return nil
+}
+
+func (m *MockArticleRepository) Update(countryID database.CountryID, article *models.Article) error {
+	if m.UpdateFunc != nil {
+		return m.UpdateFunc(countryID, article)
+	}
+	return nil
+}
+
+func (m *MockArticleRepository) Delete(countryID database.CountryID, article *models.Article) error {
+	if m.DeleteFunc != nil {
+		return m.DeleteFunc(countryID, article)
+	}
+	return nil
+}
+
+func (m *MockArticleRepository) GetFileByID(countryID database.CountryID, fileID uint64) (*models.File, error) {
+	if m.GetFileByIDFunc != nil {
+		return m.GetFileByIDFunc(countryID, fileID)
+	}
+	return nil, gorm.ErrRecordNotFound
 }
 
 func TestArticleService_GetByID(t *testing.T) {
@@ -106,6 +130,145 @@ func TestArticleService_GetByID(t *testing.T) {
 		assert.Error(t, err)
 		assert.Equal(t, gorm.ErrRecordNotFound, err)
 		assert.Nil(t, article)
+	})
+}
+
+func TestArticleService_UpdateArticle(t *testing.T) {
+	t.Setenv("JWT_SECRET", "test_secret_key_12345678901234567890")
+	t.Setenv("DB_HOST_JO", "localhost")
+	t.Setenv("DB_NAME_JO", "test_db")
+	t.Setenv("DB_USER_JO", "root")
+	t.Setenv("APP_URL", "http://localhost")
+	t.Setenv("FRONTEND_URL", "http://localhost:3000")
+
+	mockRepo := &MockArticleRepository{}
+	svc := NewArticleService(mockRepo, nil, nil)
+
+	t.Run("Success", func(t *testing.T) {
+		existingArticle := &models.Article{
+			ID:    1,
+			Title: "Old Title",
+		}
+
+		mockRepo.FindByIDFunc = func(countryID database.CountryID, id uint64) (*models.Article, error) {
+			return existingArticle, nil
+		}
+
+		updateReq := &ArticleInput{
+			Title: "Updated Title",
+		}
+
+		mockRepo.UpdateFunc = func(countryID database.CountryID, article *models.Article) error {
+			assert.Equal(t, "Updated Title", article.Title)
+			return nil
+		}
+
+		originalLogActivity := LogActivity
+		defer func() { LogActivity = originalLogActivity }()
+		LogActivity = func(action string, entityType string, entityID uint, userID uint) {}
+
+		var authorID uint = 10
+		article, err := svc.UpdateArticle(database.CountryJordan, 1, updateReq, &authorID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, article)
+		assert.Equal(t, "Updated Title", article.Title)
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		mockRepo.FindByIDFunc = func(countryID database.CountryID, id uint64) (*models.Article, error) {
+			return nil, gorm.ErrRecordNotFound
+		}
+
+		updateReq := &ArticleInput{Title: "Updated Title"}
+		article, err := svc.UpdateArticle(database.CountryJordan, 99, updateReq, nil)
+
+		assert.Error(t, err)
+		assert.Equal(t, ErrNotFound, err)
+		assert.Nil(t, article)
+	})
+}
+
+func TestArticleService_DeleteArticle(t *testing.T) {
+	t.Setenv("JWT_SECRET", "test_secret_key_12345678901234567890")
+	t.Setenv("DB_HOST_JO", "localhost")
+	t.Setenv("DB_NAME_JO", "test_db")
+	t.Setenv("DB_USER_JO", "root")
+	t.Setenv("APP_URL", "http://localhost")
+	t.Setenv("FRONTEND_URL", "http://localhost:3000")
+
+	mockRepo := &MockArticleRepository{}
+	svc := NewArticleService(mockRepo, nil, nil)
+
+	t.Run("Success", func(t *testing.T) {
+		existingArticle := &models.Article{
+			ID:    1,
+			Title: "To Delete",
+		}
+
+		mockRepo.FindByIDFunc = func(countryID database.CountryID, id uint64) (*models.Article, error) {
+			return existingArticle, nil
+		}
+
+		mockRepo.DeleteFunc = func(countryID database.CountryID, article *models.Article) error {
+			assert.Equal(t, uint(1), article.ID)
+			return nil
+		}
+
+		originalLogActivity := LogActivity
+		defer func() { LogActivity = originalLogActivity }()
+		LogActivity = func(action string, entityType string, entityID uint, userID uint) {}
+
+		var authorID uint = 10
+		err := svc.DeleteArticle(database.CountryJordan, 1, &authorID)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		mockRepo.FindByIDFunc = func(countryID database.CountryID, id uint64) (*models.Article, error) {
+			return nil, gorm.ErrRecordNotFound
+		}
+
+		err := svc.DeleteArticle(database.CountryJordan, 99, nil)
+
+		assert.Error(t, err)
+		assert.Equal(t, ErrNotFound, err)
+	})
+}
+
+func TestArticleService_GetSignedDownloadToken(t *testing.T) {
+	t.Setenv("JWT_SECRET", "test_secret_key_12345678901234567890")
+	t.Setenv("DB_HOST_JO", "localhost")
+	t.Setenv("DB_NAME_JO", "test_db")
+	t.Setenv("DB_USER_JO", "root")
+	t.Setenv("APP_URL", "http://localhost")
+	t.Setenv("FRONTEND_URL", "http://localhost:3000")
+
+	mockRepo := &MockArticleRepository{}
+	svc := NewArticleService(mockRepo, nil, nil)
+
+	t.Run("Success", func(t *testing.T) {
+		mockRepo.GetFileByIDFunc = func(countryID database.CountryID, fileID uint64) (*models.File, error) {
+			return &models.File{ID: 1, FilePath: "/test.pdf"}, nil
+		}
+
+		token, err := svc.GetSignedDownloadToken(database.CountryJordan, 1)
+
+		assert.NoError(t, err)
+		assert.NotEmpty(t, token)
+	})
+
+	t.Run("FileNotFound", func(t *testing.T) {
+		mockRepo.GetFileByIDFunc = func(countryID database.CountryID, fileID uint64) (*models.File, error) {
+			return nil, gorm.ErrRecordNotFound
+		}
+
+		token, err := svc.GetSignedDownloadToken(database.CountryJordan, 99)
+
+		assert.Error(t, err)
+		assert.Equal(t, ErrNotFound, err)
+		assert.Empty(t, token)
 	})
 }
 

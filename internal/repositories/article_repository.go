@@ -24,6 +24,7 @@ type ArticleRepository interface {
 	GetSubjectByID(countryID database.CountryID, subjectID uint) (*models.Subject, error)
 	GetSemestersByClass(countryID database.CountryID, classID uint) ([]models.Semester, error)
 	GetStats(countryID database.CountryID) (total, published, drafts, views int64, err error)
+	UpdateKeywords(countryID database.CountryID, articleID uint, keywordsStr string) error
 }
 
 type articleRepository struct{}
@@ -225,4 +226,27 @@ func (r *articleRepository) GetStats(countryID database.CountryID) (total, publi
 			"COALESCE(SUM(visit_count), 0) AS views",
 	).Scan(&row).Error
 	return row.Total, row.Published, row.Drafts, row.Views, err
+}
+
+func (r *articleRepository) UpdateKeywords(countryID database.CountryID, articleID uint, keywordsStr string) error {
+	db := r.GetDB(countryID)
+
+	// Split and trim keywords
+	keywordList := utils.SplitKeywords(keywordsStr)
+	if len(keywordList) == 0 {
+		// Clear existing associations
+		return db.Model(&models.Article{ID: articleID}).Association("KeywordsRel").Clear()
+	}
+
+	var keywords []models.Keyword
+	for _, kw := range keywordList {
+		var keyword models.Keyword
+		// Find or create keyword
+		if err := db.Where("keyword = ?", kw).FirstOrCreate(&keyword, models.Keyword{Keyword: kw}).Error; err == nil {
+			keywords = append(keywords, keyword)
+		}
+	}
+
+	// Replace associations
+	return db.Model(&models.Article{ID: articleID}).Association("KeywordsRel").Replace(keywords)
 }
