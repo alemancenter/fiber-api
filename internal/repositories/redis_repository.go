@@ -26,11 +26,11 @@ func (r *redisRepository) ListKeys(ctx context.Context, pattern string) ([]strin
 }
 
 func (r *redisRepository) SetKey(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
-	return database.Redis().Default().Set(ctx, key, value, ttl).Err()
+	return database.Redis().Cache().Set(ctx, key, value, ttl).Err()
 }
 
 func (r *redisRepository) DeleteKey(ctx context.Context, key string) error {
-	return database.Redis().Default().Del(ctx, key).Err()
+	return database.Redis().Cache().Del(ctx, key).Err()
 }
 
 func (r *redisRepository) HealthCheck() map[string]bool {

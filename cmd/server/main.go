@@ -48,15 +48,20 @@ func main() {
 	dbManager := database.GetManager()
 	healthResults := dbManager.HealthCheck()
 	for country, ok := range healthResults {
-		if ok {
-			logger.Info("Database connected", zap.String("country", country))
-		} else {
+		if !ok {
 			logger.Error("Database connection failed", zap.String("country", country))
 		}
 	}
 
 	// Auto-migrate: add any missing columns (safe — never drops existing data)
-	migrateTargets := []interface{}{&models.Article{}}
+	migrateTargets := []interface{}{
+		&models.Article{},
+		&models.BlockedIP{},
+		&models.TrustedIP{},
+		&models.SecurityLog{},
+		&models.VisitorTracking{},
+		&models.VisitorSession{},
+	}
 	seen := make(map[*gorm.DB]bool)
 	for _, id := range []database.CountryID{database.CountryJordan, database.CountrySaudi, database.CountryEgypt, database.CountryPalestine} {
 		db := dbManager.Get(id)
@@ -64,6 +69,10 @@ func main() {
 			continue
 		}
 		seen[db] = true
+		// Drop legacy incompatible FK constraints left by Laravel before migrating
+		if db.Migrator().HasConstraint(&models.Article{}, "articles_grade_level_foreign") {
+			db.Migrator().DropConstraint(&models.Article{}, "articles_grade_level_foreign")
+		}
 		if err := db.AutoMigrate(migrateTargets...); err != nil {
 			logger.Warn("auto-migrate failed", zap.String("country", database.CountryCode(id)), zap.Error(err))
 		}
@@ -111,11 +120,26 @@ func main() {
 				}
 			}
 
-			logger.Error("unhandled error",
+			fields := []zap.Field{
 				zap.Int("status", code),
+				zap.String("method", c.Method()),
 				zap.String("path", c.Path()),
-				zap.Error(err),
-			)
+				zap.String("ip", c.IP()),
+				zap.String("error", err.Error()),
+			}
+
+			// 408 is usually produced by fasthttp before routing when a client,
+			// proxy, browser preconnect, or scanner opens a socket but does not
+			// complete the request within ReadTimeout. It is not an application
+			// failure, so avoid noisy ERROR stacktraces.
+			switch {
+			case code == fiber.StatusRequestTimeout:
+				logger.Debug("client request timed out", fields...)
+			case code >= fiber.StatusBadRequest && code < fiber.StatusInternalServerError:
+				logger.Warn("client request error", fields...)
+			default:
+				logger.Error("unhandled server error", append(fields, zap.Error(err))...)
+			}
 
 			return c.Status(code).JSON(utils.APIResponse{
 				Success: false,

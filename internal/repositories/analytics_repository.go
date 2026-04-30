@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"context"
 	"time"
 
 	"github.com/alemancenter/fiber-api/internal/database"
@@ -29,6 +30,9 @@ type AnalyticsRepository interface {
 
 	GetAnalyticsData(dbCode database.CountryID, days int) (dates []string, articles, news, comments, views, authors []int)
 	GetOnlineUsers(fiveMinAgo time.Time) ([]models.User, error)
+
+	GetRedisInfo() (string, error)
+	PingRedis() error
 }
 
 type analyticsRepository struct{}
@@ -362,4 +366,12 @@ func (r *analyticsRepository) GetOnlineUsers(fiveMinAgo time.Time) ([]models.Use
 		Limit(5).
 		Find(&users).Error
 	return users, err
+}
+
+func (r *analyticsRepository) GetRedisInfo() (string, error) {
+	return database.Redis().GetInfo(context.Background())
+}
+
+func (r *analyticsRepository) PingRedis() error {
+	return database.Redis().Default().Ping(context.Background()).Err()
 }

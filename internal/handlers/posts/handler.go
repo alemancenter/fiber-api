@@ -49,8 +49,16 @@ func (h *Handler) List(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	pag := utils.GetPagination(c)
 
+	var catID *uint
+	if cidStr := c.Query("category_id"); cidStr != "" {
+		if id, err := strconv.ParseUint(cidStr, 10, 64); err == nil {
+			parsedID := uint(id)
+			catID = &parsedID
+		}
+	}
+
 	filter := &models.PostFilter{
-		CategoryID: c.Query("category_id"),
+		CategoryID: catID,
 		Search:     c.Query("search"),
 		Featured:   c.Query("featured"),
 	}

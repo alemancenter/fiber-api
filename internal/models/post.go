@@ -36,9 +36,10 @@ type Post struct {
 
 // PostFilter is used to filter posts
 type PostFilter struct {
-	CategoryID string
+	CategoryID *uint
 	Search     string
 	Featured   string
+	IsActive   *bool
 }
 
 func (Post) TableName() string { return "posts" }

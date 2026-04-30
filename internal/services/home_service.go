@@ -66,8 +66,10 @@ func (s *homeService) GetHome(countryID database.CountryID) (*HomeData, error) {
 	data.Articles = articles
 
 	// Get Posts
+	activeTrue := true
 	postsFilter := &models.PostFilter{
-		Search: "",
+		Search:   "",
+		IsActive: &activeTrue,
 	}
 	// Need to check how ListPaginated filters by active, usually it's handled in the repo
 	posts, _, err := s.postRepo.ListPaginated(countryID, postsFilter, 6, 0)
@@ -78,7 +80,8 @@ func (s *homeService) GetHome(countryID database.CountryID) (*HomeData, error) {
 
 	// Get Featured Posts
 	featuredFilter := &models.PostFilter{
-		Featured: "true",
+		Featured: "1", // Use "1" as repository checks for "1"
+		IsActive: &activeTrue,
 	}
 	featuredPosts, _, err := s.postRepo.ListPaginated(countryID, featuredFilter, 6, 0)
 	if err != nil {

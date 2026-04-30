@@ -7,7 +7,6 @@ import (
 )
 
 type PostRepository interface {
-	GetDB(countryID database.CountryID) *gorm.DB
 	ListPaginated(countryID database.CountryID, filter *models.PostFilter, limit, offset int) ([]models.Post, int64, error)
 	FindByID(countryID database.CountryID, id uint64) (*models.Post, error)
 	ExistsBySlug(countryID database.CountryID, slug string, excludeID uint64) bool
@@ -23,21 +22,23 @@ func NewPostRepository() PostRepository {
 	return &postRepository{}
 }
 
-func (r *postRepository) GetDB(countryID database.CountryID) *gorm.DB {
+func (r *postRepository) getDB(countryID database.CountryID) *gorm.DB {
 	return database.DBForCountry(countryID)
 }
 
 func (r *postRepository) ListPaginated(countryID database.CountryID, filter *models.PostFilter, limit, offset int) ([]models.Post, int64, error) {
-	db := r.GetDB(countryID)
+	db := r.getDB(countryID)
 	var postList []models.Post
 	var total int64
 
-	query := db.Model(&models.Post{}).Preload("Category").Preload("Author").
-		Where("is_active = ?", true)
+	query := db.Model(&models.Post{}).Preload("Category").Preload("Author")
 
 	if filter != nil {
-		if filter.CategoryID != "" {
-			query = query.Where("category_id = ?", filter.CategoryID)
+		if filter.IsActive != nil {
+			query = query.Where("is_active = ?", *filter.IsActive)
+		}
+		if filter.CategoryID != nil {
+			query = query.Where("category_id = ?", *filter.CategoryID)
 		}
 		if filter.Search != "" {
 			// Search title only — content is a large TEXT column and scanning it causes
@@ -59,7 +60,7 @@ func (r *postRepository) ListPaginated(countryID database.CountryID, filter *mod
 }
 
 func (r *postRepository) FindByID(countryID database.CountryID, id uint64) (*models.Post, error) {
-	db := r.GetDB(countryID)
+	db := r.getDB(countryID)
 	var post models.Post
 	err := db.Preload("Category").Preload("Author").Preload("Comments.User").
 		Preload("KeywordsRel").Preload("Files").
@@ -72,7 +73,7 @@ func (r *postRepository) FindByID(countryID database.CountryID, id uint64) (*mod
 }
 
 func (r *postRepository) ExistsBySlug(countryID database.CountryID, slug string, excludeID uint64) bool {
-	db := r.GetDB(countryID)
+	db := r.getDB(countryID)
 	var count int64
 	q := db.Model(&models.Post{}).Where("slug = ?", slug)
 	if excludeID > 0 {
@@ -83,22 +84,22 @@ func (r *postRepository) ExistsBySlug(countryID database.CountryID, slug string,
 }
 
 func (r *postRepository) IncrementView(countryID database.CountryID, id uint64) error {
-	db := r.GetDB(countryID)
+	db := r.getDB(countryID)
 	return db.Model(&models.Post{}).Where("id = ?", id).
 		UpdateColumn("views", gorm.Expr("views + 1")).Error
 }
 
 func (r *postRepository) Create(countryID database.CountryID, post *models.Post) error {
-	db := r.GetDB(countryID)
+	db := r.getDB(countryID)
 	return db.Create(post).Error
 }
 
 func (r *postRepository) Update(countryID database.CountryID, post *models.Post) error {
-	db := r.GetDB(countryID)
+	db := r.getDB(countryID)
 	return db.Save(post).Error
 }
 
 func (r *postRepository) Delete(countryID database.CountryID, id uint64) error {
-	db := r.GetDB(countryID)
+	db := r.getDB(countryID)
 	return db.Delete(&models.Post{}, id).Error
 }

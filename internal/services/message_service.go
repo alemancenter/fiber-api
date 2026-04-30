@@ -1,7 +1,6 @@
 package services
 
 import (
-	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/repositories"
 )
@@ -114,8 +113,9 @@ func (s *messageService) GetMessage(msgID uint64, userID uint) (*models.Message,
 	populateRecipient(msg, userID)
 
 	if msg.SenderID != userID && !msg.Read {
-		database.DB().Exec("UPDATE messages SET `read` = 1 WHERE id = ?", msg.ID)
-		msg.Read = true
+		if err := s.repo.MarkAsRead(uint64(msg.ID), userID); err == nil {
+			msg.Read = true
+		}
 	}
 
 	return msg, nil

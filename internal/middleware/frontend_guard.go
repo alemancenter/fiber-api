@@ -26,7 +26,6 @@ func FrontendGuard() fiber.Handler {
 		"/api/ping",
 		"/api/img/fit/",
 		"/api/secure/view",
-		"/api/home",
 	}
 
 	return func(c *fiber.Ctx) error {
@@ -48,11 +47,12 @@ func FrontendGuard() fiber.Handler {
 		authHeader := c.Get("Authorization")
 
 		// 1. Localhost bypass — any request from the same machine is trusted
-		if utils.IsLocalhost(clientIP) {
+		if utils.IsLocalhost(clientIP) || utils.IsLocalhost(c.IP()) {
 			c.Locals("client_type", "localhost")
 			logger.Debug("[FG] tier-1 localhost bypass",
 				zap.String("path", path),
 				zap.String("ip", clientIP),
+				zap.String("real_ip", c.IP()),
 			)
 			return continueWithCountry(c, cfg)
 		}
@@ -65,11 +65,11 @@ func FrontendGuard() fiber.Handler {
 		if utils.IsSSRUserAgent(userAgent) {
 			isSSRTrusted := false
 			// Check if IP matches SSRTrustedIPs OR if it is a local request
-			if utils.IsLocalhost(clientIP) {
+			if utils.IsLocalhost(clientIP) || utils.IsLocalhost(c.IP()) {
 				isSSRTrusted = true
 			} else {
 				for _, ip := range cfg.Frontend.SSRTrustedIPs {
-					if strings.TrimSpace(ip) == clientIP {
+					if strings.TrimSpace(ip) == clientIP || strings.TrimSpace(ip) == c.IP() {
 						isSSRTrusted = true
 						break
 					}
@@ -78,8 +78,16 @@ func FrontendGuard() fiber.Handler {
 			if isSSRTrusted {
 				c.Locals("client_type", "ssr")
 				c.Locals("rate_limit_max", cfg.Frontend.SSRRateLimitMax)
+				logger.Debug("[FG] tier-2 SSR bypass",
+					zap.String("path", path),
+					zap.String("ip", clientIP),
+				)
 				return continueWithCountry(c, cfg)
 			}
+			logger.Debug("[FG] tier-2 SSR blocked",
+				zap.String("path", path),
+				zap.String("ip", clientIP),
+			)
 		}
 
 		// 3. Frontend API key validation (Frontend Marker)
@@ -106,22 +114,41 @@ func FrontendGuard() fiber.Handler {
 					return continueWithCountry(c, cfg)
 				}
 			} else {
-				// For testing purposes, if origin is not in CORS but we want to allow it anyway
-				// Remove this in strict production
-				c.Locals("client_type", "unknown")
-				return continueWithCountry(c, cfg)
+				if !cfg.App.IsProduction() {
+					c.Locals("client_type", "unknown")
+					return continueWithCountry(c, cfg)
+				}
+				return utils.Forbidden(c, "Origin غير مصرح بالوصول")
 			}
 		}
 
 		// 6. Public API access (cURL, Postman) without strict CORS
 		if origin == "" && frontendKey == "" && authHeader == "" {
-			c.Locals("client_type", "unknown")
-			return continueWithCountry(c, cfg)
+			if !cfg.App.IsProduction() {
+				c.Locals("client_type", "unknown")
+				return continueWithCountry(c, cfg)
+			}
+			return utils.Forbidden(c, "غير مصرح بالوصول: يتطلب توثيق")
 		}
 
 		// Allow by default for development if we reach here
-		c.Locals("client_type", "unknown")
-		return continueWithCountry(c, cfg)
+		if !cfg.App.IsProduction() {
+			c.Locals("client_type", "unknown")
+			logger.Debug("[FG] tier-fallback dev bypass",
+				zap.String("path", path),
+				zap.String("ip", clientIP),
+				zap.String("user_agent", userAgent),
+			)
+			return continueWithCountry(c, cfg)
+		}
+
+		logger.Warn("[FG] request blocked",
+			zap.String("path", path),
+			zap.String("ip", clientIP),
+			zap.String("origin", origin),
+			zap.String("user_agent", userAgent),
+		)
+		return utils.Forbidden(c, "غير مصرح بالوصول")
 	}
 }
 
@@ -166,7 +193,10 @@ func applyRateLimit(c *fiber.Ctx, cfg *config.Config, countryID database.Country
 
 	rdb := database.GetRedis()
 	ctx := context.Background()
-	key := rdb.Key("ratelimit", clientIP, path)
+
+	// Incorporate countryCode into the rate limit key to isolate limits per country if needed
+	countryCode := database.CountryCode(countryID)
+	key := rdb.Key("ratelimit", countryCode, clientIP, path)
 
 	count, err := rdb.IncrBy(ctx, key, 1)
 	if err != nil {

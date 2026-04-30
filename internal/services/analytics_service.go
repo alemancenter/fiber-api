@@ -1,6 +1,9 @@
 package services
 
 import (
+	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,6 +17,11 @@ type AnalyticsService interface {
 	PruneAnalytics(dbCode database.CountryID, days int) int64
 	GetDashboardSummary(dbCode database.CountryID) *DashboardSummaryResponse
 	GetContentAnalytics(dbCode database.CountryID) *ContentAnalyticsResponse
+	GetPerformanceSummary() *PerformanceSummaryResponse
+	GetPerformanceLive() map[string]interface{}
+	GetPerformanceResponseTime() map[string]interface{}
+	GetPerformanceCache() map[string]interface{}
+	GetPerformanceRaw() map[string]interface{}
 }
 
 type PruneAnalyticsResponse struct {
@@ -534,4 +542,132 @@ func trendData(prev, curr int64) TrendData {
 		dir = "down"
 	}
 	return TrendData{Percentage: pct, Trend: dir}
+}
+
+// ---- Performance Logic Moved from Handler ----
+
+func (s *analyticsService) GetPerformanceSummary() *PerformanceSummaryResponse {
+	info, _ := s.repo.GetRedisInfo()
+
+	return &PerformanceSummaryResponse{
+		RedisInfo: info,
+		Timestamp: time.Now(),
+	}
+}
+
+func (s *analyticsService) GetPerformanceLive() map[string]interface{} {
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+
+	total := int64(mem.Sys)
+	used := int64(mem.Alloc)
+	free := total - used
+	if free < 0 {
+		free = 0
+	}
+
+	usage := 0.0
+	if total > 0 {
+		usage = (float64(used) / float64(total)) * 100
+	}
+
+	return map[string]interface{}{
+		"cpu": map[string]interface{}{
+			"usage": 0,
+			"cores": runtime.NumCPU(),
+			"load":  0,
+		},
+		"memory": map[string]interface{}{
+			"total":            total,
+			"free":             free,
+			"used":             used,
+			"usage_percentage": usage,
+			"percentage":       usage,
+		},
+		"disk": map[string]interface{}{
+			"total":            0,
+			"free":             0,
+			"used":             0,
+			"usage_percentage": 0,
+			"percentage":       0,
+		},
+		"timestamp": time.Now(),
+	}
+}
+
+func (s *analyticsService) GetPerformanceResponseTime() map[string]interface{} {
+	start := time.Now()
+	_ = s.repo.PingRedis()
+
+	return map[string]interface{}{
+		"average_ms": time.Since(start).Milliseconds(),
+	}
+}
+
+func (s *analyticsService) GetPerformanceCache() map[string]interface{} {
+	info, _ := s.repo.GetRedisInfo()
+	parsed := parseRedisInfo(info)
+
+	hits := parseRedisInt(parsed["keyspace_hits"])
+	misses := parseRedisInt(parsed["keyspace_misses"])
+	total := hits + misses
+
+	hitRatio := 0.0
+	if total > 0 {
+		hitRatio = (float64(hits) / float64(total)) * 100
+	}
+
+	cacheSize := parsed["used_memory_human"]
+	if cacheSize == "" {
+		cacheSize = "0 B"
+	}
+
+	return map[string]interface{}{
+		"hit_ratio":  hitRatio,
+		"cache_size": cacheSize,
+	}
+}
+
+func (s *analyticsService) GetPerformanceRaw() map[string]interface{} {
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+
+	info, _ := s.repo.GetRedisInfo()
+
+	return map[string]interface{}{
+		"redis_info": parseRedisInfo(info),
+		"go": map[string]interface{}{
+			"goroutines": runtime.NumGoroutine(),
+			"alloc":      mem.Alloc,
+			"sys":        mem.Sys,
+			"num_gc":     mem.NumGC,
+		},
+		"timestamp": time.Now(),
+	}
+}
+
+// Helpers for Redis Info
+
+func parseRedisInfo(info string) map[string]string {
+	res := make(map[string]string)
+	lines := strings.Split(info, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) == 2 {
+			res[parts[0]] = parts[1]
+		}
+	}
+	return res
+}
+
+func parseRedisInt(s string) int64 {
+	if s == "" {
+		return 0
+	}
+	v, _ := strconv.ParseInt(s, 10, 64)
+	return v
 }

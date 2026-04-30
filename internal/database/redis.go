@@ -171,12 +171,12 @@ func (r *RedisManager) SetNX(ctx context.Context, key string, value interface{},
 	return r.default_.SetNX(ctx, key, value, ttl).Result()
 }
 
-// ListKeys returns keys matching a pattern
+// ListKeys returns keys matching a pattern from the cache DB
 func (r *RedisManager) ListKeys(ctx context.Context, pattern string) ([]string, error) {
 	var allKeys []string
 	var cursor uint64
 	for {
-		keys, nextCursor, err := r.default_.Scan(ctx, cursor, pattern, 100).Result()
+		keys, nextCursor, err := r.cache.Scan(ctx, cursor, pattern, 100).Result()
 		if err != nil {
 			return nil, err
 		}

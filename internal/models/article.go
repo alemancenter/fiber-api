@@ -23,7 +23,7 @@ type Article struct {
 	// Relationships
 	Subject     *Subject     `gorm:"foreignKey:SubjectID" json:"subject,omitempty"`
 	Semester    *Semester    `gorm:"foreignKey:SemesterID" json:"semester,omitempty"`
-	SchoolClass *SchoolClass `gorm:"foreignKey:GradeLevel;references:GradeLevel" json:"school_class,omitempty"`
+	SchoolClass *SchoolClass `gorm:"-" json:"school_class,omitempty"`
 	Files       []File       `gorm:"foreignKey:ArticleID" json:"files,omitempty"`
 	KeywordsRel []Keyword    `gorm:"many2many:article_keyword" json:"keywords_rel,omitempty"`
 	Comments    []Comment    `gorm:"polymorphic:Commentable" json:"comments,omitempty"`

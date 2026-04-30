@@ -271,31 +271,16 @@ type FileInfoResponse struct {
 // GetFileWithParent fetches the file and its associated article or post.
 // This powers the public /download/:id page.
 func (s *FileService) GetFileWithParent(countryID database.CountryID, id uint64) (*FileInfoResponse, error) {
-	file, err := s.repo.FindByID(countryID, id)
+	file, item, itemType, err := s.repo.GetFileWithParent(countryID, id)
 	if err != nil {
 		return nil, MapError(err)
 	}
 
-	db := database.DBForCountry(countryID)
-	resp := &FileInfoResponse{File: file}
-
-	if file.ArticleID != nil {
-		var article models.Article
-		if err := db.Preload("Subject").Preload("Semester").
-			First(&article, *file.ArticleID).Error; err == nil {
-			resp.Item = &article
-			resp.Type = "article"
-		}
-	} else if file.PostID != nil {
-		var post models.Post
-		if err := db.Preload("Category").
-			First(&post, *file.PostID).Error; err == nil {
-			resp.Item = &post
-			resp.Type = "post"
-		}
-	}
-
-	return resp, nil
+	return &FileInfoResponse{
+		File: file,
+		Item: item,
+		Type: itemType,
+	}, nil
 }
 
 func (s *FileService) IncrementViewCount(countryID database.CountryID, id uint64) error {

@@ -107,8 +107,9 @@ func (m *Manager) connect(dbCfg config.DBConnection) (*gorm.DB, error) {
 		NowFunc: func() time.Time {
 			return time.Now().UTC()
 		},
-		PrepareStmt:            true,
-		SkipDefaultTransaction: false,
+		PrepareStmt:                              true,
+		SkipDefaultTransaction:                   false,
+		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	if err != nil {
 		return nil, err
