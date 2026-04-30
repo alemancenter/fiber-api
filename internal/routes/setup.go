@@ -24,14 +24,27 @@ func Setup(app *fiber.App) {
 	app.Get("/api/ping", deps.Health.Ping)
 	app.Get("/api/health", deps.Health.Health)
 
-	// API group with frontend guard and IP guard
+	// Base API group with frontend guard and IP guard
 	api := app.Group("/api",
 		middleware.IPGuard(),
 		middleware.FrontendGuard(),
 	)
 
-	// Register separate route domains
-	RegisterPublicRoutes(api, deps)
-	RegisterAuthRoutes(api, deps)
-	RegisterDashboardRoutes(api, deps)
+	// Public Group
+	public := api.Group("", middleware.OptionalAuth(), middleware.TrackVisitor())
+
+	// Dashboard Group
+	dash := api.Group("/dashboard",
+		middleware.Auth(),
+		middleware.UpdateLastActivity(),
+		middleware.DashboardSecurityHeaders(),
+	)
+
+	// Register Domain Modules
+	registerAuthRoutes(api, dash, deps)
+	registerContentRoutes(api, public, dash, deps)
+	registerAcademicRoutes(public, dash, deps)
+	registerCommunicationRoutes(public, dash, deps)
+	registerSystemRoutes(api, public, dash, deps)
+	registerAnalyticsRoutes(public, dash, deps)
 }

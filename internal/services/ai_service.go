@@ -84,12 +84,12 @@ func (s *aiService) generateWithFallback(title string, attempt int) (string, err
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		return "", err
+		return "", MapError(err)
 	}
 
 	req, err := http.NewRequest("POST", s.baseUrl+"/chat/completions", bytes.NewReader(payloadBytes))
 	if err != nil {
-		return "", err
+		return "", MapError(err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+s.apiKey)
@@ -102,13 +102,13 @@ func (s *aiService) generateWithFallback(title string, attempt int) (string, err
 			log.Printf("Attempting fallback model: %s", s.fallbackModels[attempt])
 			return s.generateWithFallback(title, attempt+1)
 		}
-		return "", fmt.Errorf("failed to generate content: %v", err)
+		return "", fmt.Errorf("failed to generate content: %v", MapError(err))
 	}
 	defer resp.Body.Close()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return "", MapError(err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -141,7 +141,7 @@ func (s *aiService) generateWithFallback(title string, attempt int) (string, err
 	}
 
 	if err := json.Unmarshal(bodyBytes, &data); err != nil {
-		return "", err
+		return "", MapError(err)
 	}
 
 	if len(data.Choices) > 0 {

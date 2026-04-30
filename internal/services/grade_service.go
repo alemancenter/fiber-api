@@ -117,7 +117,7 @@ func (s *gradeService) CreateSchoolClass(countryID database.CountryID, req *Scho
 	}
 
 	if err := s.repo.CreateSchoolClass(countryID, class); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 	s.InvalidateClassCache(countryID)
 	return class, nil
@@ -126,7 +126,7 @@ func (s *gradeService) CreateSchoolClass(countryID database.CountryID, req *Scho
 func (s *gradeService) UpdateSchoolClass(countryID database.CountryID, id uint64, req *SchoolClassInput) (*models.SchoolClass, error) {
 	class, err := s.repo.FindSchoolClassByID(countryID, id)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	if req.GradeName != "" {
@@ -137,7 +137,7 @@ func (s *gradeService) UpdateSchoolClass(countryID database.CountryID, id uint64
 	}
 
 	if err := s.repo.UpdateSchoolClass(countryID, class); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	s.InvalidateClassCache(countryID)
@@ -146,7 +146,7 @@ func (s *gradeService) UpdateSchoolClass(countryID database.CountryID, id uint64
 
 func (s *gradeService) DeleteSchoolClass(countryID database.CountryID, id uint64) error {
 	if err := s.repo.DeleteSchoolClass(countryID, id); err != nil {
-		return err
+		return MapError(err)
 	}
 	s.InvalidateClassCache(countryID)
 	return nil
@@ -155,11 +155,11 @@ func (s *gradeService) DeleteSchoolClass(countryID database.CountryID, id uint64
 func (s *gradeService) ListSchoolClassesDashboard(countryID database.CountryID, limit, offset int) ([]models.SchoolClass, int64, error) {
 	total, err := s.repo.CountSchoolClasses(countryID)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, MapError(err)
 	}
 
 	classes, err := s.repo.ListSchoolClassesPaginated(countryID, limit, offset)
-	return classes, total, err
+	return classes, total, MapError(err)
 }
 
 // ── Subjects ────────────────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ func (s *gradeService) CreateSubject(countryID database.CountryID, req *SubjectI
 	}
 
 	if err := s.repo.CreateSubject(countryID, subject); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	// Invalidate subjects cache for this class
@@ -198,14 +198,14 @@ func (s *gradeService) GetSubject(countryID database.CountryID, id uint64) (*mod
 func (s *gradeService) UpdateSubject(countryID database.CountryID, id uint64, req *SubjectInput) (*models.Subject, error) {
 	subject, err := s.repo.FindSubjectByID(countryID, id)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	subject.SubjectName = req.SubjectName
 	subject.GradeLevel = req.GradeLevel
 
 	if err := s.repo.UpdateSubject(countryID, subject); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	cc := database.CountryCode(countryID)
@@ -219,11 +219,11 @@ func (s *gradeService) UpdateSubject(countryID database.CountryID, id uint64, re
 func (s *gradeService) DeleteSubject(countryID database.CountryID, id uint64) error {
 	subject, err := s.repo.FindSubjectByID(countryID, id)
 	if err != nil {
-		return err
+		return MapError(err)
 	}
 
 	if err := s.repo.DeleteSubject(countryID, id); err != nil {
-		return err
+		return MapError(err)
 	}
 
 	cc := database.CountryCode(countryID)
@@ -237,11 +237,11 @@ func (s *gradeService) DeleteSubject(countryID database.CountryID, id uint64) er
 func (s *gradeService) ListSubjectsDashboard(countryID database.CountryID, limit, offset int) ([]models.Subject, int64, error) {
 	total, err := s.repo.CountSubjects(countryID)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, MapError(err)
 	}
 
 	subjects, err := s.repo.ListSubjectsPaginated(countryID, limit, offset)
-	return subjects, total, err
+	return subjects, total, MapError(err)
 }
 
 // ── Semesters ───────────────────────────────────────────────────────────────
@@ -249,7 +249,7 @@ func (s *gradeService) ListSubjectsDashboard(countryID database.CountryID, limit
 func (s *gradeService) ListSemesters(countryID database.CountryID, subjectID uint64) ([]models.Semester, *models.Subject, error) {
 	subject, err := s.repo.FindSubjectByID(countryID, subjectID)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, MapError(err)
 	}
 
 	key := database.Redis().CountryKey(database.CountryCode(countryID), "semesters", strconv.FormatUint(uint64(subject.GradeLevel), 10))
@@ -257,7 +257,7 @@ func (s *gradeService) ListSemesters(countryID database.CountryID, subjectID uin
 		return s.repo.ListSemestersByGradeLevel(countryID, subject.GradeLevel)
 	})
 
-	return semesters, subject, err
+	return semesters, subject, MapError(err)
 }
 
 func (s *gradeService) GetSemester(countryID database.CountryID, id uint64) (*models.Semester, error) {
@@ -271,7 +271,7 @@ func (s *gradeService) CreateSemester(countryID database.CountryID, req *Semeste
 	}
 
 	if err := s.repo.CreateSemester(countryID, semester); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	InvalidateCache(
@@ -283,7 +283,7 @@ func (s *gradeService) CreateSemester(countryID database.CountryID, req *Semeste
 func (s *gradeService) UpdateSemester(countryID database.CountryID, id uint64, req *SemesterInput) (*models.Semester, error) {
 	semester, err := s.repo.FindSemesterByID(countryID, id)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	if req.SemesterName != "" {
@@ -294,7 +294,7 @@ func (s *gradeService) UpdateSemester(countryID database.CountryID, id uint64, r
 	}
 
 	if err := s.repo.UpdateSemester(countryID, semester); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	InvalidateCache(
@@ -306,11 +306,11 @@ func (s *gradeService) UpdateSemester(countryID database.CountryID, id uint64, r
 func (s *gradeService) DeleteSemester(countryID database.CountryID, id uint64) error {
 	semester, err := s.repo.FindSemesterByID(countryID, id)
 	if err != nil {
-		return err
+		return MapError(err)
 	}
 
 	if err := s.repo.DeleteSemester(countryID, id); err != nil {
-		return err
+		return MapError(err)
 	}
 
 	InvalidateCache(
@@ -322,11 +322,11 @@ func (s *gradeService) DeleteSemester(countryID database.CountryID, id uint64) e
 func (s *gradeService) ListSemestersDashboard(countryID database.CountryID, limit, offset int) ([]models.Semester, int64, error) {
 	total, err := s.repo.CountSemesters(countryID)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, MapError(err)
 	}
 
 	semesters, err := s.repo.ListSemestersPaginated(countryID, limit, offset)
-	return semesters, total, err
+	return semesters, total, MapError(err)
 }
 
 // ── Meta / Filter ───────────────────────────────────────────────────────────
@@ -340,10 +340,10 @@ func (s *gradeService) FilterMeta(countryID database.CountryID) ([]models.School
 
 	result, err := GetOrSet[filterResult](context.Background(), key, classesAndFilterTTL, func() (filterResult, error) {
 		classes, err := s.repo.ListSchoolClasses(countryID)
-		return filterResult{Classes: classes}, err
+		return filterResult{Classes: classes}, MapError(err)
 	})
 
-	return result.Classes, err
+	return result.Classes, MapError(err)
 }
 
 // ── Grade Articles ──────────────────────────────────────────────────────────
@@ -351,9 +351,9 @@ func (s *gradeService) FilterMeta(countryID database.CountryID) ([]models.School
 func (s *gradeService) ListGradeArticles(countryID database.CountryID, subjectID uint64, limit, offset int) ([]models.Article, int64, error) {
 	total, err := s.repo.CountGradeArticles(countryID, subjectID)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, MapError(err)
 	}
 
 	articles, err := s.repo.ListGradeArticlesPaginated(countryID, subjectID, limit, offset)
-	return articles, total, err
+	return articles, total, MapError(err)
 }

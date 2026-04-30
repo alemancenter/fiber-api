@@ -9,7 +9,9 @@ import (
 	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
+	"github.com/alemancenter/fiber-api/pkg/logger"
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 )
 
 var adminRoleNames = []string{"admin", "super_admin", "super-admin", "manager", "administrator", "root"}
@@ -47,11 +49,13 @@ func (h *Handler) List(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	pag := utils.GetPagination(c)
 
-	catID := c.Query("category_id")
-	search := c.Query("search")
-	featured := c.Query("featured")
+	filter := &models.PostFilter{
+		CategoryID: c.Query("category_id"),
+		Search:     c.Query("search"),
+		Featured:   c.Query("featured"),
+	}
 
-	postList, total, err := h.svc.List(countryID, catID, search, featured, pag.PerPage, pag.Offset)
+	postList, total, err := h.svc.List(countryID, filter, pag.PerPage, pag.Offset)
 	if err != nil {
 		return utils.InternalError(c)
 	}
@@ -75,6 +79,10 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c)
+	}
+
+	if !post.IsActive {
+		return utils.NotFound(c)
 	}
 
 	go h.svc.IncrementView(countryID, uint64(post.ID))
@@ -136,6 +144,34 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 		return utils.InternalError(c, "فشل إنشاء المنشور")
 	}
 
+	// Handle attachments
+	if form, err := c.MultipartForm(); err == nil {
+		if files := form.File["attachments[]"]; len(files) > 0 {
+			fileRepo := repositories.NewFileRepository()
+			fileSvc := services.NewFileService(fileRepo)
+			postID := post.ID
+			for _, file := range files {
+				uploaded, uploadErr := fileSvc.UploadDocument(file, "posts/attachments")
+				if uploadErr != nil {
+					uploaded, uploadErr = fileSvc.UploadImage(file, "posts/attachments")
+				}
+				if uploadErr != nil {
+					logger.Warn("post attachment upload failed",
+						zap.String("filename", file.Filename),
+						zap.Error(uploadErr),
+					)
+					continue
+				}
+				if _, recErr := fileSvc.CreateRecord(countryID, uploaded, nil, &postID); recErr != nil {
+					logger.Warn("post attachment record creation failed",
+						zap.String("path", uploaded.Path),
+						zap.Error(recErr),
+					)
+				}
+			}
+		}
+	}
+
 	return utils.Created(c, "تم إنشاء المنشور بنجاح", post)
 }
 
@@ -160,6 +196,16 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 		callerID = caller.ID
 	}
 
+	// Handle new_image upload if present
+	if img, err := c.FormFile("new_image"); err == nil {
+		fileRepo := repositories.NewFileRepository()
+		fileSvc := services.NewFileService(fileRepo)
+		uploaded, err := fileSvc.UploadImage(img, "posts")
+		if err == nil {
+			req.ImagePath = &uploaded.Path
+		}
+	}
+
 	post, err := h.svc.Update(countryID, id, &req, callerID, isAdminUser(caller))
 	if err != nil {
 		switch err {
@@ -171,6 +217,35 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 			return utils.InternalError(c, "فشل تحديث المنشور")
 		}
 	}
+
+	// Handle attachments
+	if form, err := c.MultipartForm(); err == nil {
+		if files := form.File["attachments[]"]; len(files) > 0 {
+			fileRepo := repositories.NewFileRepository()
+			fileSvc := services.NewFileService(fileRepo)
+			postID := post.ID
+			for _, file := range files {
+				uploaded, uploadErr := fileSvc.UploadDocument(file, "posts/attachments")
+				if uploadErr != nil {
+					uploaded, uploadErr = fileSvc.UploadImage(file, "posts/attachments")
+				}
+				if uploadErr != nil {
+					logger.Warn("post attachment upload failed",
+						zap.String("filename", file.Filename),
+						zap.Error(uploadErr),
+					)
+					continue
+				}
+				if _, recErr := fileSvc.CreateRecord(countryID, uploaded, nil, &postID); recErr != nil {
+					logger.Warn("post attachment record creation failed",
+						zap.String("path", uploaded.Path),
+						zap.Error(recErr),
+					)
+				}
+			}
+		}
+	}
+
 	return utils.Success(c, "تم تحديث المنشور بنجاح", post)
 }
 

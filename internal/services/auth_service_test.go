@@ -61,7 +61,14 @@ func (m *MockUserRepository) Update(user *models.User) error {
 	return nil
 }
 
-func setupTestAuthService(repo repositories.UserRepository) AuthService {
+func setupTestAuthService(t *testing.T, repo repositories.UserRepository) AuthService {
+	t.Setenv("JWT_SECRET", "test_secret_key_12345678901234567890")
+	t.Setenv("DB_HOST_JO", "localhost")
+	t.Setenv("DB_NAME_JO", "test_db")
+	t.Setenv("DB_USER_JO", "root")
+	t.Setenv("APP_URL", "http://localhost")
+	t.Setenv("FRONTEND_URL", "http://localhost:3000")
+
 	// Initialize minimal config so that things don't panic
 	config.Get() // Load defaults
 
@@ -77,7 +84,7 @@ func setupTestAuthService(repo repositories.UserRepository) AuthService {
 
 func TestAuthService_Register(t *testing.T) {
 	mockRepo := &MockUserRepository{}
-	svc := setupTestAuthService(mockRepo)
+	svc := setupTestAuthService(t, mockRepo)
 
 	t.Run("Success", func(t *testing.T) {
 		mockRepo.CountByEmailFunc = func(email string) (int64, error) {
@@ -113,7 +120,7 @@ func TestAuthService_Register(t *testing.T) {
 
 func TestAuthService_Login(t *testing.T) {
 	mockRepo := &MockUserRepository{}
-	svc := setupTestAuthService(mockRepo)
+	svc := setupTestAuthService(t, mockRepo)
 
 	t.Run("Success", func(t *testing.T) {
 		testUser := &models.User{

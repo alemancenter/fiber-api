@@ -10,7 +10,6 @@ import (
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
 )
 
 // Handler contains articles route handlers
@@ -81,7 +80,7 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 
 	article, err := h.svc.GetByID(countryID, id)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c)
@@ -118,7 +117,7 @@ func (h *Handler) ByKeyword(c *fiber.Ctx) error {
 
 	articles, total, err := h.svc.GetByKeyword(countryID, keyword, pag)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.Paginated(c, "success", []models.Article{}, pag.BuildMeta(0))
 		}
 		return utils.InternalError(c)
@@ -139,7 +138,7 @@ func (h *Handler) GetDownloadToken(c *fiber.Ctx) error {
 
 	token, err := h.svc.GetSignedDownloadToken(countryID, id)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c)
@@ -179,7 +178,7 @@ func (h *Handler) DownloadFile(c *fiber.Ctx) error {
 
 	file, absPath, err := h.svc.GetFileForDownload(countryID, id)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c)
@@ -247,7 +246,7 @@ func (h *Handler) DashboardEditData(c *fiber.Ctx) error {
 
 	data, err := h.svc.GetDashboardEditData(countryID, id)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c, "فشل تحميل بيانات المقالة")
@@ -307,7 +306,7 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 
 	article, err := h.svc.UpdateArticle(countryID, id, &req, authorID)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c, "فشل تحديث المقالة")
@@ -332,7 +331,7 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 	}
 
 	if err := h.svc.DeleteArticle(countryID, id, authorID); err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c, "فشل حذف المقالة")
@@ -363,7 +362,7 @@ func (h *Handler) setArticleStatus(c *fiber.Ctx, status int8, message string) er
 
 	article, err := h.svc.SetArticleStatus(countryID, id, status)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c)

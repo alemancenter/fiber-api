@@ -91,7 +91,7 @@ func (s *JWTService) ValidateToken(tokenStr string) (*JWTClaims, error) {
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	claims, ok := token.Claims.(*JWTClaims)
@@ -133,7 +133,7 @@ func (s *JWTService) ValidateDownloadToken(tokenStr string) (*DownloadClaims, er
 		return s.secret, nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 	claims, ok := token.Claims.(*DownloadClaims)
 	if !ok || !token.Valid {
@@ -150,7 +150,7 @@ func (s *JWTService) ValidateDownloadToken(tokenStr string) (*DownloadClaims, er
 func (s *JWTService) ValidateRefreshToken(tokenStr string) (*JWTClaims, error) {
 	claims, err := s.ValidateToken(tokenStr)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 	if claims.Issuer != "alemancenter-api-refresh" {
 		return nil, errors.New("not a refresh token")

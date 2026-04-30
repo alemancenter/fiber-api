@@ -157,14 +157,14 @@ func (Setting) TableName() string { return "settings" }
 
 // Notification represents a user notification
 type Notification struct {
-	ID        string     `gorm:"type:char(36);primaryKey" json:"id"`
-	Type      string     `gorm:"type:varchar(255);not null" json:"type"`
-	NotifiableType string `gorm:"type:varchar(255);not null" json:"-"`
-	NotifiableID   uint   `gorm:"not null" json:"notifiable_id"`
-	Data      string     `gorm:"type:json" json:"data"`
-	ReadAt    *time.Time `json:"read_at,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID             string     `gorm:"type:char(36);primaryKey" json:"id"`
+	Type           string     `gorm:"type:varchar(255);not null" json:"type"`
+	NotifiableType string     `gorm:"type:varchar(255);not null" json:"-"`
+	NotifiableID   uint       `gorm:"not null" json:"notifiable_id"`
+	Data           string     `gorm:"type:json" json:"data"`
+	ReadAt         *time.Time `json:"read_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 func (Notification) TableName() string { return "notifications" }

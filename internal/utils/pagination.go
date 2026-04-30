@@ -21,8 +21,10 @@ func GetPagination(c *fiber.Ctx) Pagination {
 	if page < 1 {
 		page = 1
 	}
-	if perPage < 1 || perPage > 100 {
+	if perPage < 1 {
 		perPage = 15
+	} else if perPage > 500 {
+		perPage = 500
 	}
 
 	return Pagination{

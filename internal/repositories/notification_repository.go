@@ -49,10 +49,10 @@ func (r *notificationRepository) List(userID uint, unreadOnly bool, offset, limi
 func (r *notificationRepository) GetLatest(userID uint, limit int) ([]models.Notification, error) {
 	var notifications []models.Notification
 	db := database.DB()
-	
+
 	err := db.Where("notifiable_type = ? AND notifiable_id = ? AND read_at IS NULL", "App\\Models\\User", userID).
 		Order("created_at DESC").Limit(limit).Find(&notifications).Error
-	
+
 	return notifications, err
 }
 

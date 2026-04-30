@@ -46,8 +46,8 @@ func FrontendGuard() fiber.Handler {
 		referer := c.Get("Referer")
 		authHeader := c.Get("Authorization")
 
-		// 1. Localhost / development bypass
-		if utils.IsLocalhost(clientIP) && requestedWith == "XMLHttpRequest" {
+		// 1. Localhost bypass — any request from the same machine is trusted
+		if utils.IsLocalhost(clientIP) {
 			c.Locals("client_type", "localhost")
 			return continueWithCountry(c, cfg)
 		}
@@ -55,10 +55,15 @@ func FrontendGuard() fiber.Handler {
 		// 2. SSR (Server-Side Rendering) detection — Node.js/Next.js
 		if utils.IsSSRUserAgent(userAgent) {
 			isSSRTrusted := false
-			for _, ip := range cfg.Frontend.SSRTrustedIPs {
-				if strings.TrimSpace(ip) == clientIP {
-					isSSRTrusted = true
-					break
+			// Check if IP matches SSRTrustedIPs OR if it is a local request
+			if utils.IsLocalhost(clientIP) {
+				isSSRTrusted = true
+			} else {
+				for _, ip := range cfg.Frontend.SSRTrustedIPs {
+					if strings.TrimSpace(ip) == clientIP {
+						isSSRTrusted = true
+						break
+					}
 				}
 			}
 			if isSSRTrusted {
@@ -83,11 +88,22 @@ func FrontendGuard() fiber.Handler {
 		// 5. Origin + Referer validation (browser CORS)
 		if origin != "" {
 			if isAllowedOrigin(origin, cfg.Frontend.CORSOrigins) {
-				if requestedWith == "XMLHttpRequest" || referer != "" {
+				// Allow if requested with XMLHttpRequest or if referer is set
+				if requestedWith == "XMLHttpRequest" || referer != "" || requestedWith == "" {
 					c.Locals("client_type", "browser")
 					return continueWithCountry(c, cfg)
 				}
 			}
+		}
+
+		// Allow public API access without strict CORS if no origin is provided (e.g. cURL, Postman)
+		// when frontend API key is not required strictly.
+		// For a public facing API, we might want to just proceed with country.
+		// If you want strict frontend only, keep the Unauthorized return.
+		// However, SSR from Next.js without custom headers might fall here.
+		if origin == "" && frontendKey == "" && authHeader == "" {
+			c.Locals("client_type", "unknown")
+			return continueWithCountry(c, cfg)
 		}
 
 		return utils.Unauthorized(c, "غير مصرح بالوصول لهذه الواجهة")

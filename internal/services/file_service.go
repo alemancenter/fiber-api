@@ -301,7 +301,7 @@ func (s *FileService) IncrementViewCount(countryID database.CountryID, id uint64
 	return ViewCounter.IncrementFileView(countryID, id)
 }
 
-func (s *FileService) CreateRecord(countryID database.CountryID, uploaded *UploadedFile, articleID *uint) (*models.File, error) {
+func (s *FileService) CreateRecord(countryID database.CountryID, uploaded *UploadedFile, articleID *uint, postID *uint) (*models.File, error) {
 	file := &models.File{
 		FilePath:  uploaded.Path,
 		FileType:  uploaded.Ext,
@@ -309,6 +309,7 @@ func (s *FileService) CreateRecord(countryID database.CountryID, uploaded *Uploa
 		FileSize:  uploaded.Size,
 		MimeType:  uploaded.MimeType,
 		ArticleID: articleID,
+		PostID:    postID,
 	}
 
 	if err := s.repo.Create(countryID, file); err != nil {
@@ -322,6 +323,7 @@ func (s *FileService) CreateRecord(countryID database.CountryID, uploaded *Uploa
 type UpdateFileInput struct {
 	FileName  string `json:"file_name"`
 	ArticleID *uint  `json:"article_id"`
+	PostID    *uint  `json:"post_id"`
 }
 
 func (s *FileService) UpdateRecord(countryID database.CountryID, id uint64, req *UpdateFileInput) (*models.File, error) {
@@ -335,6 +337,9 @@ func (s *FileService) UpdateRecord(countryID database.CountryID, id uint64, req 
 	}
 	if req.ArticleID != nil {
 		file.ArticleID = req.ArticleID
+	}
+	if req.PostID != nil {
+		file.PostID = req.PostID
 	}
 
 	if err := s.repo.Update(countryID, file); err != nil {

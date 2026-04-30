@@ -31,7 +31,7 @@ func NewSettingService(repo repositories.SettingRepository) SettingService {
 func (s *settingService) GetAll(ctx context.Context) (map[string]string, error) {
 	rows, err := s.repo.GetAll(ctx)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	m := make(map[string]string, len(rows))
@@ -51,9 +51,9 @@ func (s *settingService) GetPublic(ctx context.Context) (map[string]string, erro
 	result, err := GetOrSet[map[string]string](ctx, key, settingsCacheTTL, func() (map[string]string, error) {
 		rows, err := s.repo.GetAll(ctx)
 		if err != nil {
-			return nil, err
+			return nil, MapError(err)
 		}
-		
+
 		m := make(map[string]string, len(rows))
 		for _, row := range rows {
 			if row.Value != nil {
@@ -63,13 +63,13 @@ func (s *settingService) GetPublic(ctx context.Context) (map[string]string, erro
 		return m, nil
 	})
 
-	return result, err
+	return result, MapError(err)
 }
 
 func (s *settingService) Update(ctx context.Context, updates map[string]string, userID uint) error {
 	for key, value := range updates {
 		if err := s.repo.Upsert(ctx, key, value); err != nil {
-			return err
+			return MapError(err)
 		}
 	}
 

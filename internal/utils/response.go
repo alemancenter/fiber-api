@@ -21,11 +21,11 @@ func normalizeData(v interface{}) interface{} {
 
 // APIResponse is the standard JSON response envelope
 type APIResponse struct {
-	Success bool        `json:"success"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
-	Errors  interface{} `json:"errors,omitempty"`
-	Token   *string     `json:"token,omitempty"`
+	Success    bool            `json:"success"`
+	Message    string          `json:"message"`
+	Data       interface{}     `json:"data,omitempty"`
+	Errors     interface{}     `json:"errors,omitempty"`
+	Token      *string         `json:"token,omitempty"`
 	Meta       *PaginationMeta `json:"meta,omitempty"`
 	Pagination *PaginationMeta `json:"pagination,omitempty"`
 }

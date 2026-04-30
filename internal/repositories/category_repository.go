@@ -10,7 +10,7 @@ type CategoryRepository interface {
 	GetDB(countryID database.CountryID) *gorm.DB
 	FindAllActive(countryID database.CountryID) ([]models.Category, error)
 	FindByID(countryID database.CountryID, id uint64) (*models.Category, error)
-	ListPaginated(countryID database.CountryID, limit, offset int) ([]models.Category, int64, error)
+	ListPaginated(countryID database.CountryID, search string, isActive *bool, limit, offset int) ([]models.Category, int64, error)
 	Create(countryID database.CountryID, category *models.Category) error
 	Update(countryID database.CountryID, category *models.Category) error
 	Delete(countryID database.CountryID, id uint64) error
@@ -45,12 +45,19 @@ func (r *categoryRepository) FindByID(countryID database.CountryID, id uint64) (
 	return &category, nil
 }
 
-func (r *categoryRepository) ListPaginated(countryID database.CountryID, limit, offset int) ([]models.Category, int64, error) {
+func (r *categoryRepository) ListPaginated(countryID database.CountryID, search string, isActive *bool, limit, offset int) ([]models.Category, int64, error) {
 	db := r.GetDB(countryID)
 	var list []models.Category
 	var total int64
 
 	query := db.Model(&models.Category{})
+	if search != "" {
+		query = query.Where("name LIKE ?", "%"+search+"%")
+	}
+	if isActive != nil {
+		query = query.Where("is_active = ?", *isActive)
+	}
+
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}

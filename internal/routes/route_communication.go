@@ -1,0 +1,52 @@
+package routes
+
+import (
+	"github.com/gofiber/fiber/v2"
+)
+
+// registerCommunicationRoutes handles user and admin communication modules:
+// Calendar, Events, Messages, and Notifications.
+func registerCommunicationRoutes(public, dash fiber.Router, h *Handlers) {
+	// =====================
+	// PUBLIC ROUTES
+	// =====================
+
+	// Calendar & Events
+	public.Get("/home/calendar", h.Calendar.PublicEvents)
+	public.Get("/home/event/:id", h.Calendar.PublicEventDetail)
+
+	// =====================
+	// ADMIN DASHBOARD ROUTES
+	// =====================
+
+	// Calendar management
+	dashCalendar := dash.Group("/calendar")
+	dashCalendar.Get("/databases", h.Calendar.Databases)
+	dashCalendar.Get("/events", h.Calendar.GetEvents)
+	dashCalendar.Post("/events", h.Calendar.CreateEvent)
+	dashCalendar.Put("/events/:id", h.Calendar.UpdateEvent)
+	dashCalendar.Delete("/events/:id", h.Calendar.DeleteEvent)
+
+	// Messages
+	dashMessages := dash.Group("/messages")
+	dashMessages.Get("/inbox", h.Messages.Inbox)
+	dashMessages.Get("/sent", h.Messages.Sent)
+	dashMessages.Get("/drafts", h.Messages.Drafts)
+	dashMessages.Post("/send", h.Messages.Send)
+	dashMessages.Post("/draft", h.Messages.Draft)
+	dashMessages.Get("/:id", h.Messages.Get)
+	dashMessages.Post("/:id/read", h.Messages.MarkAsRead)
+	dashMessages.Post("/:id/important", h.Messages.ToggleImportant)
+	dashMessages.Delete("/:id", h.Messages.Delete)
+
+	// Notifications
+	dashNotifications := dash.Group("/notifications")
+	dashNotifications.Get("/latest", h.Notifications.Latest)
+	dashNotifications.Post("/read-all", h.Notifications.MarkAllRead)
+	dashNotifications.Post("/bulk", h.Notifications.BulkAction)
+	dashNotifications.Post("/prune", h.Notifications.Prune)
+	dashNotifications.Get("", h.Notifications.List)
+	dashNotifications.Post("", h.Notifications.Create)
+	dashNotifications.Post("/:id/read", h.Notifications.MarkAsRead)
+	dashNotifications.Delete("/:id", h.Notifications.Delete)
+}

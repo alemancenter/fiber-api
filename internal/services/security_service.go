@@ -178,7 +178,7 @@ func (s *securityService) IsBlocked(ip string) bool {
 // IsTrusted checks if an IP is trusted
 func (s *securityService) IsTrusted(ip string) bool {
 	_, err := s.repo.GetTrustedIP(ip)
-	return err == nil
+	return MapError(err) == nil
 }
 
 func (s *securityService) GetStats() (totalLogs, criticalLogs, resolvedLogs, blockedIPs, trustedIPs int64, err error) {

@@ -16,10 +16,11 @@ import (
 type MockArticleRepository struct {
 	repositories.ArticleRepository // embed to satisfy interface
 
-	ListFunc          func(countryID database.CountryID, pag utils.Pagination, filters *models.ArticleFilter) ([]models.Article, int64, error)
-	FindByIDFunc      func(countryID database.CountryID, id uint64) (*models.Article, error)
-	IncrementViewFunc func(countryID database.CountryID, id uint64) error
-	CreateFunc        func(countryID database.CountryID, article *models.Article) error
+	ListFunc                 func(countryID database.CountryID, pag utils.Pagination, filters *models.ArticleFilter) ([]models.Article, int64, error)
+	FindByIDFunc             func(countryID database.CountryID, id uint64) (*models.Article, error)
+	FindByIDWithCommentsFunc func(countryID database.CountryID, id uint64) (*models.Article, error)
+	IncrementViewFunc        func(countryID database.CountryID, id uint64) error
+	CreateFunc               func(countryID database.CountryID, article *models.Article) error
 }
 
 func (m *MockArticleRepository) List(countryID database.CountryID, pag utils.Pagination, filters *models.ArticleFilter) ([]models.Article, int64, error) {
@@ -34,6 +35,16 @@ func (m *MockArticleRepository) FindByID(countryID database.CountryID, id uint64
 		return m.FindByIDFunc(countryID, id)
 	}
 	return nil, nil
+}
+
+func (m *MockArticleRepository) FindByIDWithComments(countryID database.CountryID, id uint64) (*models.Article, error) {
+	if m.FindByIDWithCommentsFunc != nil {
+		return m.FindByIDWithCommentsFunc(countryID, id)
+	}
+	if m.FindByIDFunc != nil {
+		return m.FindByIDFunc(countryID, id)
+	}
+	return nil, gorm.ErrRecordNotFound
 }
 
 func (m *MockArticleRepository) IncrementViewCount(countryID database.CountryID, id uint64) error {
@@ -51,6 +62,13 @@ func (m *MockArticleRepository) Create(countryID database.CountryID, article *mo
 }
 
 func TestArticleService_GetByID(t *testing.T) {
+	t.Setenv("JWT_SECRET", "test_secret_key_12345678901234567890")
+	t.Setenv("DB_HOST_JO", "localhost")
+	t.Setenv("DB_NAME_JO", "test_db")
+	t.Setenv("DB_USER_JO", "root")
+	t.Setenv("APP_URL", "http://localhost")
+	t.Setenv("FRONTEND_URL", "http://localhost:3000")
+
 	mockRepo := &MockArticleRepository{}
 	// FileService can be nil for this test as we don't use it in GetByID
 	svc := NewArticleService(mockRepo, nil)
@@ -92,6 +110,13 @@ func TestArticleService_GetByID(t *testing.T) {
 }
 
 func TestArticleService_CreateArticle(t *testing.T) {
+	t.Setenv("JWT_SECRET", "test_secret_key_12345678901234567890")
+	t.Setenv("DB_HOST_JO", "localhost")
+	t.Setenv("DB_NAME_JO", "test_db")
+	t.Setenv("DB_USER_JO", "root")
+	t.Setenv("APP_URL", "http://localhost")
+	t.Setenv("FRONTEND_URL", "http://localhost:3000")
+
 	mockRepo := &MockArticleRepository{}
 	svc := NewArticleService(mockRepo, nil)
 

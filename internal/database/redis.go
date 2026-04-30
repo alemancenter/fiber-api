@@ -29,7 +29,7 @@ func GetRedis() *RedisManager {
 	redisManagerOnce.Do(func() {
 		cfg := config.Get().Redis
 		redisManager = &RedisManager{
-			prefix: cfg.Prefix,
+			prefix:   cfg.Prefix,
 			default_: newRedisClient(cfg, cfg.DB),
 			cache:    newRedisClient(cfg, cfg.CacheDB),
 			queue:    newRedisClient(cfg, cfg.QueueDB),

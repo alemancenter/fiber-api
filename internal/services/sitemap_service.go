@@ -63,11 +63,11 @@ func (s *sitemapService) sitemapFilename(sitemapType, dbCode string) string {
 
 func (s *sitemapService) writeXML(path string, set urlSet) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return err
+		return MapError(err)
 	}
 	f, err := os.Create(path)
 	if err != nil {
-		return err
+		return MapError(err)
 	}
 	defer f.Close()
 	f.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
@@ -215,7 +215,7 @@ func (s *sitemapService) GenerateAll(dbCode string) []error {
 func (s *sitemapService) Delete(sitemapType, dbCode string) error {
 	path := s.sitemapFilename(sitemapType, dbCode)
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		return err
+		return MapError(err)
 	}
 	return nil
 }

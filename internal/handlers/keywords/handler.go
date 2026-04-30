@@ -20,7 +20,7 @@ func New(svc services.KeywordService) *Handler {
 // GET /api/keywords
 func (h *Handler) Index(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
-	
+
 	search := c.Query("q", "")
 	keywordType := c.Query("type", "all")
 	pag := utils.GetPagination(c)

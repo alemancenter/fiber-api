@@ -44,7 +44,7 @@ func (s *messageService) ListInbox(userID uint, offset, limit int) ([]models.Mes
 			populateRecipient(&msgs[i], userID)
 		}
 	}
-	return msgs, total, err
+	return msgs, total, MapError(err)
 }
 
 func (s *messageService) ListSent(userID uint, offset, limit int) ([]models.Message, int64, error) {
@@ -54,7 +54,7 @@ func (s *messageService) ListSent(userID uint, offset, limit int) ([]models.Mess
 			populateRecipient(&msgs[i], userID)
 		}
 	}
-	return msgs, total, err
+	return msgs, total, MapError(err)
 }
 
 func (s *messageService) ListDrafts(userID uint, offset, limit int) ([]models.Message, int64, error) {
@@ -64,13 +64,13 @@ func (s *messageService) ListDrafts(userID uint, offset, limit int) ([]models.Me
 			populateRecipient(&msgs[i], userID)
 		}
 	}
-	return msgs, total, err
+	return msgs, total, MapError(err)
 }
 
 func (s *messageService) SendMessage(senderID uint, recipientID uint, subject, body string) (*models.Message, error) {
 	conv, err := s.repo.FindOrCreateConversation(senderID, recipientID)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	msg := &models.Message{
@@ -82,7 +82,7 @@ func (s *messageService) SendMessage(senderID uint, recipientID uint, subject, b
 	}
 
 	err = s.repo.CreateMessage(msg)
-	return msg, err
+	return msg, MapError(err)
 }
 
 func (s *messageService) SaveDraft(senderID uint, recipientID uint, subject, body string) (*models.Message, error) {
@@ -96,19 +96,19 @@ func (s *messageService) SaveDraft(senderID uint, recipientID uint, subject, bod
 	if recipientID > 0 {
 		conv, err := s.repo.FindOrCreateConversation(senderID, recipientID)
 		if err != nil {
-			return nil, err
+			return nil, MapError(err)
 		}
 		msg.ConversationID = conv.ID
 	}
 
 	err := s.repo.CreateMessage(msg)
-	return msg, err
+	return msg, MapError(err)
 }
 
 func (s *messageService) GetMessage(msgID uint64, userID uint) (*models.Message, error) {
 	msg, err := s.repo.GetMessage(msgID, userID)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	populateRecipient(msg, userID)

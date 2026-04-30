@@ -21,10 +21,10 @@ func NewMailService() *MailService {
 func (m *MailService) Send(to, subject, body string, isHTML bool) error {
 	msg := mail.NewMsg()
 	if err := msg.From(fmt.Sprintf("%s <%s>", m.cfg.FromName, m.cfg.FromAddress)); err != nil {
-		return fmt.Errorf("invalid from address: %w", err)
+		return fmt.Errorf("invalid from address: %w", MapError(err))
 	}
 	if err := msg.To(to); err != nil {
-		return fmt.Errorf("invalid to address: %w", err)
+		return fmt.Errorf("invalid to address: %w", MapError(err))
 	}
 	msg.Subject(subject)
 
@@ -53,7 +53,7 @@ func (m *MailService) Send(to, subject, body string, isHTML bool) error {
 		mail.WithTLSPolicy(tlsMode),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create mail client: %w", err)
+		return fmt.Errorf("failed to create mail client: %w", MapError(err))
 	}
 
 	return client.DialAndSend(msg)

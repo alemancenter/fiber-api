@@ -49,7 +49,7 @@ func (s *commentService) Create(dbCode string, userID uint, req *CreateCommentRe
 	}
 
 	if err := s.repo.CreateComment(dbCode, comment); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	return comment, nil
@@ -67,7 +67,7 @@ func (s *commentService) CreateReaction(countryID database.CountryID, userID uin
 	}
 
 	if err := s.repo.UpsertReaction(countryID, reaction); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	return reaction, nil

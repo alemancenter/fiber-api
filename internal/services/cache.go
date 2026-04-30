@@ -22,7 +22,7 @@ func GetOrSet[T any](ctx context.Context, key string, ttl time.Duration, fetch f
 
 	result, err := fetch()
 	if err != nil {
-		return result, err
+		return result, MapError(err)
 	}
 
 	if data, err := json.Marshal(result); err == nil {

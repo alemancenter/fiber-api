@@ -1,0 +1,38 @@
+package routes
+
+import (
+	"github.com/alemancenter/fiber-api/internal/middleware"
+	"github.com/alemancenter/fiber-api/internal/utils"
+	"github.com/gofiber/fiber/v2"
+)
+
+// registerAnalyticsRoutes handles dashboard overviews, monitoring,
+// user activities, and general analytics reporting.
+func registerAnalyticsRoutes(public, dash fiber.Router, h *Handlers) {
+	// =====================
+	// PUBLIC ROUTES
+	// =====================
+
+	// Basic public home
+	public.Get("/home", func(c *fiber.Ctx) error {
+		return utils.Success(c, "success", "مرحباً بك في Alemancenter API")
+	})
+
+	// =====================
+	// ADMIN DASHBOARD ROUTES
+	// =====================
+
+	// Dashboard Home Summaries
+	dash.Get("/content-analytics", h.Analytics.ContentAnalytics)
+	dash.Get("", h.Analytics.DashboardSummary)
+
+	// Activities Log
+	dash.Get("/activities", h.Dashboard.Activities)
+	dash.Delete("/activities/clean", h.Dashboard.CleanActivities)
+
+	// Visitor Analytics (requires monitoring permission)
+	dashMonitor := dash.Group("", middleware.Can("manage monitoring"))
+	dashMonitor.Get("/visitor-analytics", h.Analytics.VisitorAnalytics)
+	dashMonitor.Post("/visitor-analytics/prune", h.Analytics.PruneAnalytics)
+	dashMonitor.Get("/performance/summary", h.Analytics.PerformanceSummary)
+}

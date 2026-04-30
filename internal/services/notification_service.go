@@ -87,7 +87,7 @@ func (s *notificationService) Create(reqType string, notifiableID uint, data str
 	}
 
 	err := s.repo.Create(notification)
-	return notification, err
+	return notification, MapError(err)
 }
 
 func (s *notificationService) Delete(id string, userID uint) error {

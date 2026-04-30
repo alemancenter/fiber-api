@@ -8,7 +8,7 @@ import (
 )
 
 type PostService interface {
-	List(countryID database.CountryID, catID string, search string, featured string, limit, offset int) ([]models.Post, int64, error)
+	List(countryID database.CountryID, filter *models.PostFilter, limit, offset int) ([]models.Post, int64, error)
 	GetByID(countryID database.CountryID, id uint64) (*models.Post, error)
 	IncrementView(countryID database.CountryID, id uint64) error
 	Create(countryID database.CountryID, countryCode string, userID *uint, req *CreatePostRequest, imagePath string) (*models.Post, error)
@@ -17,23 +17,24 @@ type PostService interface {
 }
 
 type CreatePostRequest struct {
-	CategoryID      uint   `json:"category_id"`
-	Title           string `json:"title" validate:"required,min=3,max=500"`
-	Content         string `json:"content" validate:"required"`
-	IsActive        bool   `json:"is_active"`
-	IsFeatured      bool   `json:"is_featured"`
-	Keywords        string `json:"keywords"`
-	MetaDescription string `json:"meta_description" validate:"omitempty,max=500"`
+	CategoryID      uint   `json:"category_id" form:"category_id" validate:"required"`
+	Title           string `json:"title" form:"title" validate:"required,min=3,max=500"`
+	Content         string `json:"content" form:"content" validate:"required"`
+	IsActive        bool   `json:"is_active" form:"is_active"`
+	IsFeatured      bool   `json:"is_featured" form:"is_featured"`
+	Keywords        string `json:"keywords" form:"keywords"`
+	MetaDescription string `json:"meta_description" form:"meta_description" validate:"omitempty,max=500"`
 }
 
 type UpdatePostRequest struct {
-	CategoryID      *uint  `json:"category_id"`
-	Title           string `json:"title"`
-	Content         string `json:"content"`
-	IsActive        *bool  `json:"is_active"`
-	IsFeatured      *bool  `json:"is_featured"`
-	Keywords        string `json:"keywords"`
-	MetaDescription string `json:"meta_description"`
+	CategoryID      *uint   `json:"category_id" form:"category_id"`
+	Title           string  `json:"title" form:"title"`
+	Content         string  `json:"content" form:"content"`
+	IsActive        *bool   `json:"is_active" form:"is_active"`
+	IsFeatured      *bool   `json:"is_featured" form:"is_featured"`
+	Keywords        string  `json:"keywords" form:"keywords"`
+	MetaDescription string  `json:"meta_description" form:"meta_description"`
+	ImagePath       *string `json:"image_path" form:"image_path"`
 }
 
 type postService struct {
@@ -44,8 +45,8 @@ func NewPostService(repo repositories.PostRepository) PostService {
 	return &postService{repo: repo}
 }
 
-func (s *postService) List(countryID database.CountryID, catID string, search string, featured string, limit, offset int) ([]models.Post, int64, error) {
-	posts, total, err := s.repo.ListPaginated(countryID, catID, search, featured, limit, offset)
+func (s *postService) List(countryID database.CountryID, filter *models.PostFilter, limit, offset int) ([]models.Post, int64, error) {
+	posts, total, err := s.repo.ListPaginated(countryID, filter, limit, offset)
 	return posts, total, MapError(err)
 }
 
@@ -58,8 +59,18 @@ func (s *postService) IncrementView(countryID database.CountryID, id uint64) err
 	return ViewCounter.IncrementPostView(countryID, id)
 }
 
+func (s *postService) uniqueSlug(countryID database.CountryID, base string, excludeID uint64) string {
+	candidate := base
+	for i := 1; ; i++ {
+		if !s.repo.ExistsBySlug(countryID, candidate, excludeID) {
+			return candidate
+		}
+		candidate = utils.NumberedSlug(base, i)
+	}
+}
+
 func (s *postService) Create(countryID database.CountryID, countryCode string, userID *uint, req *CreatePostRequest, imagePath string) (*models.Post, error) {
-	slug := utils.GenerateSlug(req.Title)
+	slug := s.uniqueSlug(countryID, utils.GenerateSlug(req.Title), 0)
 	post := &models.Post{
 		Title:      utils.SanitizeInput(req.Title),
 		Content:    req.Content,
@@ -107,7 +118,7 @@ func (s *postService) Update(countryID database.CountryID, id uint64, req *Updat
 	}
 	if req.Title != "" {
 		post.Title = utils.SanitizeInput(req.Title)
-		post.Slug = utils.GenerateSlug(req.Title)
+		post.Slug = s.uniqueSlug(countryID, utils.GenerateSlug(req.Title), id)
 	}
 	if req.Content != "" {
 		post.Content = req.Content
@@ -123,6 +134,9 @@ func (s *postService) Update(countryID database.CountryID, id uint64, req *Updat
 	}
 	if req.MetaDescription != "" {
 		post.MetaDescription = &req.MetaDescription
+	}
+	if req.ImagePath != nil {
+		post.Image = req.ImagePath
 	}
 
 	if err := s.repo.Update(countryID, post); err != nil {

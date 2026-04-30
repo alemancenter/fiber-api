@@ -66,13 +66,14 @@ func (s *userService) Search(query string) ([]models.User, error) {
 }
 
 func (s *userService) GetByID(id uint64) (*models.User, error) {
-	return s.repo.FindByID(id)
+	user, err := s.repo.FindByID(id)
+	return user, MapError(err)
 }
 
 func (s *userService) Create(req *CreateUserRequest, callerID uint) (*models.User, error) {
 	count, err := s.repo.CountByEmail(req.Email)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 	if count > 0 {
 		return nil, errors.New("البريد الإلكتروني مستخدم بالفعل")
@@ -84,13 +85,13 @@ func (s *userService) Create(req *CreateUserRequest, callerID uint) (*models.Use
 		Status: "active",
 	}
 	if err := user.HashPassword(req.Password); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	db := s.repo.GetDB()
 	txErr := db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(user).Error; err != nil {
-			return err
+			return MapError(err)
 		}
 		if len(req.Roles) > 0 {
 			return AssignRoles(tx, user.ID, req.Roles)
@@ -111,7 +112,7 @@ func (s *userService) Create(req *CreateUserRequest, callerID uint) (*models.Use
 func (s *userService) Update(id uint64, req *UpdateUserRequest, callerID uint) (*models.User, error) {
 	user, err := s.repo.FindByID(id)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	if req.Name != "" {
@@ -152,7 +153,7 @@ func (s *userService) Update(id uint64, req *UpdateUserRequest, callerID uint) (
 func (s *userService) UpdateRolesPermissions(id uint64, req *RolesPermissionsRequest) error {
 	user, err := s.repo.FindByID(id)
 	if err != nil {
-		return err
+		return MapError(err)
 	}
 
 	db := s.repo.GetDB()
@@ -176,7 +177,7 @@ func (s *userService) Delete(id uint64, callerID uint) error {
 
 	user, err := s.repo.FindByID(id)
 	if err != nil {
-		return err
+		return MapError(err)
 	}
 
 	if err := s.repo.Delete(user); err != nil {

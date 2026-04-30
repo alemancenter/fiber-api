@@ -7,7 +7,6 @@ import (
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
 )
 
 // Handler contains categories route handlers
@@ -44,7 +43,7 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 
 	category, err := h.svc.GetByID(countryID, id)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c)
@@ -59,7 +58,10 @@ func (h *Handler) DashboardList(c *fiber.Ctx) error {
 	countryID, _ := c.Locals("country_id").(database.CountryID)
 	pag := utils.GetPagination(c)
 
-	categoryList, total, err := h.svc.ListDashboard(countryID, pag.PerPage, pag.Offset)
+	search := c.Query("search")
+	isActiveStr := c.Query("is_active")
+
+	categoryList, total, err := h.svc.ListDashboard(countryID, search, isActiveStr, pag.PerPage, pag.Offset)
 	if err != nil {
 		return utils.InternalError(c)
 	}
@@ -109,7 +111,7 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 
 	category, err := h.svc.Update(countryID, id, &req)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c, "فشل تحديث التصنيف")

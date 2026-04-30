@@ -44,7 +44,7 @@ func (s *roleService) CreateRole(name string, permissions []uint) (*models.Role,
 	role := &models.Role{Name: name, GuardName: "api"}
 	err = s.repo.CreateRole(role, permissions)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	// Return role with preloaded permissions
@@ -54,7 +54,7 @@ func (s *roleService) CreateRole(name string, permissions []uint) (*models.Role,
 func (s *roleService) UpdateRole(id uint64, name string, permissions []uint) (*models.Role, error) {
 	role, err := s.repo.GetRole(id)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	if name != "" {
@@ -63,7 +63,7 @@ func (s *roleService) UpdateRole(id uint64, name string, permissions []uint) (*m
 
 	err = s.repo.UpdateRole(role, permissions)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	// Return role with preloaded permissions
@@ -81,7 +81,7 @@ func (s *roleService) ListPermissions() ([]models.Permission, error) {
 func (s *roleService) CreatePermission(name string) (*models.Permission, error) {
 	permission := &models.Permission{Name: name, GuardName: "api"}
 	err := s.repo.CreatePermission(permission)
-	return permission, err
+	return permission, MapError(err)
 }
 
 func (s *roleService) UpdatePermission(id uint64, name string) error {

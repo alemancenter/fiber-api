@@ -7,7 +7,6 @@ import (
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
 )
 
 // Handler contains user management route handlers
@@ -58,7 +57,7 @@ func (h *Handler) Show(c *fiber.Ctx) error {
 
 	user, err := h.svc.GetByID(id)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c)
@@ -139,7 +138,7 @@ func (h *Handler) UpdateRolesPermissions(c *fiber.Ctx) error {
 	}
 
 	if err := h.svc.UpdateRolesPermissions(id, &req); err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c, err.Error())
@@ -165,7 +164,7 @@ func (h *Handler) Delete(c *fiber.Ctx) error {
 		if err.Error() == "لا يمكنك حذف حسابك الخاص" {
 			return utils.BadRequest(c, err.Error())
 		}
-		if err == gorm.ErrRecordNotFound {
+		if err == services.ErrNotFound {
 			return utils.NotFound(c)
 		}
 		return utils.InternalError(c, err.Error())

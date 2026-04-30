@@ -30,14 +30,14 @@ func (SecurityLog) TableName() string { return "security_logs" }
 
 // EventType constants
 const (
-	EventLoginFailed      = "login_failed"
-	EventSuspicious       = "suspicious_activity"
-	EventBlockedAccess    = "blocked_access"
+	EventLoginFailed       = "login_failed"
+	EventSuspicious        = "suspicious_activity"
+	EventBlockedAccess     = "blocked_access"
 	EventRateLimitExceeded = "rate_limit_exceeded"
-	EventSQLInjection     = "sql_injection_attempt"
-	EventXSSAttempt       = "xss_attempt"
-	EventInvalidToken     = "invalid_token"
-	EventUnauthorized     = "unauthorized_access"
+	EventSQLInjection      = "sql_injection_attempt"
+	EventXSSAttempt        = "xss_attempt"
+	EventInvalidToken      = "invalid_token"
+	EventUnauthorized      = "unauthorized_access"
 )
 
 // Severity constants
@@ -50,14 +50,14 @@ const (
 
 // BlockedIP represents a blocked IP address
 type BlockedIP struct {
-	ID         uint       `gorm:"primaryKey" json:"id"`
-	IPAddress  string     `gorm:"type:varchar(45);unique;not null" json:"ip_address"`
-	Reason     *string    `gorm:"type:text" json:"reason,omitempty"`
-	BlockedBy  *uint      `json:"blocked_by,omitempty"`
-	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
-	IsAutoBlock bool      `gorm:"default:false" json:"is_auto_block"`
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at"`
+	ID          uint       `gorm:"primaryKey" json:"id"`
+	IPAddress   string     `gorm:"type:varchar(45);unique;not null" json:"ip_address"`
+	Reason      *string    `gorm:"type:text" json:"reason,omitempty"`
+	BlockedBy   *uint      `json:"blocked_by,omitempty"`
+	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+	IsAutoBlock bool       `gorm:"default:false" json:"is_auto_block"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 func (BlockedIP) TableName() string { return "blocked_ips" }
@@ -85,18 +85,18 @@ func (TrustedIP) TableName() string { return "trusted_ips" }
 
 // ActivityLog represents the Spatie-compatible activity log
 type ActivityLog struct {
-	ID           uint      `gorm:"primaryKey" json:"id"`
-	LogName      *string   `gorm:"type:varchar(255)" json:"log_name,omitempty"`
-	Description  string    `gorm:"type:text;not null" json:"description"`
-	SubjectType  *string   `gorm:"type:varchar(255)" json:"subject_type,omitempty"`
-	SubjectID    *uint     `gorm:"index" json:"subject_id,omitempty"`
-	CauserType   *string   `gorm:"type:varchar(255)" json:"causer_type,omitempty"`
-	CauserID     *uint     `gorm:"index" json:"causer_id,omitempty"`
-	Properties   *string   `gorm:"type:json" json:"properties,omitempty"`
-	Event        *string   `gorm:"type:varchar(255)" json:"event,omitempty"`
-	BatchUUID    *string   `gorm:"type:char(36)" json:"batch_uuid,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	LogName     *string   `gorm:"type:varchar(255)" json:"log_name,omitempty"`
+	Description string    `gorm:"type:text;not null" json:"description"`
+	SubjectType *string   `gorm:"type:varchar(255)" json:"subject_type,omitempty"`
+	SubjectID   *uint     `gorm:"index" json:"subject_id,omitempty"`
+	CauserType  *string   `gorm:"type:varchar(255)" json:"causer_type,omitempty"`
+	CauserID    *uint     `gorm:"index" json:"causer_id,omitempty"`
+	Properties  *string   `gorm:"type:json" json:"properties,omitempty"`
+	Event       *string   `gorm:"type:varchar(255)" json:"event,omitempty"`
+	BatchUUID   *string   `gorm:"type:char(36)" json:"batch_uuid,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func (ActivityLog) TableName() string { return "activity_log" }
@@ -126,14 +126,14 @@ func (VisitorTracking) TableName() string { return "visitors_tracking" }
 
 // VisitorSession represents a visitor session
 type VisitorSession struct {
-	ID        uint       `gorm:"primaryKey" json:"id"`
-	SessionID string     `gorm:"type:varchar(100);unique;not null" json:"session_id"`
-	IPAddress string     `gorm:"type:varchar(45)" json:"ip_address"`
-	UserID    *uint      `gorm:"index" json:"user_id,omitempty"`
-	LastSeen  time.Time  `json:"last_seen"`
-	Database  string     `gorm:"type:varchar(10);default:'jo'" json:"database"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	SessionID string    `gorm:"type:varchar(100);unique;not null" json:"session_id"`
+	IPAddress string    `gorm:"type:varchar(45)" json:"ip_address"`
+	UserID    *uint     `gorm:"index" json:"user_id,omitempty"`
+	LastSeen  time.Time `json:"last_seen"`
+	Database  string    `gorm:"type:varchar(10);default:'jo'" json:"database"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (VisitorSession) TableName() string { return "visitor_sessions" }

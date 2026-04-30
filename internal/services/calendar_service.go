@@ -49,7 +49,7 @@ func (s *calendarService) GetEvent(countryID database.CountryID, id uint64) (*mo
 func (s *calendarService) CreateEvent(countryID database.CountryID, req *EventInput) (*models.Event, error) {
 	eventDate, err := time.Parse("2006-01-02", req.EventDate)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	event := &models.Event{
@@ -62,13 +62,13 @@ func (s *calendarService) CreateEvent(countryID database.CountryID, req *EventIn
 	}
 
 	err = s.repo.CreateEvent(countryID, event)
-	return event, err
+	return event, MapError(err)
 }
 
 func (s *calendarService) UpdateEvent(countryID database.CountryID, id uint64, req *EventInput) (*models.Event, error) {
 	event, err := s.repo.FindEventByID(countryID, id)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	if req.Title != "" {
@@ -87,7 +87,7 @@ func (s *calendarService) UpdateEvent(countryID database.CountryID, id uint64, r
 	}
 
 	if err := s.repo.UpdateEvent(countryID, event); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	return event, nil
@@ -95,7 +95,7 @@ func (s *calendarService) UpdateEvent(countryID database.CountryID, id uint64, r
 
 func (s *calendarService) DeleteEvent(countryID database.CountryID, id uint64) error {
 	if _, err := s.repo.FindEventByID(countryID, id); err != nil {
-		return err
+		return MapError(err)
 	}
 
 	return s.repo.DeleteEvent(countryID, id)

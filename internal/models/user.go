@@ -8,28 +8,28 @@ import (
 
 // User represents an application user stored in the Jordan (main) database
 type User struct {
-	ID                   uint           `gorm:"primaryKey" json:"id"`
-	Name                 string         `gorm:"type:varchar(255);not null" json:"name"`
-	Email                string         `gorm:"type:varchar(255);unique;not null" json:"email"`
-	EmailVerifiedAt      *time.Time     `json:"email_verified_at,omitempty"`
-	Password             string         `gorm:"type:varchar(255);not null" json:"-"`
-	GoogleID             *string        `gorm:"type:varchar(255)" json:"google_id,omitempty"`
-	Phone                *string        `gorm:"type:varchar(50)" json:"phone,omitempty"`
-	JobTitle             *string        `gorm:"type:varchar(255)" json:"job_title,omitempty"`
-	Gender               *string        `gorm:"type:enum('male','female','other')" json:"gender,omitempty"`
-	Country              *string        `gorm:"type:varchar(100)" json:"country,omitempty"`
-	Bio                  *string        `gorm:"type:text" json:"bio,omitempty"`
-	SocialLinks          *string        `gorm:"type:json" json:"social_links,omitempty"`
-	ProfilePhotoPath     *string        `gorm:"type:varchar(500)" json:"profile_photo_path,omitempty"`
-	Status               string         `gorm:"type:enum('active','inactive','banned');default:'active'" json:"status"`
-	LastActivity         *time.Time     `json:"last_activity,omitempty"`
-	LastSeen             *time.Time     `json:"last_seen,omitempty"`
-	RememberToken        *string        `gorm:"type:varchar(100)" json:"-"`
-	TwoFactorSecret      *string        `gorm:"type:text" json:"-"`
-	TwoFactorRecoveryCodes *string      `gorm:"type:text" json:"-"`
-	TwoFactorConfirmedAt *time.Time     `json:"-"`
-	CreatedAt            time.Time      `json:"created_at"`
-	UpdatedAt            time.Time      `json:"updated_at"`
+	ID                     uint       `gorm:"primaryKey" json:"id"`
+	Name                   string     `gorm:"type:varchar(255);not null" json:"name"`
+	Email                  string     `gorm:"type:varchar(255);unique;not null" json:"email"`
+	EmailVerifiedAt        *time.Time `json:"email_verified_at,omitempty"`
+	Password               string     `gorm:"type:varchar(255);not null" json:"-"`
+	GoogleID               *string    `gorm:"type:varchar(255)" json:"google_id,omitempty"`
+	Phone                  *string    `gorm:"type:varchar(50)" json:"phone,omitempty"`
+	JobTitle               *string    `gorm:"type:varchar(255)" json:"job_title,omitempty"`
+	Gender                 *string    `gorm:"type:enum('male','female','other')" json:"gender,omitempty"`
+	Country                *string    `gorm:"type:varchar(100)" json:"country,omitempty"`
+	Bio                    *string    `gorm:"type:text" json:"bio,omitempty"`
+	SocialLinks            *string    `gorm:"type:json" json:"social_links,omitempty"`
+	ProfilePhotoPath       *string    `gorm:"type:varchar(500)" json:"profile_photo_path,omitempty"`
+	Status                 string     `gorm:"type:enum('active','inactive','banned');default:'active'" json:"status"`
+	LastActivity           *time.Time `json:"last_activity,omitempty"`
+	LastSeen               *time.Time `json:"last_seen,omitempty"`
+	RememberToken          *string    `gorm:"type:varchar(100)" json:"-"`
+	TwoFactorSecret        *string    `gorm:"type:text" json:"-"`
+	TwoFactorRecoveryCodes *string    `gorm:"type:text" json:"-"`
+	TwoFactorConfirmedAt   *time.Time `json:"-"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
 
 	// Relationships
 	Roles       []Role       `gorm:"many2many:model_has_roles;joinForeignKey:model_id;joinReferences:role_id" json:"roles,omitempty"`

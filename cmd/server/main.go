@@ -11,6 +11,7 @@ import (
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/middleware"
 	"github.com/alemancenter/fiber-api/internal/routes"
+	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/alemancenter/fiber-api/pkg/logger"
 
@@ -55,6 +56,9 @@ func main() {
 	// Initialize Redis
 	logger.Info("Connecting to Redis...")
 	database.GetRedis()
+
+	// Start background workers
+	services.StartViewSyncWorker(1 * time.Minute)
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{

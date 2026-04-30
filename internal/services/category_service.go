@@ -15,7 +15,7 @@ const categoriesCacheTTL = 15 * time.Minute
 type CategoryService interface {
 	GetActiveCategories(countryID database.CountryID) ([]models.Category, error)
 	GetByID(countryID database.CountryID, id uint64) (*models.Category, error)
-	ListDashboard(countryID database.CountryID, limit, offset int) ([]models.Category, int64, error)
+	ListDashboard(countryID database.CountryID, search string, isActiveStr string, limit, offset int) ([]models.Category, int64, error)
 	Create(countryID database.CountryID, req *CreateCategoryRequest) (*models.Category, error)
 	Update(countryID database.CountryID, id uint64, req *UpdateCategoryRequest) (*models.Category, error)
 	Delete(countryID database.CountryID, id uint64) error
@@ -58,15 +58,22 @@ func (s *categoryService) GetActiveCategories(countryID database.CountryID) ([]m
 	cats, err := GetOrSet[[]models.Category](context.Background(), categoriesKey(countryID), categoriesCacheTTL, func() ([]models.Category, error) {
 		return s.repo.FindAllActive(countryID)
 	})
-	return cats, err
+	return cats, MapError(err)
 }
 
 func (s *categoryService) GetByID(countryID database.CountryID, id uint64) (*models.Category, error) {
-	return s.repo.FindByID(countryID, id)
+	category, err := s.repo.FindByID(countryID, id)
+	return category, MapError(err)
 }
 
-func (s *categoryService) ListDashboard(countryID database.CountryID, limit, offset int) ([]models.Category, int64, error) {
-	return s.repo.ListPaginated(countryID, limit, offset)
+func (s *categoryService) ListDashboard(countryID database.CountryID, search string, isActiveStr string, limit, offset int) ([]models.Category, int64, error) {
+	var isActive *bool
+	if isActiveStr != "" {
+		active := isActiveStr == "true" || isActiveStr == "1"
+		isActive = &active
+	}
+	cats, total, err := s.repo.ListPaginated(countryID, search, isActive, limit, offset)
+	return cats, total, MapError(err)
 }
 
 func (s *categoryService) Create(countryID database.CountryID, req *CreateCategoryRequest) (*models.Category, error) {
@@ -79,10 +86,11 @@ func (s *categoryService) Create(countryID database.CountryID, req *CreateCatego
 		Name:     req.Name,
 		Slug:     slug,
 		IsActive: true,
+		Country:  database.CountryCode(countryID),
 	}
 
 	if err := s.repo.Create(countryID, category); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	s.invalidateCache(countryID)
@@ -92,7 +100,7 @@ func (s *categoryService) Create(countryID database.CountryID, req *CreateCatego
 func (s *categoryService) Update(countryID database.CountryID, id uint64, req *UpdateCategoryRequest) (*models.Category, error) {
 	category, err := s.repo.FindByID(countryID, id)
 	if err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 
 	if req.Name != "" {
@@ -118,7 +126,7 @@ func (s *categoryService) Update(countryID database.CountryID, id uint64, req *U
 	}
 
 	if err := s.repo.Update(countryID, category); err != nil {
-		return nil, err
+		return nil, MapError(err)
 	}
 	s.invalidateCache(countryID)
 
@@ -127,7 +135,7 @@ func (s *categoryService) Update(countryID database.CountryID, id uint64, req *U
 
 func (s *categoryService) Delete(countryID database.CountryID, id uint64) error {
 	if err := s.repo.Delete(countryID, id); err != nil {
-		return err
+		return MapError(err)
 	}
 	s.invalidateCache(countryID)
 	return nil
@@ -138,7 +146,7 @@ func (s *categoryService) BulkDelete(countryID database.CountryID, ids []uint) e
 		return nil
 	}
 	if err := s.repo.BulkDelete(countryID, ids); err != nil {
-		return err
+		return MapError(err)
 	}
 	s.invalidateCache(countryID)
 	return nil
@@ -149,7 +157,7 @@ func (s *categoryService) UpdateStatus(countryID database.CountryID, ids []uint,
 		return nil
 	}
 	if err := s.repo.UpdateStatus(countryID, ids, isActive); err != nil {
-		return err
+		return MapError(err)
 	}
 	s.invalidateCache(countryID)
 	return nil

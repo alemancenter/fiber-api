@@ -26,17 +26,17 @@ func (s *keywordService) GetKeywords(countryID database.CountryID, keywordType, 
 func (s *keywordService) GetKeywordContent(countryID database.CountryID, keyword string, search, sort string, limit, offset int) (*models.Keyword, []models.Article, int64, []models.Post, int64, error) {
 	kw, err := s.repo.FindByKeyword(countryID, keyword)
 	if err != nil {
-		return nil, nil, 0, nil, 0, err
+		return nil, nil, 0, nil, 0, MapError(err)
 	}
 
 	articles, artTotal, err := s.repo.ListArticlesByKeyword(countryID, kw.ID, search, sort, limit, offset)
 	if err != nil {
-		return nil, nil, 0, nil, 0, err
+		return nil, nil, 0, nil, 0, MapError(err)
 	}
 
 	posts, postTotal, err := s.repo.ListPostsByKeyword(countryID, kw.ID, search, sort, limit, offset)
 	if err != nil {
-		return nil, nil, 0, nil, 0, err
+		return nil, nil, 0, nil, 0, MapError(err)
 	}
 
 	return kw, articles, artTotal, posts, postTotal, nil

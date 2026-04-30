@@ -20,14 +20,14 @@ func AssignRoles(db *gorm.DB, userID uint, roleIDs []uint) error {
 			"DELETE FROM model_has_roles WHERE model_id = ? AND model_type = ?",
 			userID, modelTypeUser,
 		).Error; err != nil {
-			return err
+			return MapError(err)
 		}
 		for _, id := range roleIDs {
 			if err := tx.Exec(
 				"INSERT IGNORE INTO model_has_roles (role_id, model_type, model_id) VALUES (?, ?, ?)",
 				id, modelTypeUser, userID,
 			).Error; err != nil {
-				return err
+				return MapError(err)
 			}
 		}
 		return nil
@@ -41,14 +41,14 @@ func AssignPermissions(db *gorm.DB, userID uint, permIDs []uint) error {
 			"DELETE FROM model_has_permissions WHERE model_id = ? AND model_type = ?",
 			userID, modelTypeUser,
 		).Error; err != nil {
-			return err
+			return MapError(err)
 		}
 		for _, id := range permIDs {
 			if err := tx.Exec(
 				"INSERT IGNORE INTO model_has_permissions (permission_id, model_type, model_id) VALUES (?, ?, ?)",
 				id, modelTypeUser, userID,
 			).Error; err != nil {
-				return err
+				return MapError(err)
 			}
 		}
 		return nil

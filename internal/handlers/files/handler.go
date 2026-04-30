@@ -165,7 +165,15 @@ func (h *Handler) DashboardUpload(c *fiber.Ctx) error {
 		}
 	}
 
-	file, err := h.svc.CreateRecord(countryID, uploaded, articleIDPtr)
+	var postIDPtr *uint
+	if postID := c.FormValue("post_id"); postID != "" {
+		if id, err := strconv.ParseUint(postID, 10, 64); err == nil {
+			uid := uint(id)
+			postIDPtr = &uid
+		}
+	}
+
+	file, err := h.svc.CreateRecord(countryID, uploaded, articleIDPtr, postIDPtr)
 	if err != nil {
 		return utils.InternalError(c, "فشل حفظ بيانات الملف")
 	}

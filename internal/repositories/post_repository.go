@@ -8,8 +8,9 @@ import (
 
 type PostRepository interface {
 	GetDB(countryID database.CountryID) *gorm.DB
-	ListPaginated(countryID database.CountryID, catID string, search string, featured string, limit, offset int) ([]models.Post, int64, error)
+	ListPaginated(countryID database.CountryID, filter *models.PostFilter, limit, offset int) ([]models.Post, int64, error)
 	FindByID(countryID database.CountryID, id uint64) (*models.Post, error)
+	ExistsBySlug(countryID database.CountryID, slug string, excludeID uint64) bool
 	IncrementView(countryID database.CountryID, id uint64) error
 	Create(countryID database.CountryID, post *models.Post) error
 	Update(countryID database.CountryID, post *models.Post) error
@@ -26,7 +27,7 @@ func (r *postRepository) GetDB(countryID database.CountryID) *gorm.DB {
 	return database.DBForCountry(countryID)
 }
 
-func (r *postRepository) ListPaginated(countryID database.CountryID, catID string, search string, featured string, limit, offset int) ([]models.Post, int64, error) {
+func (r *postRepository) ListPaginated(countryID database.CountryID, filter *models.PostFilter, limit, offset int) ([]models.Post, int64, error) {
 	db := r.GetDB(countryID)
 	var postList []models.Post
 	var total int64
@@ -34,17 +35,19 @@ func (r *postRepository) ListPaginated(countryID database.CountryID, catID strin
 	query := db.Model(&models.Post{}).Preload("Category").Preload("Author").
 		Where("is_active = ?", true)
 
-	if catID != "" {
-		query = query.Where("category_id = ?", catID)
-	}
-	if search != "" {
-		// Search title only — content is a large TEXT column and scanning it causes
-		// a full-table scan even with indexes. Add a FULLTEXT index on content and
-		// switch to MATCH() AGAINST() if full-content search is required.
-		query = query.Where("title LIKE ?", "%"+search+"%")
-	}
-	if featured == "1" {
-		query = query.Where("is_featured = ?", true)
+	if filter != nil {
+		if filter.CategoryID != "" {
+			query = query.Where("category_id = ?", filter.CategoryID)
+		}
+		if filter.Search != "" {
+			// Search title only — content is a large TEXT column and scanning it causes
+			// a full-table scan even with indexes. Add a FULLTEXT index on content and
+			// switch to MATCH() AGAINST() if full-content search is required.
+			query = query.Where("title LIKE ?", "%"+filter.Search+"%")
+		}
+		if filter.Featured == "1" {
+			query = query.Where("is_featured = ?", true)
+		}
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -59,13 +62,24 @@ func (r *postRepository) FindByID(countryID database.CountryID, id uint64) (*mod
 	db := r.GetDB(countryID)
 	var post models.Post
 	err := db.Preload("Category").Preload("Author").Preload("Comments.User").
-		Preload("KeywordsRel").
-		Where("id = ? AND is_active = ?", id, true).
+		Preload("KeywordsRel").Preload("Files").
+		Where("id = ?", id).
 		First(&post).Error
 	if err != nil {
 		return nil, err
 	}
 	return &post, nil
+}
+
+func (r *postRepository) ExistsBySlug(countryID database.CountryID, slug string, excludeID uint64) bool {
+	db := r.GetDB(countryID)
+	var count int64
+	q := db.Model(&models.Post{}).Where("slug = ?", slug)
+	if excludeID > 0 {
+		q = q.Where("id != ?", excludeID)
+	}
+	q.Count(&count)
+	return count > 0
 }
 
 func (r *postRepository) IncrementView(countryID database.CountryID, id uint64) error {
