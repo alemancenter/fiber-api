@@ -78,6 +78,6 @@ func (r *sitemapRepository) GetActiveCategories(dbCode string) ([]models.Categor
 func (r *sitemapRepository) GetActiveSchoolClasses(dbCode string) ([]models.SchoolClass, error) {
 	db := database.GetManager().GetByCode(dbCode)
 	var classes []models.SchoolClass
-	err := db.Where("is_active = ?", true).Select("grade_level, updated_at").Find(&classes).Error
+	err := db.Select("grade_level, updated_at").Find(&classes).Error
 	return classes, err
 }

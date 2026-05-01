@@ -52,14 +52,11 @@ func categoriesKey(countryID database.CountryID) string {
 }
 
 func (s *categoryService) invalidateCache(countryID database.CountryID) {
-	if s.cache != nil {
-		_ = s.cache.DeletePattern("home:*")
-	}
 	InvalidateCache(categoriesKey(countryID))
 }
 
 func (s *categoryService) GetActiveCategories(countryID database.CountryID) ([]models.Category, error) {
-	cats, err := GetOrSet[[]models.Category](context.Background(), categoriesKey(countryID), categoriesCacheTTL, func() ([]models.Category, error) {
+	cats, err := GetOrSet(context.Background(), categoriesKey(countryID), categoriesCacheTTL, func() ([]models.Category, error) {
 		return s.repo.FindAllActive(countryID)
 	})
 	return cats, MapError(err)

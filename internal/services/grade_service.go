@@ -9,12 +9,9 @@ import (
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/repositories"
-	"github.com/alemancenter/fiber-api/internal/utils"
 )
 
-const (
-	classesAndFilterTTL = time.Hour
-)
+const staticDataTTL = 24 * time.Hour
 
 type GradeService interface {
 	// School Classes
@@ -83,37 +80,26 @@ func NewGradeService(repo repositories.GradeRepository, cache CacheService) Grad
 	return &gradeService{repo: repo, cache: cache}
 }
 
-// ── Cache Keys ──────────────────────────────────────────────────────────────
-
-func classesKey(country string) string {
-	return database.Redis().CountryKey(country, "school-classes")
-}
-
-func filterKey(country string) string {
-	return database.Redis().CountryKey(country, "filter-meta")
-}
-
 // InvalidateClassCache removes school class and filter caches for a country.
 func (s *gradeService) InvalidateClassCache(countryID database.CountryID) {
-	if s.cache != nil {
-		_ = s.cache.DeletePattern("filter:*")
-		_ = s.cache.DeletePattern("school-classes:*")
-		_ = s.cache.DeletePattern("subjects:*")
-		_ = s.cache.DeletePattern("semesters:*")
-		_ = s.cache.DeletePattern("home:*")
+	if s.cache == nil {
+		return
 	}
-
-	cc := database.CountryCode(countryID)
-	InvalidateCache(classesKey(cc), filterKey(cc))
+	_ = s.cache.DeletePattern("school-classes:*")
+	_ = s.cache.DeletePattern("school-class:*")
+	_ = s.cache.DeletePattern("filter:subjects:*")
+	_ = s.cache.DeletePattern("filter:semesters:*")
+	_ = s.cache.DeletePattern("filter:meta:*")
+	_ = s.cache.DeletePattern("home:*")
 }
 
 // ── School Classes ──────────────────────────────────────────────────────────
 
 func (s *gradeService) ListSchoolClasses(countryID database.CountryID) ([]models.SchoolClass, error) {
-	cacheKey := utils.CacheKey("school-classes:list", countryID)
+	key := "school-classes:list:" + database.CountryCode(countryID)
 
 	var cached []models.SchoolClass
-	if s.cache != nil && s.cache.Get(cacheKey, &cached) {
+	if s.cache != nil && s.cache.Get(key, &cached) {
 		return cached, nil
 	}
 
@@ -123,15 +109,30 @@ func (s *gradeService) ListSchoolClasses(countryID database.CountryID) ([]models
 	}
 
 	if s.cache != nil {
-		_ = s.cache.Set(cacheKey, classes, time.Hour)
+		_ = s.cache.Set(key, classes, staticDataTTL)
 	}
 
 	return classes, nil
 }
 
 func (s *gradeService) GetSchoolClass(countryID database.CountryID, id uint64) (*models.SchoolClass, error) {
+	key := "school-class:" + database.CountryCode(countryID) + ":" + strconv.FormatUint(id, 10)
+
+	var cached models.SchoolClass
+	if s.cache != nil && s.cache.Get(key, &cached) {
+		return &cached, nil
+	}
+
 	class, err := s.repo.FindSchoolClassByID(countryID, id)
-	return class, MapError(err)
+	if err != nil {
+		return nil, MapError(err)
+	}
+
+	if s.cache != nil {
+		_ = s.cache.Set(key, class, staticDataTTL)
+	}
+
+	return class, nil
 }
 
 func (s *gradeService) CreateSchoolClass(countryID database.CountryID, req *SchoolClassInput) (*models.SchoolClass, error) {
@@ -189,11 +190,23 @@ func (s *gradeService) ListSchoolClassesDashboard(countryID database.CountryID, 
 // ── Subjects ────────────────────────────────────────────────────────────────
 
 func (s *gradeService) ListSubjects(countryID database.CountryID, classID uint64) ([]models.Subject, error) {
-	key := database.Redis().CountryKey(database.CountryCode(countryID), "subjects", strconv.FormatUint(classID, 10))
+	key := "filter:subjects:" + database.CountryCode(countryID) + ":" + strconv.FormatUint(classID, 10)
 
-	return GetOrSet[[]models.Subject](context.Background(), key, classesAndFilterTTL, func() ([]models.Subject, error) {
-		return s.repo.ListSubjectsByClassID(countryID, classID)
-	})
+	var cached []models.Subject
+	if s.cache != nil && s.cache.Get(key, &cached) {
+		return cached, nil
+	}
+
+	subjects, err := s.repo.ListSubjectsByClassID(countryID, classID)
+	if err != nil {
+		return nil, MapError(err)
+	}
+
+	if s.cache != nil {
+		_ = s.cache.Set(key, subjects, staticDataTTL)
+	}
+
+	return subjects, nil
 }
 
 func (s *gradeService) CreateSubject(countryID database.CountryID, req *SubjectInput) (*models.Subject, error) {
@@ -206,18 +219,7 @@ func (s *gradeService) CreateSubject(countryID database.CountryID, req *SubjectI
 		return nil, MapError(err)
 	}
 
-	if s.cache != nil {
-		_ = s.cache.DeletePattern("filter:*")
-		_ = s.cache.DeletePattern("subjects:*")
-		_ = s.cache.DeletePattern("home:*")
-	}
-
-	// Invalidate subjects cache for this class
-	cc := database.CountryCode(countryID)
-	InvalidateCache(
-		database.Redis().CountryKey(cc, "subjects", strconv.FormatUint(uint64(subject.GradeLevel), 10)),
-		filterKey(cc),
-	)
+	s.InvalidateClassCache(countryID)
 	return subject, nil
 }
 
@@ -239,23 +241,12 @@ func (s *gradeService) UpdateSubject(countryID database.CountryID, id uint64, re
 		return nil, MapError(err)
 	}
 
-	if s.cache != nil {
-		_ = s.cache.DeletePattern("filter:*")
-		_ = s.cache.DeletePattern("subjects:*")
-		_ = s.cache.DeletePattern("home:*")
-	}
-
-	cc := database.CountryCode(countryID)
-	InvalidateCache(
-		database.Redis().CountryKey(cc, "subjects", strconv.FormatUint(uint64(subject.GradeLevel), 10)),
-		filterKey(cc),
-	)
+	s.InvalidateClassCache(countryID)
 	return subject, nil
 }
 
 func (s *gradeService) DeleteSubject(countryID database.CountryID, id uint64) error {
-	subject, err := s.repo.FindSubjectByID(countryID, id)
-	if err != nil {
+	if _, err := s.repo.FindSubjectByID(countryID, id); err != nil {
 		return MapError(err)
 	}
 
@@ -263,17 +254,7 @@ func (s *gradeService) DeleteSubject(countryID database.CountryID, id uint64) er
 		return MapError(err)
 	}
 
-	if s.cache != nil {
-		_ = s.cache.DeletePattern("filter:*")
-		_ = s.cache.DeletePattern("subjects:*")
-		_ = s.cache.DeletePattern("home:*")
-	}
-
-	cc := database.CountryCode(countryID)
-	InvalidateCache(
-		database.Redis().CountryKey(cc, "subjects", strconv.FormatUint(uint64(subject.GradeLevel), 10)),
-		filterKey(cc),
-	)
+	s.InvalidateClassCache(countryID)
 	return nil
 }
 
@@ -295,12 +276,23 @@ func (s *gradeService) ListSemesters(countryID database.CountryID, subjectID uin
 		return nil, nil, MapError(err)
 	}
 
-	key := database.Redis().CountryKey(database.CountryCode(countryID), "semesters", strconv.FormatUint(uint64(subject.GradeLevel), 10))
-	semesters, err := GetOrSet[[]models.Semester](context.Background(), key, classesAndFilterTTL, func() ([]models.Semester, error) {
-		return s.repo.ListSemestersByGradeLevel(countryID, subject.GradeLevel)
-	})
+	key := "filter:semesters:" + database.CountryCode(countryID) + ":" + strconv.FormatUint(subjectID, 10)
 
-	return semesters, subject, MapError(err)
+	var cached []models.Semester
+	if s.cache != nil && s.cache.Get(key, &cached) {
+		return cached, subject, nil
+	}
+
+	semesters, err := s.repo.ListSemestersByGradeLevel(countryID, subject.GradeLevel)
+	if err != nil {
+		return nil, nil, MapError(err)
+	}
+
+	if s.cache != nil {
+		_ = s.cache.Set(key, semesters, staticDataTTL)
+	}
+
+	return semesters, subject, nil
 }
 
 func (s *gradeService) GetSemester(countryID database.CountryID, id uint64) (*models.Semester, error) {
@@ -318,15 +310,7 @@ func (s *gradeService) CreateSemester(countryID database.CountryID, req *Semeste
 		return nil, MapError(err)
 	}
 
-	if s.cache != nil {
-		_ = s.cache.DeletePattern("filter:*")
-		_ = s.cache.DeletePattern("semesters:*")
-		_ = s.cache.DeletePattern("home:*")
-	}
-
-	InvalidateCache(
-		database.Redis().CountryKey(database.CountryCode(countryID), "semesters", strconv.FormatUint(uint64(semester.GradeLevel), 10)),
-	)
+	s.InvalidateClassCache(countryID)
 	return semester, nil
 }
 
@@ -347,21 +331,12 @@ func (s *gradeService) UpdateSemester(countryID database.CountryID, id uint64, r
 		return nil, MapError(err)
 	}
 
-	if s.cache != nil {
-		_ = s.cache.DeletePattern("filter:*")
-		_ = s.cache.DeletePattern("semesters:*")
-		_ = s.cache.DeletePattern("home:*")
-	}
-
-	InvalidateCache(
-		database.Redis().CountryKey(database.CountryCode(countryID), "semesters", strconv.FormatUint(uint64(semester.GradeLevel), 10)),
-	)
+	s.InvalidateClassCache(countryID)
 	return semester, nil
 }
 
 func (s *gradeService) DeleteSemester(countryID database.CountryID, id uint64) error {
-	semester, err := s.repo.FindSemesterByID(countryID, id)
-	if err != nil {
+	if _, err := s.repo.FindSemesterByID(countryID, id); err != nil {
 		return MapError(err)
 	}
 
@@ -369,15 +344,7 @@ func (s *gradeService) DeleteSemester(countryID database.CountryID, id uint64) e
 		return MapError(err)
 	}
 
-	if s.cache != nil {
-		_ = s.cache.DeletePattern("filter:*")
-		_ = s.cache.DeletePattern("semesters:*")
-		_ = s.cache.DeletePattern("home:*")
-	}
-
-	InvalidateCache(
-		database.Redis().CountryKey(database.CountryCode(countryID), "semesters", strconv.FormatUint(uint64(semester.GradeLevel), 10)),
-	)
+	s.InvalidateClassCache(countryID)
 	return nil
 }
 
@@ -398,10 +365,10 @@ type filterResult struct {
 }
 
 func (s *gradeService) FilterMeta(countryID database.CountryID) ([]models.SchoolClass, error) {
-	cacheKey := utils.CacheKey("filter:meta", countryID)
+	key := "filter:meta:" + database.CountryCode(countryID)
 
 	var cached filterResult
-	if s.cache != nil && s.cache.Get(cacheKey, &cached) {
+	if s.cache != nil && s.cache.Get(key, &cached) {
 		return cached.Classes, nil
 	}
 
@@ -411,7 +378,7 @@ func (s *gradeService) FilterMeta(countryID database.CountryID) ([]models.School
 	}
 
 	if s.cache != nil {
-		_ = s.cache.Set(cacheKey, filterResult{Classes: classes}, time.Hour)
+		_ = s.cache.Set(key, filterResult{Classes: classes}, staticDataTTL)
 	}
 
 	return classes, nil
@@ -427,7 +394,7 @@ func (s *gradeService) ListGradeArticles(countryID database.CountryID, subjectID
 		Total    int64            `json:"total"`
 	}
 
-	res, err := GetOrSet[listResult](context.Background(), key, 5*time.Minute, func() (listResult, error) {
+	res, err := GetOrSet(context.Background(), key, 5*time.Minute, func() (listResult, error) {
 		total, err := s.repo.CountGradeArticles(countryID, subjectID)
 		if err != nil {
 			return listResult{}, err

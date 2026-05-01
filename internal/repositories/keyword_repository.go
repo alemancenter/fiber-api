@@ -44,19 +44,20 @@ func (r *keywordRepository) ListKeywords(countryID database.CountryID, keywordTy
 	}
 
 	var selectQuery string
-	if keywordType == "article" || keywordType == "articles" {
+	switch keywordType {
+case "article", "articles":
 		selectQuery = "keywords.id, keywords.keyword, COUNT(articles.id) as items_count"
 		db = db.Joins("JOIN article_keyword ON article_keyword.keyword_id = keywords.id").
 			Joins("JOIN articles ON articles.id = article_keyword.article_id").
 			Where("articles.status = 1").
 			Group("keywords.id")
-	} else if keywordType == "post" || keywordType == "posts" {
+	case "post", "posts":
 		selectQuery = "keywords.id, keywords.keyword, COUNT(posts.id) as items_count"
 		db = db.Joins("JOIN post_keyword ON post_keyword.keyword_id = keywords.id").
 			Joins("JOIN posts ON posts.id = post_keyword.post_id").
 			Where("posts.is_active = ?", true).
 			Group("keywords.id")
-	} else {
+	default:
 		// Both - just a basic count of any usage
 		selectQuery = "keywords.id, keywords.keyword, (SELECT COUNT(*) FROM article_keyword WHERE article_keyword.keyword_id = keywords.id) + (SELECT COUNT(*) FROM post_keyword WHERE post_keyword.keyword_id = keywords.id) as items_count"
 		db = db.Where("EXISTS (SELECT 1 FROM article_keyword WHERE article_keyword.keyword_id = keywords.id) OR EXISTS (SELECT 1 FROM post_keyword WHERE post_keyword.keyword_id = keywords.id)")

@@ -142,6 +142,8 @@ func TestPostService_Create(t *testing.T) {
 			assert.Equal(t, "New Post", post.Title)
 			assert.Equal(t, "Post Content", post.Content)
 			assert.Equal(t, utils.GenerateSlug("New Post"), post.Slug)
+			assert.NotNil(t, post.Image)
+			assert.Equal(t, "", *post.Image)
 			post.ID = 5 // Simulate DB setting ID
 			return nil
 		}

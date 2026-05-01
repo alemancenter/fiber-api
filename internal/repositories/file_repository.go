@@ -91,7 +91,7 @@ func (r *fileRepository) IncrementView(countryID database.CountryID, id uint64) 
 
 func (r *fileRepository) Create(countryID database.CountryID, file *models.File) error {
 	db := r.GetDB(countryID)
-	return db.Create(file).Error
+	return db.Omit("ViewCount").Create(file).Error
 }
 
 func (r *fileRepository) Update(countryID database.CountryID, file *models.File) error {

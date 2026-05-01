@@ -105,7 +105,7 @@ func (ActivityLog) TableName() string { return "activity_log" }
 type VisitorTracking struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	IPAddress    string    `gorm:"type:varchar(255);not null" json:"ip_address"`
-	UserAgent    string    `gorm:"type:text;not null;default:''" json:"user_agent"`
+	UserAgent    string    `gorm:"type:text" json:"user_agent"`
 	Country      *string   `gorm:"type:varchar(255)" json:"country,omitempty"`
 	City         *string   `gorm:"type:varchar(255)" json:"city,omitempty"`
 	Browser      *string   `gorm:"type:varchar(255)" json:"browser,omitempty"`

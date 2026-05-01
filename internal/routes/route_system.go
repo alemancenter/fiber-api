@@ -8,7 +8,7 @@ import (
 
 // registerSystemRoutes handles configuration, security settings,
 // robots/sitemap, redis management, legal pages, and localization.
-func registerSystemRoutes(api, public, dash fiber.Router, h *Handlers) {
+func registerSystemRoutes(api, _, dash fiber.Router, h *Handlers) {
 	// =====================
 	// PUBLIC ROUTES
 	// =====================

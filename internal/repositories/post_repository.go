@@ -26,6 +26,13 @@ func (r *postRepository) getDB(countryID database.CountryID) *gorm.DB {
 	return database.DBForCountry(countryID)
 }
 
+func hydratePostComputedFields(post *models.Post) {
+	if post == nil || post.Image == nil || *post.Image == "" {
+		return
+	}
+	post.ImageURL = *post.Image
+}
+
 func (r *postRepository) ListPaginated(countryID database.CountryID, filter *models.PostFilter, limit, offset int) ([]models.Post, int64, error) {
 	db := r.getDB(countryID)
 	var postList []models.Post
@@ -56,6 +63,11 @@ func (r *postRepository) ListPaginated(countryID database.CountryID, filter *mod
 	}
 
 	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&postList).Error
+	if err == nil {
+		for i := range postList {
+			hydratePostComputedFields(&postList[i])
+		}
+	}
 	return postList, total, err
 }
 
@@ -69,6 +81,7 @@ func (r *postRepository) FindByID(countryID database.CountryID, id uint64) (*mod
 	if err != nil {
 		return nil, err
 	}
+	hydratePostComputedFields(&post)
 	return &post, nil
 }
 

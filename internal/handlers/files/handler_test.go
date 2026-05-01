@@ -1,6 +1,7 @@
 package files
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"io"
@@ -91,6 +92,26 @@ func createMultipartForm(t *testing.T, fieldName string, fileName string, fileCo
 	return body, writer.FormDataContentType()
 }
 
+type zipEntry struct {
+	name    string
+	content []byte
+}
+
+func createZipBytes(t *testing.T, entries []zipEntry) []byte {
+	t.Helper()
+
+	var buf bytes.Buffer
+	writer := zip.NewWriter(&buf)
+	for _, entry := range entries {
+		part, err := writer.Create(entry.name)
+		assert.NoError(t, err)
+		_, err = part.Write(entry.content)
+		assert.NoError(t, err)
+	}
+	assert.NoError(t, writer.Close())
+	return buf.Bytes()
+}
+
 func TestHandler_DashboardUpload_ImageForArticle(t *testing.T) {
 	app, mockRepo, _ := setupApp(t)
 
@@ -164,4 +185,128 @@ func TestHandler_UploadDocumentForArticle(t *testing.T) {
 
 		assert.Equal(t, http.StatusCreated, resp.StatusCode)
 	})
+}
+
+func TestHandler_DashboardUpload_ZipForPost(t *testing.T) {
+	app, mockRepo, _ := setupApp(t)
+
+	t.Run("SuccessUploadZipForPost", func(t *testing.T) {
+		// Minimal valid empty ZIP archive.
+		zipBytes := []byte{
+			0x50, 0x4b, 0x05, 0x06,
+			0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00,
+		}
+
+		body, contentType := createMultipartForm(t, "file", "attachments.zip", zipBytes, map[string]string{
+			"post_id":       "18",
+			"file_category": "post_attachment",
+		})
+
+		mockRepo.CreateFunc = func(countryID database.CountryID, file *models.File) error {
+			assert.NotNil(t, file.PostID)
+			assert.Equal(t, uint(18), *file.PostID)
+			assert.Equal(t, "attachments.zip", file.FileName)
+			assert.Equal(t, "application/zip", file.MimeType)
+			assert.Equal(t, ".zip", file.FileType)
+			assert.NotNil(t, file.FileCategory)
+			assert.Equal(t, "post_attachment", *file.FileCategory)
+			return nil
+		}
+
+		req := httptest.NewRequest(http.MethodPost, "/api/dashboard/files", body)
+		req.Header.Set("Content-Type", contentType)
+
+		resp, err := app.Test(req)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusCreated, resp.StatusCode)
+	})
+}
+
+func TestHandler_DashboardUpload_OfficeDocumentsForPost(t *testing.T) {
+	tests := []struct {
+		name     string
+		fileName string
+		entry    string
+		wantMime string
+		wantExt  string
+	}{
+		{
+			name:     "WordDocx",
+			fileName: "lesson.docx",
+			entry:    "word/document.xml",
+			wantMime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+			wantExt:  ".docx",
+		},
+		{
+			name:     "ExcelXlsx",
+			fileName: "grades.xlsx",
+			entry:    "xl/workbook.xml",
+			wantMime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+			wantExt:  ".xlsx",
+		},
+		{
+			name:     "PowerPointPptx",
+			fileName: "slides.pptx",
+			entry:    "ppt/presentation.xml",
+			wantMime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+			wantExt:  ".pptx",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app, mockRepo, _ := setupApp(t)
+			officeBytes := createZipBytes(t, []zipEntry{
+				{name: "padding.bin", content: bytes.Repeat([]byte("0"), 4096)},
+				{name: "[Content_Types].xml", content: []byte(`<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"></Types>`)},
+				{name: tt.entry, content: []byte("<xml></xml>")},
+			})
+
+			body, contentType := createMultipartForm(t, "file", tt.fileName, officeBytes, map[string]string{
+				"post_id":       "18",
+				"file_category": "post_attachment",
+			})
+
+			mockRepo.CreateFunc = func(countryID database.CountryID, file *models.File) error {
+				assert.NotNil(t, file.PostID)
+				assert.Equal(t, uint(18), *file.PostID)
+				assert.Equal(t, tt.fileName, file.FileName)
+				assert.Equal(t, tt.wantMime, file.MimeType)
+				assert.Equal(t, tt.wantExt, file.FileType)
+				assert.NotNil(t, file.FileCategory)
+				assert.Equal(t, "post_attachment", *file.FileCategory)
+				return nil
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/api/dashboard/files", body)
+			req.Header.Set("Content-Type", contentType)
+
+			resp, err := app.Test(req)
+			assert.NoError(t, err)
+			assert.Equal(t, http.StatusCreated, resp.StatusCode)
+		})
+	}
+}
+
+func TestHandler_DashboardUpload_RejectsGenericZipWithOfficeExtension(t *testing.T) {
+	app, _, _ := setupApp(t)
+	zipBytes := createZipBytes(t, []zipEntry{
+		{name: "notes.txt", content: []byte("not an office document")},
+	})
+
+	body, contentType := createMultipartForm(t, "file", "fake.xlsx", zipBytes, map[string]string{
+		"post_id":       "18",
+		"file_category": "post_attachment",
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/dashboard/files", body)
+	req.Header.Set("Content-Type", contentType)
+
+	resp, err := app.Test(req)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }

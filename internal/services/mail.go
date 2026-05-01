@@ -36,12 +36,11 @@ func (m *MailService) Send(to, subject, body string, isHTML bool) error {
 	}
 
 	port := m.cfg.Port
-	tlsMode := mail.TLSMandatory
-	if m.cfg.Encryption == "ssl" {
+	var tlsMode mail.TLSPolicy
+	switch m.cfg.Encryption {
+	case "ssl", "tls":
 		tlsMode = mail.TLSMandatory
-	} else if m.cfg.Encryption == "tls" {
-		tlsMode = mail.TLSMandatory
-	} else {
+	default:
 		tlsMode = mail.TLSOpportunistic
 	}
 

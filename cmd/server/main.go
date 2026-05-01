@@ -91,6 +91,7 @@ func main() {
 		&models.VisitorTracking{},
 		&models.VisitorSession{},
 		&models.Comment{},
+		&models.File{},
 	}
 	seen := make(map[*gorm.DB]bool)
 	for _, id := range []database.CountryID{database.CountryJordan, database.CountrySaudi, database.CountryEgypt, database.CountryPalestine} {

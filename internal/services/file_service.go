@@ -1,6 +1,7 @@
 package services
 
 import (
+	"archive/zip"
 	"errors"
 	"fmt"
 	"io"
@@ -52,13 +53,42 @@ var AllowedImageTypes = []string{
 // AllowedDocumentTypes lists accepted document MIME types
 var AllowedDocumentTypes = []string{
 	"application/pdf",
+	"application/rtf",
 	"application/msword",
+	"application/vnd.ms-word",
+	"application/vnd.ms-word.document.macroEnabled.12",
+	"application/vnd.ms-word.template.macroEnabled.12",
 	"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.template",
 	"application/vnd.ms-excel",
+	"application/msexcel",
+	"application/vnd.ms-excel.sheet.binary.macroEnabled.12",
+	"application/vnd.ms-excel.sheet.macroEnabled.12",
+	"application/vnd.ms-excel.template.macroEnabled.12",
+	"application/vnd.ms-excel.addin.macroEnabled.12",
 	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.template",
 	"application/vnd.ms-powerpoint",
+	"application/mspowerpoint",
+	"application/vnd.ms-powerpoint.presentation.macroEnabled.12",
+	"application/vnd.ms-powerpoint.template.macroEnabled.12",
+	"application/vnd.ms-powerpoint.slideshow.macroEnabled.12",
+	"application/vnd.ms-powerpoint.addin.macroEnabled.12",
 	"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+	"application/vnd.openxmlformats-officedocument.presentationml.template",
+	"application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+	"application/vnd.oasis.opendocument.text",
+	"application/vnd.oasis.opendocument.text-template",
+	"application/vnd.oasis.opendocument.spreadsheet",
+	"application/vnd.oasis.opendocument.spreadsheet-template",
+	"application/vnd.oasis.opendocument.presentation",
+	"application/vnd.oasis.opendocument.presentation-template",
+	"application/x-ole-storage",
+	"application/zip",
+	"application/csv",
+	"text/csv",
 	"text/plain",
+	"text/rtf",
 }
 
 // allowedImageExts maps MIME type → allowed file extensions for images.
@@ -75,14 +105,83 @@ var allowedImageExts = map[string][]string{
 
 // allowedDocumentExts maps MIME type → allowed file extensions for documents.
 var allowedDocumentExts = map[string][]string{
-	"application/pdf":    {".pdf"},
-	"application/msword": {".doc"},
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": {".docx"},
-	"application/vnd.ms-excel": {".xls"},
+	"application/pdf":         {".pdf"},
+	"application/rtf":         {".rtf"},
+	"application/msword":      {".doc", ".dot"},
+	"application/vnd.ms-word": {".doc", ".dot"},
+	"application/vnd.ms-word.document.macroEnabled.12":                          {".docm"},
+	"application/vnd.ms-word.template.macroEnabled.12":                          {".dotm"},
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document":   {".docx"},
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.template":   {".dotx"},
+	"application/vnd.ms-excel":                                                  {".xls", ".xlt"},
+	"application/msexcel":                                                       {".xls", ".xlt"},
+	"application/vnd.ms-excel.sheet.binary.macroEnabled.12":                     {".xlsb"},
+	"application/vnd.ms-excel.sheet.macroEnabled.12":                            {".xlsm"},
+	"application/vnd.ms-excel.template.macroEnabled.12":                         {".xltm"},
+	"application/vnd.ms-excel.addin.macroEnabled.12":                            {".xlam"},
 	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":         {".xlsx"},
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.template":      {".xltx"},
 	"application/vnd.ms-powerpoint":                                             {".ppt"},
+	"application/mspowerpoint":                                                  {".ppt"},
+	"application/vnd.ms-powerpoint.presentation.macroEnabled.12":                {".pptm"},
+	"application/vnd.ms-powerpoint.template.macroEnabled.12":                    {".potm"},
+	"application/vnd.ms-powerpoint.slideshow.macroEnabled.12":                   {".ppsm"},
+	"application/vnd.ms-powerpoint.addin.macroEnabled.12":                       {".ppam"},
 	"application/vnd.openxmlformats-officedocument.presentationml.presentation": {".pptx"},
-	"text/plain": {".txt"},
+	"application/vnd.openxmlformats-officedocument.presentationml.template":     {".potx"},
+	"application/vnd.openxmlformats-officedocument.presentationml.slideshow":    {".ppsx"},
+	"application/vnd.oasis.opendocument.text":                                   {".odt"},
+	"application/vnd.oasis.opendocument.text-template":                          {".ott"},
+	"application/vnd.oasis.opendocument.spreadsheet":                            {".ods"},
+	"application/vnd.oasis.opendocument.spreadsheet-template":                   {".ots"},
+	"application/vnd.oasis.opendocument.presentation":                           {".odp"},
+	"application/vnd.oasis.opendocument.presentation-template":                  {".otp"},
+	"application/x-ole-storage":                                                 {".doc", ".dot", ".xls", ".xlt", ".ppt", ".pps"},
+	"application/zip":                                                           {".zip"},
+	"application/csv":                                                           {".csv"},
+	"text/csv":                                                                  {".csv"},
+	"text/plain":                                                                {".txt", ".csv"},
+	"text/rtf":                                                                  {".rtf"},
+}
+
+var officeZipPrefixesByExt = map[string]string{
+	".docx": "word/",
+	".docm": "word/",
+	".dotx": "word/",
+	".dotm": "word/",
+	".xlsx": "xl/",
+	".xlsm": "xl/",
+	".xlsb": "xl/",
+	".xltx": "xl/",
+	".xltm": "xl/",
+	".xlam": "xl/",
+	".pptx": "ppt/",
+	".pptm": "ppt/",
+	".potx": "ppt/",
+	".potm": "ppt/",
+	".ppsx": "ppt/",
+	".ppsm": "ppt/",
+	".ppam": "ppt/",
+}
+
+var officeMimeByExt = map[string]string{
+	".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	".docm": "application/vnd.ms-word.document.macroEnabled.12",
+	".dotx": "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+	".dotm": "application/vnd.ms-word.template.macroEnabled.12",
+	".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	".xlsm": "application/vnd.ms-excel.sheet.macroEnabled.12",
+	".xlsb": "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
+	".xltx": "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+	".xltm": "application/vnd.ms-excel.template.macroEnabled.12",
+	".xlam": "application/vnd.ms-excel.addin.macroEnabled.12",
+	".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+	".pptm": "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
+	".potx": "application/vnd.openxmlformats-officedocument.presentationml.template",
+	".potm": "application/vnd.ms-powerpoint.template.macroEnabled.12",
+	".ppsx": "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+	".ppsm": "application/vnd.ms-powerpoint.slideshow.macroEnabled.12",
+	".ppam": "application/vnd.ms-powerpoint.addin.macroEnabled.12",
 }
 
 // MaxImageSize is 10MB
@@ -125,16 +224,20 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 	}
 	defer src.Close()
 
-	// Read first 512 bytes for MIME detection
-	buf := make([]byte, 512)
-	n, _ := src.Read(buf)
-	mtype, err := mimetype.DetectReader(strings.NewReader(string(buf[:n])))
+	mtype, err := mimetype.DetectReader(src)
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect file type: %w", MapError(err))
 	}
 
+	uploadedExt := strings.ToLower(filepath.Ext(header.Filename))
+	detectedBaseMime := strings.Split(mtype.String(), ";")[0]
+	baseMime := normalizeOfficeZipMime(src, header.Size, detectedBaseMime, uploadedExt)
+	mimeType := mtype.String()
+	if baseMime != detectedBaseMime {
+		mimeType = baseMime
+	}
+
 	// Validate MIME type
-	baseMime := strings.Split(mtype.String(), ";")[0]
 	if !isAllowedMime(baseMime, allowed) {
 		return nil, fmt.Errorf("نوع الملف غير مسموح: %s", baseMime)
 	}
@@ -142,7 +245,6 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 	// Validate that the uploaded filename's extension matches the detected MIME type.
 	// This blocks polyglot files (e.g. a PHP script with a .jpg extension that passes
 	// MIME detection but would execute if served directly).
-	uploadedExt := strings.ToLower(filepath.Ext(header.Filename))
 	if uploadedExt != "" {
 		allowedExts := allowedExtensionsForMime(baseMime)
 		if len(allowedExts) > 0 && !containsStr(allowedExts, uploadedExt) {
@@ -155,10 +257,13 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 		return nil, MapError(err)
 	}
 
-	// Generate unique filename using MIME-derived extension (not the client-supplied one)
-	ext := mtype.Extension()
+	// Preserve the uploaded extension only after it has passed the MIME allow-list check.
+	ext := uploadedExt
 	if ext == "" {
-		ext = strings.ToLower(filepath.Ext(header.Filename))
+		ext = defaultExtensionForMime(baseMime)
+	}
+	if ext == "" {
+		ext = mtype.Extension()
 	}
 	filename := fmt.Sprintf("%s_%d%s", uuid.New().String(), time.Now().UnixNano(), ext)
 
@@ -186,7 +291,7 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 		URL:      s.cfg.URL + "/" + relPath,
 		Name:     header.Filename,
 		Size:     header.Size,
-		MimeType: mtype.String(),
+		MimeType: mimeType,
 		Ext:      ext,
 	}, nil
 }
@@ -240,6 +345,62 @@ func allowedExtensionsForMime(mtype string) []string {
 		return exts
 	}
 	return nil
+}
+
+func defaultExtensionForMime(mtype string) string {
+	exts := allowedExtensionsForMime(mtype)
+	if len(exts) == 0 {
+		return ""
+	}
+	return exts[0]
+}
+
+func normalizeOfficeZipMime(file multipart.File, size int64, baseMime, uploadedExt string) string {
+	expectedPrefix, ok := officeZipPrefixesByExt[uploadedExt]
+	if !ok || !isOfficeZipCandidateMime(baseMime) {
+		return baseMime
+	}
+	if !zipContainsOfficeEntries(file, size, expectedPrefix) {
+		return baseMime
+	}
+	if officeMime, ok := officeMimeByExt[uploadedExt]; ok {
+		return officeMime
+	}
+	return baseMime
+}
+
+func isOfficeZipCandidateMime(mtype string) bool {
+	return mtype == "application/zip" ||
+		strings.Contains(mtype, "officedocument") ||
+		strings.Contains(mtype, "macroEnabled")
+}
+
+func zipContainsOfficeEntries(file multipart.File, size int64, expectedPrefix string) bool {
+	if size <= 0 {
+		return false
+	}
+
+	zr, err := zip.NewReader(file, size)
+	if err != nil {
+		return false
+	}
+
+	hasContentTypes := false
+	hasExpectedOfficeDir := false
+	for _, zipFile := range zr.File {
+		name := strings.TrimPrefix(strings.ToLower(zipFile.Name), "/")
+		if name == "[content_types].xml" {
+			hasContentTypes = true
+		}
+		if strings.HasPrefix(name, expectedPrefix) {
+			hasExpectedOfficeDir = true
+		}
+		if hasContentTypes && hasExpectedOfficeDir {
+			return true
+		}
+	}
+
+	return false
 }
 
 func containsStr(slice []string, s string) bool {

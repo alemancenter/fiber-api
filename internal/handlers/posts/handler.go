@@ -199,10 +199,13 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 
 	// Handle attachments
 	if form, err := c.MultipartForm(); err == nil {
-		if files := form.File["attachments[]"]; len(files) > 0 {
+		files := form.File["attachments[]"]
+		files = append(files, form.File["attachments"]...)
+		if len(files) > 0 {
 			fileRepo := repositories.NewFileRepository()
 			fileSvc := services.NewFileService(fileRepo)
 			postID := post.ID
+			fileCategory := "post_attachment"
 			for _, file := range files {
 				uploaded, uploadErr := fileSvc.UploadDocument(file, "posts/attachments")
 				if uploadErr != nil {
@@ -215,7 +218,7 @@ func (h *Handler) DashboardCreate(c *fiber.Ctx) error {
 					)
 					continue
 				}
-				if _, recErr := fileSvc.CreateRecord(countryID, uploaded, nil, &postID, nil, nil); recErr != nil {
+				if _, recErr := fileSvc.CreateRecord(countryID, uploaded, nil, &postID, nil, &fileCategory); recErr != nil {
 					logger.Warn("post attachment record creation failed",
 						zap.String("path", uploaded.Path),
 						zap.Error(recErr),
@@ -289,10 +292,13 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 
 	// Handle attachments
 	if form, err := c.MultipartForm(); err == nil {
-		if files := form.File["attachments[]"]; len(files) > 0 {
+		files := form.File["attachments[]"]
+		files = append(files, form.File["attachments"]...)
+		if len(files) > 0 {
 			fileRepo := repositories.NewFileRepository()
 			fileSvc := services.NewFileService(fileRepo)
 			postID := post.ID
+			fileCategory := "post_attachment"
 			for _, file := range files {
 				uploaded, uploadErr := fileSvc.UploadDocument(file, "posts/attachments")
 				if uploadErr != nil {
@@ -305,7 +311,7 @@ func (h *Handler) DashboardUpdate(c *fiber.Ctx) error {
 					)
 					continue
 				}
-				if _, recErr := fileSvc.CreateRecord(countryID, uploaded, nil, &postID, nil, nil); recErr != nil {
+				if _, recErr := fileSvc.CreateRecord(countryID, uploaded, nil, &postID, nil, &fileCategory); recErr != nil {
 					logger.Warn("post attachment record creation failed",
 						zap.String("path", uploaded.Path),
 						zap.Error(recErr),

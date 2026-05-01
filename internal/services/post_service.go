@@ -120,9 +120,7 @@ func (s *postService) Create(countryID database.CountryID, countryCode string, u
 	if userID != nil {
 		post.AuthorID = userID
 	}
-	if imagePath != "" {
-		post.Image = &imagePath
-	}
+	post.Image = &imagePath
 
 	if err := s.repo.Create(countryID, post); err != nil {
 		return nil, MapError(err)
@@ -130,7 +128,6 @@ func (s *postService) Create(countryID database.CountryID, countryCode string, u
 
 	if s.cache != nil {
 		_ = s.cache.DeletePattern("posts:list:*")
-		_ = s.cache.DeletePattern("home:*")
 	}
 
 	return post, nil
@@ -178,7 +175,6 @@ func (s *postService) Update(countryID database.CountryID, id uint64, req *Updat
 
 	if s.cache != nil {
 		_ = s.cache.DeletePattern("posts:list:*")
-		_ = s.cache.DeletePattern("home:*")
 	}
 
 	return post, nil
@@ -197,7 +193,6 @@ func (s *postService) Delete(countryID database.CountryID, id uint64, callerID u
 	err = s.repo.Delete(countryID, id)
 	if err == nil && s.cache != nil {
 		_ = s.cache.DeletePattern("posts:list:*")
-		_ = s.cache.DeletePattern("home:*")
 	}
 	return MapError(err)
 }

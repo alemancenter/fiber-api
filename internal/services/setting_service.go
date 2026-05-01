@@ -48,7 +48,7 @@ func (s *settingService) GetPublic(ctx context.Context, countryID database.Count
 	countryCode := database.CountryCode(countryID)
 	key := database.Redis().Key("settings", countryCode)
 
-	result, err := GetOrSet[map[string]string](ctx, key, settingsCacheTTL, func() (map[string]string, error) {
+	result, err := GetOrSet(ctx, key, settingsCacheTTL, func() (map[string]string, error) {
 		rows, err := s.repo.GetAll(ctx, countryID)
 		if err != nil {
 			return nil, MapError(err)

@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,6 +14,26 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 )
+
+// noTrackPrefixes lists high-traffic public endpoints excluded from visitor tracking.
+var noTrackPrefixes = []string{
+	"/api/front/settings",
+	"/api/home",
+	"/api/articles",
+	"/api/posts",
+	"/api/categories",
+	"/api/school-classes",
+	"/api/filter",
+}
+
+func isNoTrack(path string) bool {
+	for _, prefix := range noTrackPrefixes {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	return false
+}
 
 // activityCache is an in-process write-dedup map: userID → last DB write time.
 // Stored BEFORE the goroutine fires so concurrent requests on the same user see
@@ -89,6 +110,11 @@ func TrackVisitor() fiber.Handler {
 
 		// Only track successful GET requests (sampling)
 		if c.Method() != "GET" || c.Response().StatusCode() >= 400 {
+			return nil
+		}
+
+		// Skip high-traffic public endpoints — home, listings, static data
+		if isNoTrack(c.Path()) {
 			return nil
 		}
 

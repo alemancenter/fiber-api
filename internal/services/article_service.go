@@ -296,7 +296,6 @@ func (s *articleService) CreateArticle(countryID database.CountryID, req *Articl
 
 	if s.cache != nil {
 		_ = s.cache.DeletePattern("articles:list:*")
-		_ = s.cache.DeletePattern("home:*")
 	}
 
 	if authorID != nil {
@@ -351,7 +350,6 @@ func (s *articleService) UpdateArticle(countryID database.CountryID, id uint64, 
 
 	if s.cache != nil {
 		_ = s.cache.DeletePattern("articles:list:*")
-		_ = s.cache.DeletePattern("home:*")
 	}
 
 	if authorID != nil {
@@ -371,7 +369,6 @@ func (s *articleService) DeleteArticle(countryID database.CountryID, id uint64, 
 	if err == nil {
 		if s.cache != nil {
 			_ = s.cache.DeletePattern("articles:list:*")
-			_ = s.cache.DeletePattern("home:*")
 		}
 		if authorID != nil {
 			LogActivity("حذف مقالة: "+article.Title, "Article", article.ID, *authorID)
@@ -398,7 +395,6 @@ func (s *articleService) SetArticleStatus(countryID database.CountryID, id uint6
 
 	if err == nil && s.cache != nil {
 		_ = s.cache.DeletePattern("articles:list:*")
-		_ = s.cache.DeletePattern("home:*")
 	}
 
 	return article, MapError(err)
@@ -407,7 +403,7 @@ func (s *articleService) SetArticleStatus(countryID database.CountryID, id uint6
 func (s *articleService) GetDashboardStats(countryID database.CountryID) (*ArticleDashboardStats, error) {
 	ctx := context.Background()
 	key := fmt.Sprintf("article_stats:%d", countryID)
-	return GetOrSet[*ArticleDashboardStats](ctx, key, time.Hour, func() (*ArticleDashboardStats, error) {
+	return GetOrSet(ctx, key, time.Hour, func() (*ArticleDashboardStats, error) {
 		total, published, drafts, views, err := s.repo.GetStats(countryID)
 		if err != nil {
 			return nil, MapError(err)
