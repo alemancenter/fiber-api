@@ -60,6 +60,9 @@ func (r *gradeRepository) ListSchoolClasses(countryID database.CountryID) ([]mod
 func (r *gradeRepository) FindSchoolClassByID(countryID database.CountryID, id uint64) (*models.SchoolClass, error) {
 	var class models.SchoolClass
 	err := r.getDB(countryID).Preload("Subjects").First(&class, id).Error
+	if err == nil {
+		err = r.hydrateSubjectCounts(countryID, class.Subjects)
+	}
 	return &class, err
 }
 
@@ -92,6 +95,9 @@ func (r *gradeRepository) ListSchoolClassesPaginated(countryID database.CountryI
 func (r *gradeRepository) ListSubjectsByClassID(countryID database.CountryID, classID uint64) ([]models.Subject, error) {
 	var list []models.Subject
 	err := r.getDB(countryID).Where("grade_level = ?", classID).Order("subject_name ASC").Find(&list).Error
+	if err == nil {
+		err = r.hydrateSubjectCounts(countryID, list)
+	}
 	return list, err
 }
 
@@ -122,7 +128,63 @@ func (r *gradeRepository) CountSubjects(countryID database.CountryID) (int64, er
 func (r *gradeRepository) ListSubjectsPaginated(countryID database.CountryID, limit, offset int) ([]models.Subject, error) {
 	var subjects []models.Subject
 	err := r.getDB(countryID).Preload("SchoolClass").Order("subject_name ASC").Limit(limit).Offset(offset).Find(&subjects).Error
+	if err == nil {
+		err = r.hydrateSubjectCounts(countryID, subjects)
+	}
 	return subjects, err
+}
+
+func (r *gradeRepository) hydrateSubjectCounts(countryID database.CountryID, subjects []models.Subject) error {
+	if len(subjects) == 0 {
+		return nil
+	}
+
+	subjectIDs := make([]uint, 0, len(subjects))
+	for _, subject := range subjects {
+		subjectIDs = append(subjectIDs, subject.ID)
+	}
+
+	type countRow struct {
+		SubjectID uint  `gorm:"column:subject_id"`
+		Count     int64 `gorm:"column:count"`
+	}
+
+	var articleRows []countRow
+	db := r.getDB(countryID)
+	if err := db.Model(&models.Article{}).
+		Select("subject_id, COUNT(*) AS count").
+		Where("subject_id IN ? AND status = ?", subjectIDs, 1).
+		Group("subject_id").
+		Scan(&articleRows).Error; err != nil {
+		return err
+	}
+
+	var fileRows []countRow
+	if err := db.Table("files").
+		Select("articles.subject_id AS subject_id, COUNT(files.id) AS count").
+		Joins("JOIN articles ON articles.id = files.article_id").
+		Where("articles.subject_id IN ? AND articles.status = ?", subjectIDs, 1).
+		Group("articles.subject_id").
+		Scan(&fileRows).Error; err != nil {
+		return err
+	}
+
+	articleCounts := make(map[uint]int64, len(articleRows))
+	for _, row := range articleRows {
+		articleCounts[row.SubjectID] = row.Count
+	}
+
+	fileCounts := make(map[uint]int64, len(fileRows))
+	for _, row := range fileRows {
+		fileCounts[row.SubjectID] = row.Count
+	}
+
+	for i := range subjects {
+		subjects[i].ArticlesCount = articleCounts[subjects[i].ID]
+		subjects[i].FilesCount = fileCounts[subjects[i].ID]
+	}
+
+	return nil
 }
 
 // ── Semesters ───────────────────────────────────────────────────────────────

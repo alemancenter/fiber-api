@@ -9,6 +9,7 @@ import (
 
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
+	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/alemancenter/fiber-api/pkg/logger"
 	"github.com/gofiber/fiber/v2"
@@ -101,15 +102,20 @@ func UpdateLastActivity() fiber.Handler {
 	}
 }
 
-// TrackVisitor records visitor data for analytics
+// TrackVisitor captures visitor data and enqueues it for async batch insertion.
+// The hot path is a single channel send — no goroutine, no Redis round-trip, no JSON marshal.
 func TrackVisitor() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		start := time.Now()
+
 		if err := c.Next(); err != nil {
 			return err
 		}
 
-		// Only track successful GET requests (sampling)
-		if c.Method() != "GET" || c.Response().StatusCode() >= 400 {
+		statusCode := c.Response().StatusCode()
+
+		// Only track successful GET requests
+		if c.Method() != "GET" || statusCode >= 400 {
 			return nil
 		}
 
@@ -118,54 +124,32 @@ func TrackVisitor() fiber.Handler {
 			return nil
 		}
 
-		// Sample 1 in 3 requests uniformly to reduce writes
+		// Sample 1 in 3 requests to further reduce queue volume
 		if rand.Intn(3) != 0 {
 			return nil
 		}
-
-		clientIP := utils.GetClientIP(c)
 
 		countryCode, _ := c.Locals("country_code").(string)
 		if countryCode == "" {
 			countryCode = "jo"
 		}
 
-		var trackUserID *uint
+		ev := services.VisitorEvent{
+			IPAddress:    utils.GetClientIP(c),
+			UserAgent:    c.Get("User-Agent"),
+			URL:          c.Path(),
+			Referer:      c.Get("Referer"),
+			CountryCode:  countryCode,
+			StatusCode:   statusCode,
+			ResponseTime: float64(time.Since(start).Microseconds()) / 1000.0,
+			Timestamp:    time.Now(),
+		}
 		if u, ok := c.Locals("user").(*models.User); ok && u != nil {
 			uid := u.ID
-			trackUserID = &uid
+			ev.UserID = &uid
 		}
 
-		// Capture all request values before the goroutine
-		path := c.Path()
-		userAgent := c.Get("User-Agent")
-		referer := c.Get("Referer")
-
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-
-			db := database.GetManager().GetByCode(countryCode).WithContext(ctx)
-			now := time.Now()
-			tracking := models.VisitorTracking{
-				IPAddress:    clientIP,
-				UserAgent:    userAgent,
-				URL:          &path,
-				UserID:       trackUserID,
-				LastActivity: now,
-				CreatedAt:    now,
-			}
-			if referer != "" {
-				tracking.Referer = &referer
-			}
-			if err := db.Create(&tracking).Error; err != nil {
-				logger.Error("visitor tracking failed",
-					zap.String("ip", clientIP),
-					zap.Error(err),
-				)
-			}
-		}()
-
+		services.EnqueueVisitor(ev)
 		return nil
 	}
 }

@@ -11,7 +11,10 @@ import (
 	"github.com/alemancenter/fiber-api/internal/repositories"
 )
 
-const staticDataTTL = 24 * time.Hour
+const (
+	staticDataTTL         = 24 * time.Hour
+	academicCountsDataTTL = time.Minute
+)
 
 type GradeService interface {
 	// School Classes
@@ -116,7 +119,7 @@ func (s *gradeService) ListSchoolClasses(countryID database.CountryID) ([]models
 }
 
 func (s *gradeService) GetSchoolClass(countryID database.CountryID, id uint64) (*models.SchoolClass, error) {
-	key := "school-class:" + database.CountryCode(countryID) + ":" + strconv.FormatUint(id, 10)
+	key := "school-class:v2:" + database.CountryCode(countryID) + ":" + strconv.FormatUint(id, 10)
 
 	var cached models.SchoolClass
 	if s.cache != nil && s.cache.Get(key, &cached) {
@@ -129,7 +132,7 @@ func (s *gradeService) GetSchoolClass(countryID database.CountryID, id uint64) (
 	}
 
 	if s.cache != nil {
-		_ = s.cache.Set(key, class, staticDataTTL)
+		_ = s.cache.Set(key, class, academicCountsDataTTL)
 	}
 
 	return class, nil
@@ -190,7 +193,7 @@ func (s *gradeService) ListSchoolClassesDashboard(countryID database.CountryID, 
 // ── Subjects ────────────────────────────────────────────────────────────────
 
 func (s *gradeService) ListSubjects(countryID database.CountryID, classID uint64) ([]models.Subject, error) {
-	key := "filter:subjects:" + database.CountryCode(countryID) + ":" + strconv.FormatUint(classID, 10)
+	key := "filter:subjects:v2:" + database.CountryCode(countryID) + ":" + strconv.FormatUint(classID, 10)
 
 	var cached []models.Subject
 	if s.cache != nil && s.cache.Get(key, &cached) {
@@ -203,7 +206,7 @@ func (s *gradeService) ListSubjects(countryID database.CountryID, classID uint64
 	}
 
 	if s.cache != nil {
-		_ = s.cache.Set(key, subjects, staticDataTTL)
+		_ = s.cache.Set(key, subjects, academicCountsDataTTL)
 	}
 
 	return subjects, nil

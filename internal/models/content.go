@@ -20,11 +20,13 @@ func (SchoolClass) TableName() string { return "school_classes" }
 
 // Subject represents a school subject (Math, English, etc.)
 type Subject struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	SubjectName string    `gorm:"column:subject_name;type:varchar(255)" json:"subject_name"`
-	GradeLevel  uint      `gorm:"column:grade_level;not null;index" json:"grade_level"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	SubjectName   string    `gorm:"column:subject_name;type:varchar(255)" json:"subject_name"`
+	GradeLevel    uint      `gorm:"column:grade_level;not null;index" json:"grade_level"`
+	ArticlesCount int64     `gorm:"-" json:"articles_count"`
+	FilesCount    int64     `gorm:"-" json:"files_count"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 
 	// grade_level is FK to school_classes.id
 	SchoolClass *SchoolClass `gorm:"foreignKey:GradeLevel" json:"school_class,omitempty"`
