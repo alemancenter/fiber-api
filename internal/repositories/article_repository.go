@@ -109,6 +109,7 @@ func (r *articleRepository) FindByIDWithComments(countryID database.CountryID, i
 	db := r.GetDB(countryID)
 	var article models.Article
 	err := db.Preload("Subject").Preload("Semester").Preload("Files").
+		Preload("Comments", "status = ?", models.CommentStatusApproved).
 		Preload("Comments.User").Preload("KeywordsRel").
 		First(&article, id).Error
 	return &article, err

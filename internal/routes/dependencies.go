@@ -9,6 +9,7 @@ import (
 	"github.com/alemancenter/fiber-api/internal/handlers/calendar"
 	"github.com/alemancenter/fiber-api/internal/handlers/categories"
 	"github.com/alemancenter/fiber-api/internal/handlers/comments"
+	contentauditHandler "github.com/alemancenter/fiber-api/internal/handlers/contentaudit"
 	"github.com/alemancenter/fiber-api/internal/handlers/dashboard"
 	"github.com/alemancenter/fiber-api/internal/handlers/files"
 	"github.com/alemancenter/fiber-api/internal/handlers/grades"
@@ -26,6 +27,7 @@ import (
 	"github.com/alemancenter/fiber-api/internal/handlers/users"
 	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/alemancenter/fiber-api/internal/services"
+	contentauditService "github.com/alemancenter/fiber-api/internal/services/contentaudit"
 )
 
 type Handlers struct {
@@ -51,6 +53,7 @@ type Handlers struct {
 	Home          *home.Handler
 	Keywords      *keywords.Handler
 	AI            *ai.Handler
+	ContentAudit  *contentauditHandler.Handler
 }
 
 func NewDependencies() *Handlers {
@@ -116,6 +119,9 @@ func NewDependencies() *Handlers {
 	keywordRepo := repositories.NewKeywordRepository()
 	keywordSvc := services.NewKeywordService(keywordRepo)
 
+	contentAuditRepo := repositories.NewContentAuditRepository()
+	contentAuditSvc := contentauditService.NewService(contentAuditRepo, contentauditService.Options{})
+
 	aiSvc := services.NewAIService()
 
 	homeSvc := services.NewHomeService(articleRepo, postRepo, categoryRepo, gradeRepo, cacheSvc, settingSvc)
@@ -132,7 +138,7 @@ func NewDependencies() *Handlers {
 		Grades:        grades.New(gradeSvc, fileSvc),
 		Calendar:      calendar.New(calendarSvc),
 		Notifications: notifications.New(notificationSvc),
-		Messages:      messages.New(messageSvc),
+		Messages:      messages.New(messageSvc, notificationSvc),
 		Security:      security.New(securitySvc),
 		Settings:      settings.New(settingSvc),
 		Sitemap:       sitemap.New(sitemapSvc),
@@ -143,5 +149,6 @@ func NewDependencies() *Handlers {
 		Home:          home.New(homeSvc),
 		Keywords:      keywords.New(keywordSvc),
 		AI:            ai.New(aiSvc),
+		ContentAudit:  contentauditHandler.New(contentAuditSvc),
 	}
 }

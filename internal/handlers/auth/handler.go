@@ -279,6 +279,8 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 		req.Bio = &sanitized
 	}
 
+	normalizeProfileSocialLinks(c, &req)
+
 	// Handle profile photo upload
 	if photo, err := c.FormFile("profile_photo"); err == nil {
 		fileRepo := repositories.NewFileRepository()
@@ -656,11 +658,81 @@ func buildUserResponse(user *models.User, storageURL string) *services.UserRespo
 		Gender:           user.Gender,
 		Country:          user.Country,
 		Bio:              user.Bio,
-		SocialLinks:      user.SocialLinks,
+		SocialLinks:      parseSocialLinks(user.SocialLinks),
 		ProfilePhotoURL:  photoURL,
 		ProfilePhotoPath: user.ProfilePhotoPath,
 		Status:           user.Status,
 		Roles:            user.Roles,
 		Permissions:      user.Permissions,
 	}
+}
+
+var socialLinkKeys = []string{"facebook", "twitter", "linkedin", "instagram", "github"}
+
+func normalizeProfileSocialLinks(c *fiber.Ctx, req *services.UpdateProfileInput) {
+	if req.SocialLinks != nil {
+		return
+	}
+
+	if value, ok := formValue(c, "social_links"); ok {
+		req.SocialLinks = &value
+		return
+	}
+
+	links := make(map[string]string, len(socialLinkKeys))
+	hasAny := false
+	for _, key := range socialLinkKeys {
+		if value, ok := formValue(c, "social_links["+key+"]"); ok {
+			links[key] = value
+			hasAny = true
+		}
+	}
+	if !hasAny {
+		return
+	}
+
+	data, err := json.Marshal(links)
+	if err != nil {
+		return
+	}
+	value := string(data)
+	req.SocialLinks = &value
+}
+
+func formValue(c *fiber.Ctx, key string) (string, bool) {
+	if form, err := c.MultipartForm(); err == nil && form != nil {
+		if values, ok := form.Value[key]; ok {
+			if len(values) == 0 {
+				return "", true
+			}
+			return values[0], true
+		}
+	}
+
+	if value := c.Request().PostArgs().Peek(key); value != nil {
+		return string(value), true
+	}
+
+	return "", false
+}
+
+func parseSocialLinks(raw *string) map[string]string {
+	links := make(map[string]string, len(socialLinkKeys))
+	for _, key := range socialLinkKeys {
+		links[key] = ""
+	}
+	if raw == nil || *raw == "" {
+		return links
+	}
+
+	var parsed map[string]string
+	if err := json.Unmarshal([]byte(*raw), &parsed); err != nil {
+		return links
+	}
+	for _, key := range socialLinkKeys {
+		if value, ok := parsed[key]; ok {
+			links[key] = value
+		}
+	}
+	return links
 }

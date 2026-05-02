@@ -40,6 +40,11 @@ func NewAIService() AIService {
 }
 
 func (s *aiService) GenerateArticleContent(title string) (string, error) {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return "", errors.New("title is required")
+	}
+
 	return s.generateWithFallback(title, 0)
 }
 
@@ -48,25 +53,13 @@ func (s *aiService) generateWithFallback(title string, attempt int) (string, err
 		return "", errors.New("Together AI API Key is missing")
 	}
 
-	isArabicTitle := regexp.MustCompile(`[\x{0600}-\x{06FF}]`).MatchString(title)
-
-	var systemPrompt, userPrompt string
-	if isArabicTitle {
-		systemPrompt = "أنت كاتب عربي محترف من الأردن. اكتب نصاً عربياً فقط بدون أي مقدمات أو تعليقات أو عناوين."
-		userPrompt = fmt.Sprintf("اكتب محتوى مقال احترافي عن العنوان التالي: \"%s\". طول النص من 6 إلى 10 أسطر. لا تكتب العنوان، اكتب نص المقال فقط. ممنوع كتابة أي جملة تمهيدية مثل: \"هذا مسودة...\" أو \"إليك\".", title)
-	} else {
-		systemPrompt = "You are a professional writer. Write only the article body without any preface or labels."
-		userPrompt = fmt.Sprintf("Write a professional article about: \"%s\". The content should be 6 to 10 lines. Do not include the title, only the body.", title)
+	currentModel, err := s.resolveModel(attempt)
+	if err != nil {
+		return "", err
 	}
 
-	var currentModel string
-	if attempt == 0 {
-		currentModel = s.model
-	} else if attempt-1 < len(s.fallbackModels) {
-		currentModel = s.fallbackModels[attempt-1]
-	} else {
-		return "", errors.New("failed to generate content: All AI models unavailable")
-	}
+	isArabicTitle := containsArabic(title)
+	systemPrompt, userPrompt := buildPrompts(title, isArabicTitle)
 
 	payload := map[string]interface{}{
 		"model": currentModel,
@@ -74,20 +67,29 @@ func (s *aiService) generateWithFallback(title string, attempt int) (string, err
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
 		},
-		"max_tokens":         512,
-		"temperature":        0.7,
-		"top_p":              0.7,
-		"top_k":              50,
-		"repetition_penalty": 1,
-		"stop":               []string{"<|eot_id|>"},
+
+		// Better for 450–600 Arabic words
+		"max_tokens": 1400,
+
+		// More creative, less duplicated
+		"temperature":        0.85,
+		"top_p":              0.9,
+		"top_k":              80,
+		"repetition_penalty": 1.15,
+
+		"stop": []string{
+			"<|eot_id|>",
+			"###",
+			"```",
+		},
 	}
 
-	payloadBytes, err := json.Marshal(payload)
+	bodyBytes, err := json.Marshal(payload)
 	if err != nil {
 		return "", MapError(err)
 	}
 
-	req, err := http.NewRequest("POST", s.baseUrl+"/chat/completions", bytes.NewReader(payloadBytes))
+	req, err := http.NewRequest("POST", s.baseUrl+"/chat/completions", bytes.NewReader(bodyBytes))
 	if err != nil {
 		return "", MapError(err)
 	}
@@ -95,43 +97,142 @@ func (s *aiService) generateWithFallback(title string, attempt int) (string, err
 	req.Header.Set("Authorization", "Bearer "+s.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 60 * time.Second}
+	client := &http.Client{
+		Timeout: 90 * time.Second,
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
-		if attempt < len(s.fallbackModels) {
-			log.Printf("Attempting fallback model: %s", s.fallbackModels[attempt])
-			return s.generateWithFallback(title, attempt+1)
-		}
-		return "", fmt.Errorf("failed to generate content: %v", MapError(err))
+		return s.tryFallbackOrError(title, attempt, fmt.Errorf("failed to call Together AI: %w", MapError(err)))
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	responseBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", MapError(err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		var errorData map[string]interface{}
-		if err := json.Unmarshal(bodyBytes, &errorData); err == nil {
-			if errMap, ok := errorData["error"].(map[string]interface{}); ok {
-				if msg, ok := errMap["message"].(string); ok {
-					log.Printf("Together AI API Error (model: %s): %s", currentModel, msg)
-					if attempt < len(s.fallbackModels) {
-						log.Printf("Attempting fallback model: %s", s.fallbackModels[attempt])
-						return s.generateWithFallback(title, attempt+1)
-					}
-					return "", fmt.Errorf("failed to generate content: %s", msg)
-				}
-			}
+		apiErr := extractAPIError(responseBytes)
+		if apiErr == "" {
+			apiErr = string(responseBytes)
 		}
-		if attempt < len(s.fallbackModels) {
-			log.Printf("Attempting fallback model: %s", s.fallbackModels[attempt])
-			return s.generateWithFallback(title, attempt+1)
-		}
-		return "", fmt.Errorf("failed to generate content: %s", string(bodyBytes))
+
+		log.Printf("Together AI API Error (model: %s): %s", currentModel, apiErr)
+		return s.tryFallbackOrError(title, attempt, fmt.Errorf("failed to generate content: %s", apiErr))
 	}
 
+	content, err := parseAIContent(responseBytes)
+	if err != nil {
+		return s.tryFallbackOrError(title, attempt, err)
+	}
+
+	content = cleanAIContent(content, isArabicTitle)
+
+	if err := validateGeneratedContent(content, isArabicTitle); err != nil {
+		log.Printf("AI generated weak content (model: %s): %v", currentModel, err)
+		return s.tryFallbackOrError(title, attempt, err)
+	}
+
+	return content, nil
+}
+
+func (s *aiService) resolveModel(attempt int) (string, error) {
+	if attempt == 0 {
+		return s.model, nil
+	}
+
+	index := attempt - 1
+	if index >= 0 && index < len(s.fallbackModels) {
+		return s.fallbackModels[index], nil
+	}
+
+	return "", errors.New("failed to generate content: all AI models unavailable")
+}
+
+func (s *aiService) tryFallbackOrError(title string, attempt int, err error) (string, error) {
+	if attempt < len(s.fallbackModels) {
+		log.Printf("Attempting fallback model: %s", s.fallbackModels[attempt])
+		return s.generateWithFallback(title, attempt+1)
+	}
+
+	return "", err
+}
+
+func buildPrompts(title string, isArabic bool) (string, string) {
+	if isArabic {
+		systemPrompt := `
+أنت كاتب محتوى عربي محترف متخصص في المحتوى التعليمي.
+اكتب بلغة عربية سليمة وواضحة ومناسبة للطلاب وأولياء الأمور.
+المحتوى يجب أن يكون أصليًا بالكامل، غير مكرر، ومفيدًا للقارئ.
+ممنوع كتابة العنوان.
+ممنوع كتابة أي مقدمة خارج النص مثل: "إليك المقال" أو "هذا نص".
+ممنوع استخدام عبارات عامة مستهلكة مثل: "في عالمنا اليوم"، "لا شك أن"، "مما لا شك فيه".
+ممنوع نسخ أو إعادة صياغة نصوص محفوظة أو قوالب جاهزة.
+ممنوع إضافة روابط.
+ممنوع اختراع أرقام أو إحصاءات أو معلومات غير مؤكدة.
+ممنوع استخدام خاتمة مكررة مثل: "وفي الختام" أو "في النهاية".
+اكتب النص فقط بدون أي شرح إضافي.
+`
+
+		userPrompt := fmt.Sprintf(`
+اكتب محتوى مقال تعليمي احترافي عن العنوان التالي: "%s".
+
+الشروط الإلزامية:
+- الطول بين 450 و 600 كلمة.
+- اللغة العربية فقط.
+- لا تكتب العنوان.
+- لا تكتب عناوين فرعية إلا إذا كانت ضرورية جدًا.
+- ابدأ مباشرة بفكرة قوية مرتبطة بالعنوان.
+- قسم النص إلى فقرات قصيرة وواضحة.
+- اجعل كل فقرة تضيف فكرة جديدة.
+- لا تكرر نفس المعنى بصياغات مختلفة.
+- استخدم أسلوبًا تعليميًا عمليًا يناسب موقعًا تعليميًا عربيًا.
+- اجعل النص مفيدًا للطالب أو ولي الأمر أو المعلم.
+- تجنب الحشو والجمل العامة.
+- لا تضف روابط.
+- لا تستخدم خاتمة تقليدية.
+- لا تذكر أنك ذكاء اصطناعي.
+- لا تستخدم كلمات مثل: "سأكتب"، "إليك"، "في هذا المقال".
+
+اكتب النص النهائي فقط.
+`, title)
+
+		return strings.TrimSpace(systemPrompt), strings.TrimSpace(userPrompt)
+	}
+
+	systemPrompt := `
+You are a professional educational content writer.
+Write original, useful, non-repetitive educational content.
+Do not include titles, labels, explanations, or prefaces.
+Avoid generic filler phrases.
+Do not invent statistics.
+Do not add links.
+Write only the final article body.
+`
+
+	userPrompt := fmt.Sprintf(`
+Write a professional educational article about: "%s".
+
+Requirements:
+- 450 to 600 words.
+- English only.
+- Do not include the title.
+- Start directly with useful information.
+- Use short, connected paragraphs.
+- Each paragraph must add a new idea.
+- Avoid repeated wording and generic phrases.
+- Do not add links.
+- Do not invent statistics.
+- Do not write a generic conclusion.
+- Do not mention AI.
+- Write only the final article body.
+`, title)
+
+	return strings.TrimSpace(systemPrompt), strings.TrimSpace(userPrompt)
+}
+
+func parseAIContent(bodyBytes []byte) (string, error) {
 	var data struct {
 		Choices []struct {
 			Message struct {
@@ -144,17 +245,187 @@ func (s *aiService) generateWithFallback(title string, attempt int) (string, err
 		return "", MapError(err)
 	}
 
-	if len(data.Choices) > 0 {
-		content := strings.TrimSpace(data.Choices[0].Message.Content)
-		if isArabicTitle {
-			// Strip out English prefixes if they appear before Arabic text
-			arabicMatch := regexp.MustCompile(`[\x{0600}-\x{06FF}]`).FindStringIndex(content)
-			if arabicMatch != nil {
-				content = content[arabicMatch[0]:]
-			}
-		}
-		return content, nil
+	if len(data.Choices) == 0 {
+		return "", errors.New("no content generated")
 	}
 
-	return "", errors.New("no content generated")
+	content := strings.TrimSpace(data.Choices[0].Message.Content)
+	if content == "" {
+		return "", errors.New("empty content generated")
+	}
+
+	return content, nil
+}
+
+func extractAPIError(bodyBytes []byte) string {
+	var errorData map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &errorData); err != nil {
+		return ""
+	}
+
+	errValue, ok := errorData["error"]
+	if !ok {
+		return ""
+	}
+
+	switch v := errValue.(type) {
+	case string:
+		return v
+	case map[string]interface{}:
+		if msg, ok := v["message"].(string); ok {
+			return msg
+		}
+	}
+
+	return ""
+}
+
+func cleanAIContent(content string, isArabic bool) string {
+	content = strings.TrimSpace(content)
+
+	// Remove markdown fences
+	content = strings.ReplaceAll(content, "```html", "")
+	content = strings.ReplaceAll(content, "```text", "")
+	content = strings.ReplaceAll(content, "```", "")
+
+	// Remove common labels
+	prefixes := []string{
+		"المقال:",
+		"النص:",
+		"المحتوى:",
+		"محتوى المقال:",
+		"إليك المقال:",
+		"إليك النص:",
+		"Article:",
+		"Content:",
+		"Here is the article:",
+		"Here is the content:",
+	}
+
+	for _, p := range prefixes {
+		content = strings.TrimSpace(strings.TrimPrefix(content, p))
+	}
+
+	if isArabic {
+		// If model adds English before Arabic, strip before first Arabic char
+		arabicMatch := regexp.MustCompile(`[\x{0600}-\x{06FF}]`).FindStringIndex(content)
+		if arabicMatch != nil {
+			content = content[arabicMatch[0]:]
+		}
+
+		// Remove unwanted Arabic intros
+		unwantedStarts := []string{
+			"إليك مقال",
+			"إليك النص",
+			"هذا المقال",
+			"في هذا المقال",
+			"سأكتب",
+		}
+
+		for _, start := range unwantedStarts {
+			if strings.HasPrefix(content, start) {
+				content = strings.TrimSpace(strings.TrimPrefix(content, start))
+			}
+		}
+	}
+
+	// Normalize spaces and empty lines
+	content = regexp.MustCompile(`[ \t]+`).ReplaceAllString(content, " ")
+	content = regexp.MustCompile(`\n{3,}`).ReplaceAllString(content, "\n\n")
+
+	return strings.TrimSpace(content)
+}
+
+func validateGeneratedContent(content string, isArabic bool) error {
+	plain := strings.TrimSpace(stripHTML(content))
+	if plain == "" {
+		return errors.New("generated content is empty")
+	}
+
+	wordCount := countWords(plain)
+
+	// We requested 450–600 words, but allow slight under-generation by small models.
+	if wordCount < 300 {
+		return fmt.Errorf("generated content is too short: %d words", wordCount)
+	}
+
+	if wordCount > 750 {
+		return fmt.Errorf("generated content is too long: %d words", wordCount)
+	}
+
+	if isArabic && !containsArabic(plain) {
+		return errors.New("generated content is not Arabic")
+	}
+
+	if hasBadAIIntro(plain) {
+		return errors.New("generated content contains unwanted AI intro")
+	}
+
+	if hasExcessiveRepetition(plain) {
+		return errors.New("generated content contains excessive repetition")
+	}
+
+	return nil
+}
+
+func stripHTML(s string) string {
+	return regexp.MustCompile(`<[^>]*>`).ReplaceAllString(s, "")
+}
+
+func countWords(s string) int {
+	words := strings.Fields(s)
+	return len(words)
+}
+
+func containsArabic(s string) bool {
+	return regexp.MustCompile(`[\x{0600}-\x{06FF}]`).MatchString(s)
+}
+
+func hasBadAIIntro(s string) bool {
+	lower := strings.ToLower(strings.TrimSpace(s))
+
+	badStarts := []string{
+		"إليك",
+		"هذا المقال",
+		"في هذا المقال",
+		"سأكتب",
+		"بالطبع",
+		"here is",
+		"this article",
+		"in this article",
+		"of course",
+	}
+
+	for _, start := range badStarts {
+		if strings.HasPrefix(lower, strings.ToLower(start)) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func hasExcessiveRepetition(s string) bool {
+	normalized := strings.ToLower(s)
+	normalized = regexp.MustCompile(`[^\p{L}\p{N}\s]+`).ReplaceAllString(normalized, "")
+	normalized = regexp.MustCompile(`\s+`).ReplaceAllString(normalized, " ")
+
+	words := strings.Fields(normalized)
+	if len(words) < 80 {
+		return false
+	}
+
+	phraseCount := make(map[string]int)
+
+	// Detect repeated 5-word phrases
+	for i := 0; i+5 <= len(words); i++ {
+		phrase := strings.Join(words[i:i+5], " ")
+		phraseCount[phrase]++
+
+		if phraseCount[phrase] >= 3 {
+			return true
+		}
+	}
+
+	return false
 }

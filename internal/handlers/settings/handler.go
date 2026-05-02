@@ -1,9 +1,11 @@
 package settings
 
 import (
+	"encoding/json"
 	"fmt"
 	"html"
 	"net/mail"
+	"regexp"
 	"strings"
 
 	"github.com/alemancenter/fiber-api/internal/config"
@@ -14,6 +16,51 @@ import (
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
+
+var (
+	adsenseClientRe  = regexp.MustCompile(`^ca-pub-\d+$`)
+	adAllowedKeys    = map[string]bool{"ad_slot": true, "format": true, "responsive": true}
+	adForbiddenWords = []string{"<script", "<iframe", "javascript:", "data:", "vbscript:"}
+)
+
+// validateAdUpdates rejects any google_ads_* value that is not empty or a safe
+// JSON object containing only {ad_slot, format, responsive}.
+func validateAdUpdates(updates map[string]string) error {
+	for key, value := range updates {
+		if key == "adsense_client" {
+			if value != "" && !adsenseClientRe.MatchString(strings.TrimSpace(value)) {
+				return fmt.Errorf("adsense_client: invalid format, expected ca-pub-XXXXXXXXXX")
+			}
+			continue
+		}
+		if !strings.HasPrefix(key, "google_ads_") {
+			continue
+		}
+		if strings.TrimSpace(value) == "" {
+			continue
+		}
+		lower := strings.ToLower(value)
+		for _, forbidden := range adForbiddenWords {
+			if strings.Contains(lower, forbidden) {
+				return fmt.Errorf("%s: forbidden content", key)
+			}
+		}
+		var parsed map[string]interface{}
+		if err := json.Unmarshal([]byte(value), &parsed); err != nil {
+			return fmt.Errorf("%s: must be empty or a JSON object {ad_slot, format, responsive}", key)
+		}
+		for k := range parsed {
+			if !adAllowedKeys[k] {
+				return fmt.Errorf("%s: unknown field '%s'", key, k)
+			}
+		}
+		slot, ok := parsed["ad_slot"].(string)
+		if !ok || strings.TrimSpace(slot) == "" {
+			return fmt.Errorf("%s: ad_slot must be a non-empty string", key)
+		}
+	}
+	return nil
+}
 
 // Handler contains settings route handlers
 type Handler struct {
@@ -108,6 +155,10 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 
 	if len(updates) == 0 {
 		return utils.BadRequest(c, "لا توجد بيانات للحفظ")
+	}
+
+	if err := validateAdUpdates(updates); err != nil {
+		return utils.BadRequest(c, err.Error())
 	}
 
 	var userID uint

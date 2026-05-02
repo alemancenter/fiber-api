@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -11,8 +13,10 @@ import (
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/middleware"
 	"github.com/alemancenter/fiber-api/internal/models"
+	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/alemancenter/fiber-api/internal/routes"
 	"github.com/alemancenter/fiber-api/internal/services"
+	contentauditService "github.com/alemancenter/fiber-api/internal/services/contentaudit"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/alemancenter/fiber-api/pkg/logger"
 
@@ -91,6 +95,9 @@ func main() {
 		&models.VisitorTracking{},
 		&models.VisitorSession{},
 		&models.Comment{},
+		&models.Permission{},
+		&models.PolicyAuditRun{},
+		&models.PolicyAuditFinding{},
 	}
 	seen := make(map[*gorm.DB]bool)
 	for _, id := range []database.CountryID{database.CountryJordan, database.CountrySaudi, database.CountryEgypt, database.CountryPalestine} {
@@ -107,6 +114,7 @@ func main() {
 			logger.Warn("auto-migrate failed", zap.String("country", database.CountryCode(id)), zap.Error(err))
 		}
 	}
+	ensurePermission("manage content audit")
 
 	// Initialize Redis
 	logger.Info("Connecting to Redis...")
@@ -115,6 +123,7 @@ func main() {
 	// Start background workers
 	services.StartViewSyncWorker(1 * time.Minute)
 	services.StartVisitorWorker(5 * time.Second)
+	startContentAuditScheduler(cfg)
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -203,7 +212,7 @@ func main() {
 		Compress:  true,
 		ByteRange: true,
 		Browse:    false,
-		MaxAge:    86400,
+		MaxAge:    31536000,
 	})
 
 	// Register all routes
@@ -248,4 +257,44 @@ func main() {
 	}
 
 	logger.Info("Server stopped gracefully")
+}
+
+func startContentAuditScheduler(cfg *config.Config) {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv("CONTENT_AUDIT_SCHEDULER")))
+	if value == "0" || value == "false" || value == "off" || value == "disabled" {
+		logger.Info("content audit scheduler disabled")
+		return
+	}
+
+	interval := 24 * time.Hour
+	if raw := strings.TrimSpace(os.Getenv("CONTENT_AUDIT_INTERVAL_HOURS")); raw != "" {
+		hours, err := strconv.Atoi(raw)
+		if err == nil && hours > 0 {
+			interval = time.Duration(hours) * time.Hour
+		} else {
+			logger.Warn("invalid CONTENT_AUDIT_INTERVAL_HOURS; using default", zap.String("value", raw))
+		}
+	}
+
+	initialDelay := 15 * time.Minute
+	if raw := strings.TrimSpace(os.Getenv("CONTENT_AUDIT_INITIAL_DELAY_MINUTES")); raw != "" {
+		minutes, err := strconv.Atoi(raw)
+		if err == nil && minutes >= 0 {
+			initialDelay = time.Duration(minutes) * time.Minute
+		} else {
+			logger.Warn("invalid CONTENT_AUDIT_INITIAL_DELAY_MINUTES; using default", zap.String("value", raw))
+		}
+	}
+
+	auditRepo := repositories.NewContentAuditRepository()
+	auditSvc := contentauditService.NewService(auditRepo, contentauditService.Options{Config: cfg})
+	auditSvc.StartScheduler(interval, initialDelay)
+	logger.Info("content audit scheduler started", zap.Duration("interval", interval), zap.Duration("initial_delay", initialDelay))
+}
+
+func ensurePermission(name string) {
+	permission := models.Permission{Name: name, GuardName: "api"}
+	if err := database.DB().Where("name = ?", name).FirstOrCreate(&permission).Error; err != nil {
+		logger.Warn("failed to ensure permission", zap.String("permission", name), zap.Error(err))
+	}
 }

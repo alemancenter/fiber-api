@@ -70,6 +70,14 @@ func registerSystemRoutes(api, _, dash fiber.Router, h *Handlers) {
 	dashSitemap.Post("/generate", h.Sitemap.GenerateAll)
 	dashSitemap.Delete("/delete/:type/:database", h.Sitemap.Delete)
 
+	// Content policy audit
+	dashContentAudit := dash.Group("/content-audit", middleware.Can("manage content audit"))
+	dashContentAudit.Post("/run", h.ContentAudit.Start)
+	dashContentAudit.Get("/runs", h.ContentAudit.ListRuns)
+	dashContentAudit.Get("/runs/:id", h.ContentAudit.ShowRun)
+	dashContentAudit.Get("/runs/:id/findings", h.ContentAudit.ListFindings)
+	dashContentAudit.Get("/runs/:id/export", h.ContentAudit.ExportCSV)
+
 	// Security
 	dashSecurity := dash.Group("/security", middleware.Can("manage security"))
 	dashSecurity.Get("/stats", h.Security.Stats)

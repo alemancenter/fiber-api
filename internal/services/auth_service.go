@@ -27,6 +27,8 @@ var (
 	ErrAlreadyVerified    = errors.New("البريد الإلكتروني مُحقق بالفعل")
 )
 
+var invalidateCachedUser = InvalidateUserCache
+
 type GoogleUserInfo struct {
 	ID            string `json:"id"`
 	Email         string `json:"email"`
@@ -36,14 +38,14 @@ type GoogleUserInfo struct {
 }
 
 type UpdateProfileInput struct {
-	Name             string  `json:"name"`
-	Phone            *string `json:"phone"`
-	JobTitle         *string `json:"job_title"`
-	Gender           *string `json:"gender"`
-	Country          *string `json:"country"`
-	Bio              *string `json:"bio"`
-	SocialLinks      *string `json:"social_links"`
-	ProfilePhotoPath *string `json:"profile_photo_path"`
+	Name             string  `json:"name" form:"name"`
+	Phone            *string `json:"phone" form:"phone"`
+	JobTitle         *string `json:"job_title" form:"job_title"`
+	Gender           *string `json:"gender" form:"gender"`
+	Country          *string `json:"country" form:"country"`
+	Bio              *string `json:"bio" form:"bio"`
+	SocialLinks      *string `json:"social_links" form:"social_links"`
+	ProfilePhotoPath *string `json:"profile_photo_path" form:"profile_photo_path"`
 }
 
 // AuthService handles business logic for authentication
@@ -75,7 +77,7 @@ type UserResponse struct {
 	Gender           *string             `json:"gender"`
 	Country          *string             `json:"country"`
 	Bio              *string             `json:"bio"`
-	SocialLinks      *string             `json:"social_links"`
+	SocialLinks      map[string]string   `json:"social_links"`
 	ProfilePhotoURL  *string             `json:"profile_photo_url"`
 	ProfilePhotoPath *string             `json:"profile_photo_path"`
 	Status           string              `json:"status"`
@@ -231,33 +233,42 @@ func (s *authService) RefreshToken(refreshTokenStr string) (string, string, erro
 }
 
 func (s *authService) UpdateProfile(user *models.User, req *UpdateProfileInput) (*models.User, error) {
+	updates := make(map[string]interface{})
+
 	if req.Name != "" {
-		user.Name = req.Name
+		updates["name"] = req.Name
 	}
 	if req.Phone != nil {
-		user.Phone = req.Phone
+		updates["phone"] = *req.Phone
 	}
 	if req.JobTitle != nil {
-		user.JobTitle = req.JobTitle
+		updates["job_title"] = *req.JobTitle
 	}
 	if req.Gender != nil {
-		user.Gender = req.Gender
+		if *req.Gender == "" {
+			updates["gender"] = nil
+		} else {
+			updates["gender"] = *req.Gender
+		}
 	}
 	if req.Country != nil {
-		user.Country = req.Country
+		updates["country"] = *req.Country
 	}
 	if req.Bio != nil {
-		user.Bio = req.Bio
+		updates["bio"] = *req.Bio
 	}
 	if req.SocialLinks != nil {
-		user.SocialLinks = req.SocialLinks
+		updates["social_links"] = *req.SocialLinks
 	}
 	if req.ProfilePhotoPath != nil {
-		user.ProfilePhotoPath = req.ProfilePhotoPath
+		updates["profile_photo_path"] = *req.ProfilePhotoPath
 	}
 
-	if err := s.repo.Update(user); err != nil {
-		return nil, MapError(err)
+	if len(updates) > 0 {
+		if err := s.repo.UpdateFields(user.ID, updates); err != nil {
+			return nil, MapError(err)
+		}
+		invalidateCachedUser(user.ID)
 	}
 
 	// Reload user
@@ -371,11 +382,16 @@ func (s *authService) ResendVerification(user *models.User) error {
 }
 
 func (s *authService) DeleteAccount(user *models.User, password string) error {
-	if !user.CheckPassword(password) {
+	storedUser, err := s.repo.FindByID(uint64(user.ID))
+	if err != nil {
+		return MapError(err)
+	}
+
+	if !storedUser.CheckPassword(password) {
 		return ErrInvalidCredentials
 	}
 
-	return s.repo.Delete(user)
+	return s.repo.Delete(storedUser)
 }
 
 func (s *authService) GetGoogleOAuthConfig() *oauth2.Config {

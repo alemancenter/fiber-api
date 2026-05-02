@@ -1,6 +1,7 @@
 package services
 
 import (
+	"regexp"
 	"time"
 
 	"github.com/alemancenter/fiber-api/internal/database"
@@ -22,6 +23,7 @@ type CreatePostRequest struct {
 	CategoryID      uint   `json:"category_id" form:"category_id" validate:"required"`
 	Title           string `json:"title" form:"title" validate:"required,min=3,max=500"`
 	Content         string `json:"content" form:"content" validate:"required"`
+	Alt             string `json:"alt" form:"alt" validate:"omitempty,max=255"`
 	IsActive        bool   `json:"is_active" form:"is_active"`
 	IsFeatured      bool   `json:"is_featured" form:"is_featured"`
 	Keywords        string `json:"keywords" form:"keywords"`
@@ -32,6 +34,7 @@ type UpdatePostRequest struct {
 	CategoryID      *uint   `json:"category_id" form:"category_id"`
 	Title           string  `json:"title" form:"title"`
 	Content         string  `json:"content" form:"content"`
+	Alt             string  `json:"alt" form:"alt"`
 	IsActive        *bool   `json:"is_active" form:"is_active"`
 	IsFeatured      *bool   `json:"is_featured" form:"is_featured"`
 	Keywords        string  `json:"keywords" form:"keywords"`
@@ -43,6 +46,8 @@ type postService struct {
 	repo  repositories.PostRepository
 	cache CacheService
 }
+
+var unsafePostTextBlocks = regexp.MustCompile(`(?is)<\s*(script|style|object|embed|iframe|link|meta)\b[^>]*>.*?<\s*/\s*(script|style|object|embed|iframe|link|meta)\s*>|<\s*(script|style|object|embed|iframe|link|meta)\b[^>]*\/?>`)
 
 func NewPostService(repo repositories.PostRepository, cache CacheService) PostService {
 	return &postService{repo: repo, cache: cache}
@@ -97,11 +102,24 @@ func (s *postService) uniqueSlug(countryID database.CountryID, base string, excl
 	}
 }
 
+func sanitizePostPlainText(value string) string {
+	return utils.SanitizeInput(unsafePostTextBlocks.ReplaceAllString(value, ""))
+}
+
+func sanitizedOptionalText(value string) *string {
+	sanitized := sanitizePostPlainText(value)
+	if sanitized == "" {
+		return nil
+	}
+	return &sanitized
+}
+
 func (s *postService) Create(countryID database.CountryID, countryCode string, userID *uint, req *CreatePostRequest, imagePath string) (*models.Post, error) {
-	slug := s.uniqueSlug(countryID, utils.GenerateSlug(req.Title), 0)
+	title := sanitizePostPlainText(req.Title)
+	slug := s.uniqueSlug(countryID, utils.GenerateSlug(title), 0)
 	post := &models.Post{
-		Title:      utils.SanitizeInput(req.Title),
-		Content:    req.Content,
+		Title:      title,
+		Content:    utils.StripBlockedLinks(utils.SanitizeHTML(req.Content)),
 		Slug:       slug,
 		IsActive:   req.IsActive,
 		IsFeatured: req.IsFeatured,
@@ -111,11 +129,14 @@ func (s *postService) Create(countryID database.CountryID, countryCode string, u
 	if req.CategoryID > 0 {
 		post.CategoryID = &req.CategoryID
 	}
-	if req.Keywords != "" {
-		post.Keywords = &req.Keywords
+	if sanitized := sanitizedOptionalText(req.Alt); sanitized != nil {
+		post.Alt = sanitized
 	}
-	if req.MetaDescription != "" {
-		post.MetaDescription = &req.MetaDescription
+	if sanitized := sanitizedOptionalText(req.Keywords); sanitized != nil {
+		post.Keywords = sanitized
+	}
+	if sanitized := sanitizedOptionalText(req.MetaDescription); sanitized != nil {
+		post.MetaDescription = sanitized
 	}
 	if userID != nil {
 		post.AuthorID = userID
@@ -147,11 +168,12 @@ func (s *postService) Update(countryID database.CountryID, id uint64, req *Updat
 		post.CategoryID = req.CategoryID
 	}
 	if req.Title != "" {
-		post.Title = utils.SanitizeInput(req.Title)
-		post.Slug = s.uniqueSlug(countryID, utils.GenerateSlug(req.Title), id)
+		title := sanitizePostPlainText(req.Title)
+		post.Title = title
+		post.Slug = s.uniqueSlug(countryID, utils.GenerateSlug(title), id)
 	}
 	if req.Content != "" {
-		post.Content = req.Content
+		post.Content = utils.StripBlockedLinks(utils.SanitizeHTML(req.Content))
 	}
 	if req.IsActive != nil {
 		post.IsActive = *req.IsActive
@@ -159,14 +181,17 @@ func (s *postService) Update(countryID database.CountryID, id uint64, req *Updat
 	if req.IsFeatured != nil {
 		post.IsFeatured = *req.IsFeatured
 	}
-	if req.Keywords != "" {
-		post.Keywords = &req.Keywords
+	if sanitized := sanitizedOptionalText(req.Alt); sanitized != nil {
+		post.Alt = sanitized
 	}
-	if req.MetaDescription != "" {
-		post.MetaDescription = &req.MetaDescription
+	if sanitized := sanitizedOptionalText(req.Keywords); sanitized != nil {
+		post.Keywords = sanitized
+	}
+	if sanitized := sanitizedOptionalText(req.MetaDescription); sanitized != nil {
+		post.MetaDescription = sanitized
 	}
 	if req.ImagePath != nil {
-		post.Image = req.ImagePath
+		post.Image = sanitizedOptionalText(*req.ImagePath)
 	}
 
 	if err := s.repo.Update(countryID, post); err != nil {

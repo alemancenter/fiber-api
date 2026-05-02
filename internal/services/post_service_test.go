@@ -156,6 +156,51 @@ func TestPostService_Create(t *testing.T) {
 		assert.Equal(t, "jo", post.Country)
 	})
 
+	t.Run("SanitizesPostFields", func(t *testing.T) {
+		req := &CreatePostRequest{
+			Title:           "<b>Safe Title</b><script>alert(1)</script>",
+			Content:         `<p onclick="evil()">Hello</p><script>alert(1)</script><img src="javascript:alert(1)" onerror="bad()">`,
+			Alt:             `<img onerror="bad()">Alt`,
+			Keywords:        `math,<script>alert(1)</script>science`,
+			MetaDescription: `<b>Useful description</b><script>alert(1)</script>`,
+		}
+
+		mockRepo.ExistsBySlugFunc = func(countryID database.CountryID, slug string, excludeID uint64) bool {
+			return false
+		}
+
+		mockRepo.CreateFunc = func(countryID database.CountryID, post *models.Post) error {
+			assert.NotContains(t, post.Title, "<")
+			assert.NotContains(t, post.Title, ">")
+			assert.NotContains(t, post.Title, "script")
+			assert.NotContains(t, post.Title, "alert")
+			assert.Equal(t, utils.GenerateSlug(post.Title), post.Slug)
+
+			assert.NotContains(t, post.Content, "<script")
+			assert.NotContains(t, post.Content, "onclick")
+			assert.NotContains(t, post.Content, "onerror")
+			assert.NotContains(t, post.Content, "javascript:")
+
+			assert.NotNil(t, post.Alt)
+			assert.NotContains(t, *post.Alt, "<")
+			assert.NotContains(t, *post.Alt, "onerror")
+
+			assert.NotNil(t, post.Keywords)
+			assert.NotContains(t, *post.Keywords, "<")
+			assert.NotContains(t, *post.Keywords, "alert")
+
+			assert.NotNil(t, post.MetaDescription)
+			assert.NotContains(t, *post.MetaDescription, "<")
+			assert.NotContains(t, *post.MetaDescription, "alert")
+			return nil
+		}
+
+		post, err := svc.Create(database.CountryJordan, "jo", nil, req, "")
+
+		assert.NoError(t, err)
+		assert.NotNil(t, post)
+	})
+
 	t.Run("DatabaseError", func(t *testing.T) {
 		req := &CreatePostRequest{
 			Title: "New Post",
@@ -172,4 +217,66 @@ func TestPostService_Create(t *testing.T) {
 		assert.Nil(t, post)
 		assert.Equal(t, expectedErr, err) // because it's not a standard gorm err, MapError returns it as is
 	})
+}
+
+func TestPostService_Update_SanitizesPostFields(t *testing.T) {
+	t.Setenv("JWT_SECRET", "test_secret_key_12345678901234567890")
+	t.Setenv("DB_HOST_JO", "localhost")
+	t.Setenv("DB_NAME_JO", "test_db")
+	t.Setenv("DB_USER_JO", "root")
+	t.Setenv("APP_URL", "http://localhost")
+	t.Setenv("FRONTEND_URL", "http://localhost:3000")
+
+	mockRepo := &MockPostRepository{}
+	svc := NewPostService(mockRepo, nil)
+	imagePath := `<script>bad</script>posts/image.png`
+
+	mockRepo.FindByIDFunc = func(countryID database.CountryID, id uint64) (*models.Post, error) {
+		assert.Equal(t, uint64(1), id)
+		return &models.Post{ID: 1, Title: "Old Post", Content: "Old Content"}, nil
+	}
+	mockRepo.ExistsBySlugFunc = func(countryID database.CountryID, slug string, excludeID uint64) bool {
+		assert.Equal(t, uint64(1), excludeID)
+		return false
+	}
+	mockRepo.UpdateFunc = func(countryID database.CountryID, post *models.Post) error {
+		assert.NotContains(t, post.Title, "<")
+		assert.NotContains(t, post.Title, ">")
+		assert.NotContains(t, post.Title, "script")
+		assert.NotContains(t, post.Title, "alert")
+		assert.Equal(t, utils.GenerateSlug(post.Title), post.Slug)
+
+		assert.NotContains(t, post.Content, "<script")
+		assert.NotContains(t, post.Content, "onclick")
+		assert.NotContains(t, post.Content, "onerror")
+		assert.NotContains(t, post.Content, "javascript:")
+
+		assert.NotNil(t, post.Alt)
+		assert.NotContains(t, *post.Alt, "<")
+
+		assert.NotNil(t, post.Keywords)
+		assert.NotContains(t, *post.Keywords, "<")
+		assert.NotContains(t, *post.Keywords, "alert")
+
+		assert.NotNil(t, post.MetaDescription)
+		assert.NotContains(t, *post.MetaDescription, "<")
+		assert.NotContains(t, *post.MetaDescription, "alert")
+
+		assert.NotNil(t, post.Image)
+		assert.NotContains(t, *post.Image, "<")
+		assert.NotContains(t, *post.Image, "bad")
+		return nil
+	}
+
+	post, err := svc.Update(database.CountryJordan, 1, &UpdatePostRequest{
+		Title:           "<b>Updated Title</b><script>alert(1)</script>",
+		Content:         `<p onclick="evil()">Updated</p><script>alert(1)</script><img src="javascript:alert(1)" onerror="bad()">`,
+		Alt:             "<b>Safe Alt</b>",
+		Keywords:        "news,<script>alert(1)</script>education",
+		MetaDescription: "<i>Updated description</i><script>alert(1)</script>",
+		ImagePath:       &imagePath,
+	}, 10, true)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, post)
 }

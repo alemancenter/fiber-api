@@ -21,6 +21,7 @@ type MockUserRepository struct {
 	FindByGoogleIDFunc        func(googleID string) (*models.User, error)
 	FindByEmailOrGoogleIDFunc func(email, googleID string) (*models.User, error)
 	UpdateFunc                func(user *models.User) error
+	UpdateFieldsFunc          func(id uint, fields map[string]interface{}) error
 	DeleteFunc                func(user *models.User) error
 	UpsertPushTokenFunc       func(pushToken *models.PushToken) error
 	DeletePushTokenFunc       func(userID uint, token string) error
@@ -61,6 +62,13 @@ func (m *MockUserRepository) Update(user *models.User) error {
 	return nil
 }
 
+func (m *MockUserRepository) UpdateFields(id uint, fields map[string]interface{}) error {
+	if m.UpdateFieldsFunc != nil {
+		return m.UpdateFieldsFunc(id, fields)
+	}
+	return nil
+}
+
 func setupTestAuthService(t *testing.T, repo repositories.UserRepository) AuthService {
 	t.Setenv("JWT_SECRET", "test_secret_key_12345678901234567890")
 	t.Setenv("DB_HOST_JO", "localhost")
@@ -80,6 +88,53 @@ func setupTestAuthService(t *testing.T, repo repositories.UserRepository) AuthSe
 	mailSvc := &MailService{}
 
 	return NewAuthService(repo, jwtSvc, mailSvc)
+}
+
+func TestAuthService_UpdateProfile_UsesPartialUpdate(t *testing.T) {
+	oldInvalidate := invalidateCachedUser
+	invalidateCachedUser = func(uint) {}
+	t.Cleanup(func() {
+		invalidateCachedUser = oldInvalidate
+	})
+
+	mockRepo := &MockUserRepository{}
+	svc := setupTestAuthService(t, mockRepo)
+
+	bio := "Updated bio"
+	cachedUser := &models.User{
+		ID:       2,
+		Name:     "Cached User",
+		Email:    "cached@example.com",
+		Password: "",
+		Status:   "",
+	}
+
+	mockRepo.UpdateFieldsFunc = func(id uint, fields map[string]interface{}) error {
+		assert.Equal(t, uint(2), id)
+		assert.Equal(t, "Fresh User", fields["name"])
+		assert.Equal(t, bio, fields["bio"])
+		assert.NotContains(t, fields, "password")
+		assert.NotContains(t, fields, "status")
+		return nil
+	}
+	mockRepo.FindByIDFunc = func(id uint64) (*models.User, error) {
+		assert.Equal(t, uint64(2), id)
+		return &models.User{
+			ID:     2,
+			Name:   "Fresh User",
+			Email:  "cached@example.com",
+			Status: "active",
+		}, nil
+	}
+
+	user, err := svc.UpdateProfile(cachedUser, &UpdateProfileInput{
+		Name: "Fresh User",
+		Bio:  &bio,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "active", user.Status)
+	assert.Equal(t, "Fresh User", user.Name)
 }
 
 func TestAuthService_Register(t *testing.T) {

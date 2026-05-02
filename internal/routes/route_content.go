@@ -52,6 +52,7 @@ func registerContentRoutes(api, public, dash fiber.Router, h *Handlers) {
 	activityM := middleware.UpdateLastActivity()
 
 	// Reactions (Comments)
+	api.Post("/comments/:database", authM, activityM, h.Comments.Create)
 	api.Post("/reactions", authM, activityM, h.Comments.CreateReaction)
 	api.Delete("/reactions/:comment_id", authM, activityM, h.Comments.DeleteReaction)
 	api.Get("/reactions/:comment_id", authM, activityM, h.Comments.GetReactions)
@@ -103,6 +104,9 @@ func registerContentRoutes(api, public, dash fiber.Router, h *Handlers) {
 	dashComments := dash.Group("/comments", middleware.Can("manage comments"))
 	dashComments.Get("/:database", h.Comments.DashboardList)
 	dashComments.Post("/:database", h.Comments.DashboardCreate)
+	dashComments.Post("/:database/bulk-delete", h.Comments.DashboardBulkDelete)
+	dashComments.Post("/:database/:id/approve", h.Comments.DashboardApprove)
+	dashComments.Post("/:database/:id/reject", h.Comments.DashboardReject)
 	dashComments.Delete("/:database/:id", h.Comments.DashboardDelete)
 
 	// Files management

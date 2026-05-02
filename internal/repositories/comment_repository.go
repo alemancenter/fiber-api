@@ -9,9 +9,12 @@ import (
 type CommentRepository interface {
 	GetDB(dbCode string) *gorm.DB
 	GetDBByCountry(countryID database.CountryID) *gorm.DB
-	ListPaginated(dbCode string, commentableType string, commentableID string, limit, offset int) ([]models.Comment, int64, error)
+	ListPaginated(dbCode string, commentableType string, commentableID string, status string, search string, limit, offset int) ([]models.Comment, int64, error)
 	CreateComment(dbCode string, comment *models.Comment) error
+	UpdateCommentStatus(dbCode string, id uint64, status string) (*models.Comment, error)
 	DeleteComment(dbCode string, id uint64) error
+	DeleteComments(dbCode string, ids []uint64) (int64, error)
+	IsApprovedComment(countryID database.CountryID, commentID uint64) bool
 	UpsertReaction(countryID database.CountryID, reaction *models.Reaction) error
 	DeleteReaction(countryID database.CountryID, commentID uint64, userID uint) error
 	GetReactions(countryID database.CountryID, commentID uint64) ([]models.Reaction, error)
@@ -31,7 +34,7 @@ func (r *commentRepository) GetDBByCountry(countryID database.CountryID) *gorm.D
 	return database.DBForCountry(countryID)
 }
 
-func (r *commentRepository) ListPaginated(dbCode string, commentableType string, commentableID string, limit, offset int) ([]models.Comment, int64, error) {
+func (r *commentRepository) ListPaginated(dbCode string, commentableType string, commentableID string, status string, search string, limit, offset int) ([]models.Comment, int64, error) {
 	db := r.GetDB(dbCode)
 	var commentList []models.Comment
 	var total int64
@@ -43,6 +46,12 @@ func (r *commentRepository) ListPaginated(dbCode string, commentableType string,
 	}
 	if commentableID != "" {
 		query = query.Where("commentable_id = ?", commentableID)
+	}
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	if search != "" {
+		query = query.Where("body LIKE ?", "%"+search+"%")
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -58,9 +67,40 @@ func (r *commentRepository) CreateComment(dbCode string, comment *models.Comment
 	return db.Create(comment).Error
 }
 
+func (r *commentRepository) UpdateCommentStatus(dbCode string, id uint64, status string) (*models.Comment, error) {
+	db := r.GetDB(dbCode)
+	var comment models.Comment
+	if err := db.Where("`database` = ?", dbCode).First(&comment, id).Error; err != nil {
+		return nil, err
+	}
+	comment.Status = status
+	if err := db.Save(&comment).Error; err != nil {
+		return nil, err
+	}
+	if err := db.Preload("User").Where("`database` = ?", dbCode).First(&comment, id).Error; err != nil {
+		return nil, err
+	}
+	return &comment, nil
+}
+
 func (r *commentRepository) DeleteComment(dbCode string, id uint64) error {
 	db := r.GetDB(dbCode)
-	return db.Delete(&models.Comment{}, id).Error
+	return db.Where("`database` = ?", dbCode).Delete(&models.Comment{}, id).Error
+}
+
+func (r *commentRepository) DeleteComments(dbCode string, ids []uint64) (int64, error) {
+	db := r.GetDB(dbCode)
+	result := db.Where("`database` = ? AND id IN ?", dbCode, ids).Delete(&models.Comment{})
+	return result.RowsAffected, result.Error
+}
+
+func (r *commentRepository) IsApprovedComment(countryID database.CountryID, commentID uint64) bool {
+	db := r.GetDBByCountry(countryID)
+	var count int64
+	db.Model(&models.Comment{}).
+		Where("id = ? AND status = ?", commentID, models.CommentStatusApproved).
+		Count(&count)
+	return count > 0
 }
 
 func (r *commentRepository) UpsertReaction(countryID database.CountryID, reaction *models.Reaction) error {

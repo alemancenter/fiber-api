@@ -108,9 +108,10 @@ type PostView struct {
 
 func (r *analyticsRepository) GetVisitorStats(dbCode database.CountryID, activeWindow, todayStart, yesterdayStart time.Time) (currentActive, currentMembers, currentGuests, totalToday, totalYesterday int64) {
 	db := database.DBForCountry(dbCode)
-	db.Model(&models.VisitorTracking{}).Where("last_activity >= ?", activeWindow).Count(&currentActive)
-	db.Model(&models.VisitorTracking{}).Where("last_activity >= ? AND user_id IS NOT NULL", activeWindow).Count(&currentMembers)
-	db.Model(&models.VisitorTracking{}).Where("last_activity >= ? AND user_id IS NULL", activeWindow).Count(&currentGuests)
+	// Count unique visitors (not raw page-view rows) for the "active now" badge.
+	db.Raw(`SELECT COUNT(DISTINCT COALESCE(CAST(user_id AS CHAR), ip_address)) FROM visitors_tracking WHERE last_activity >= ?`, activeWindow).Scan(&currentActive)
+	db.Raw(`SELECT COUNT(DISTINCT user_id) FROM visitors_tracking WHERE last_activity >= ? AND user_id IS NOT NULL`, activeWindow).Scan(&currentMembers)
+	db.Raw(`SELECT COUNT(DISTINCT ip_address) FROM visitors_tracking WHERE last_activity >= ? AND user_id IS NULL`, activeWindow).Scan(&currentGuests)
 	db.Model(&models.VisitorTracking{}).Where("created_at >= ?", todayStart).Count(&totalToday)
 	db.Model(&models.VisitorTracking{}).Where("created_at >= ? AND created_at < ?", yesterdayStart, todayStart).Count(&totalYesterday)
 	return
@@ -119,13 +120,26 @@ func (r *analyticsRepository) GetVisitorStats(dbCode database.CountryID, activeW
 func (r *analyticsRepository) GetActiveVisitors(dbCode database.CountryID, activeWindow time.Time) ([]ActiveRow, error) {
 	db := database.DBForCountry(dbCode)
 	var activeRows []ActiveRow
-	err := db.Raw(`SELECT vt.ip_address, vt.country, vt.city, vt.browser, vt.os, vt.user_agent,
-		               vt.url, vt.user_id, u.name AS user_name, u.email AS user_email,
-		               vt.last_activity, vt.created_at
-		        FROM visitors_tracking vt
-		        LEFT JOIN users u ON u.id = vt.user_id
-		        WHERE vt.last_activity >= ?
-		        ORDER BY vt.last_activity DESC LIMIT 100`, activeWindow).Scan(&activeRows).Error
+	// ROW_NUMBER deduplicates: one row per unique visitor (by user_id for members,
+	// ip_address for guests), keeping their most-recently-visited page.
+	err := db.Raw(`
+		SELECT ip_address, country, city, browser, os, user_agent, url, user_id,
+		       user_name, user_email, last_activity, created_at
+		FROM (
+		  SELECT vt.ip_address, vt.country, vt.city, vt.browser, vt.os, vt.user_agent,
+		         vt.url, vt.user_id, u.name AS user_name, u.email AS user_email,
+		         vt.last_activity, vt.created_at,
+		         ROW_NUMBER() OVER (
+		           PARTITION BY COALESCE(CAST(vt.user_id AS CHAR), vt.ip_address)
+		           ORDER BY vt.last_activity DESC
+		         ) AS rn
+		  FROM visitors_tracking vt
+		  LEFT JOIN users u ON u.id = vt.user_id
+		  WHERE vt.last_activity >= ?
+		) ranked
+		WHERE rn = 1
+		ORDER BY last_activity DESC
+		LIMIT 100`, activeWindow).Scan(&activeRows).Error
 	return activeRows, err
 }
 

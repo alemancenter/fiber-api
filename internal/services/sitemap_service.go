@@ -52,6 +52,17 @@ type urlSet struct {
 	URLs    []urlEntry `xml:"url"`
 }
 
+type sitemapIndexEntry struct {
+	Loc     string `xml:"loc"`
+	LastMod string `xml:"lastmod,omitempty"`
+}
+
+type sitemapIndex struct {
+	XMLName  xml.Name            `xml:"sitemapindex"`
+	Xmlns    string              `xml:"xmlns,attr"`
+	Sitemaps []sitemapIndexEntry `xml:"sitemap"`
+}
+
 // --- helpers ---
 func (s *sitemapService) sitemapDir() string {
 	return filepath.Join(config.Get().Storage.Path, "sitemaps")
@@ -61,7 +72,7 @@ func (s *sitemapService) sitemapFilename(sitemapType, dbCode string) string {
 	return filepath.Join(s.sitemapDir(), fmt.Sprintf("sitemap_%s_%s.xml", sitemapType, dbCode))
 }
 
-func (s *sitemapService) writeXML(path string, set urlSet) error {
+func (s *sitemapService) writeXML(path string, payload any) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return MapError(err)
 	}
@@ -73,12 +84,21 @@ func (s *sitemapService) writeXML(path string, set urlSet) error {
 	f.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
 	enc := xml.NewEncoder(f)
 	enc.Indent("", "  ")
-	return enc.Encode(set)
+	return enc.Encode(payload)
 }
 
 func (s *sitemapService) siteURL() string {
-	url, _ := s.repo.GetSiteURL()
-	return strings.TrimRight(url, "/")
+	if url, err := s.repo.GetSiteURL(); err == nil {
+		if normalized := strings.TrimRight(strings.TrimSpace(url), "/"); normalized != "" {
+			return normalized
+		}
+	}
+
+	cfg := config.Get()
+	if normalized := strings.TrimRight(strings.TrimSpace(cfg.Frontend.URL), "/"); normalized != "" {
+		return normalized
+	}
+	return strings.TrimRight(strings.TrimSpace(cfg.App.URL), "/")
 }
 
 func (s *sitemapService) fileInfo(path string) (exists bool, lastMod string) {
@@ -90,7 +110,7 @@ func (s *sitemapService) fileInfo(path string) (exists bool, lastMod string) {
 }
 
 func (s *sitemapService) GetStatus(dbCode string) map[string]SitemapInfo {
-	types := []string{"articles", "post", "static"}
+	types := []string{"articles", "post", "static", "index"}
 	baseURL := s.siteURL()
 	result := make(map[string]SitemapInfo, len(types))
 
@@ -114,7 +134,7 @@ func (s *sitemapService) GenerateAll(dbCode string) []error {
 	cc := dbCode // country code used in frontend URL segments
 
 	var wg sync.WaitGroup
-	errs := make([]error, 3)
+	errs := make([]error, 4)
 
 	// Articles
 	wg.Add(1)
@@ -202,6 +222,10 @@ func (s *sitemapService) GenerateAll(dbCode string) []error {
 
 	wg.Wait()
 
+	if errs[0] == nil && errs[1] == nil && errs[2] == nil {
+		errs[3] = s.writeSitemapIndex(dbCode, base, []string{"articles", "post", "static"})
+	}
+
 	var actualErrors []error
 	for _, e := range errs {
 		if e != nil {
@@ -210,6 +234,25 @@ func (s *sitemapService) GenerateAll(dbCode string) []error {
 	}
 
 	return actualErrors
+}
+
+func (s *sitemapService) writeSitemapIndex(dbCode, baseURL string, sitemapTypes []string) error {
+	index := sitemapIndex{Xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9"}
+
+	for _, sitemapType := range sitemapTypes {
+		path := s.sitemapFilename(sitemapType, dbCode)
+		exists, lastMod := s.fileInfo(path)
+		if !exists {
+			continue
+		}
+
+		index.Sitemaps = append(index.Sitemaps, sitemapIndexEntry{
+			Loc:     fmt.Sprintf("%s/storage/sitemaps/sitemap_%s_%s.xml", baseURL, sitemapType, dbCode),
+			LastMod: lastMod,
+		})
+	}
+
+	return s.writeXML(s.sitemapFilename("index", dbCode), index)
 }
 
 func (s *sitemapService) Delete(sitemapType, dbCode string) error {

@@ -132,7 +132,7 @@ func (s *gradeService) GetSchoolClass(countryID database.CountryID, id uint64) (
 	}
 
 	if s.cache != nil {
-		_ = s.cache.Set(key, class, academicCountsDataTTL)
+		_ = s.cache.Set(key, class, staticDataTTL)
 	}
 
 	return class, nil
@@ -206,7 +206,7 @@ func (s *gradeService) ListSubjects(countryID database.CountryID, classID uint64
 	}
 
 	if s.cache != nil {
-		_ = s.cache.Set(key, subjects, academicCountsDataTTL)
+		_ = s.cache.Set(key, subjects, staticDataTTL)
 	}
 
 	return subjects, nil

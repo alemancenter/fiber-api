@@ -45,7 +45,7 @@ func (r *keywordRepository) ListKeywords(countryID database.CountryID, keywordTy
 
 	var selectQuery string
 	switch keywordType {
-case "article", "articles":
+	case "article", "articles":
 		selectQuery = "keywords.id, keywords.keyword, COUNT(articles.id) as items_count"
 		db = db.Joins("JOIN article_keyword ON article_keyword.keyword_id = keywords.id").
 			Joins("JOIN articles ON articles.id = article_keyword.article_id").

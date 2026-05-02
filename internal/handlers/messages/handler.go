@@ -1,6 +1,8 @@
 package messages
 
 import (
+	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"github.com/alemancenter/fiber-api/internal/models"
@@ -11,13 +13,15 @@ import (
 
 // Handler contains messages route handlers
 type Handler struct {
-	svc services.MessageService
+	svc          services.MessageService
+	notification services.NotificationService
 }
 
 // New creates a new messages Handler
-func New(svc services.MessageService) *Handler {
+func New(svc services.MessageService, notificationSvc services.NotificationService) *Handler {
 	return &Handler{
-		svc: svc,
+		svc:          svc,
+		notification: notificationSvc,
 	}
 }
 
@@ -149,6 +153,24 @@ func (h *Handler) Send(c *fiber.Ctx) error {
 	if err != nil {
 		return utils.InternalError(c, "فشل إرسال الرسالة")
 	}
+
+	// Notify the recipient
+	go func() {
+		subject := req.Subject
+		if subject == "" {
+			subject = "رسالة جديدة"
+		}
+		notifData, _ := json.Marshal(map[string]string{
+			"title":      fmt.Sprintf("رسالة من %s", user.Name),
+			"message":    subject,
+			"action_url": "/dashboard/messages",
+		})
+		_, _ = h.notification.Create(
+			"App\\Notifications\\NewMessage",
+			req.RecipientID,
+			string(notifData),
+		)
+	}()
 
 	return utils.Created(c, "تم إرسال الرسالة بنجاح", msg)
 }

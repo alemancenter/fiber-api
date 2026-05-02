@@ -12,31 +12,31 @@ func TestCacheKey(t *testing.T) {
 		expected string // Expected prefix at least, since hash is deterministic
 	}{
 		{
-			name:     "Simple string parts",
-			prefix:   "test",
-			parts:    []any{"part1", "part2"},
+			name:   "Simple string parts",
+			prefix: "test",
+			parts:  []any{"part1", "part2"},
 		},
 		{
-			name:     "Mixed types",
-			prefix:   "user",
-			parts:    []any{1, "name", true},
+			name:   "Mixed types",
+			prefix: "user",
+			parts:  []any{1, "name", true},
 		},
 		{
-			name:     "Structs",
-			prefix:   "filter",
-			parts:    []any{struct{ Name string }{"Test"}},
+			name:   "Structs",
+			prefix: "filter",
+			parts:  []any{struct{ Name string }{"Test"}},
 		},
 		{
-			name:     "Empty parts",
-			prefix:   "empty",
-			parts:    []any{},
+			name:   "Empty parts",
+			prefix: "empty",
+			parts:  []any{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := CacheKey(tt.prefix, tt.parts...)
-			
+
 			// Check if result has the correct prefix
 			expectedPrefix := tt.prefix + ":"
 			if len(result) <= len(expectedPrefix) || result[:len(expectedPrefix)] != expectedPrefix {

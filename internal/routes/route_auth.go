@@ -42,6 +42,9 @@ func registerAuthRoutes(api, dash fiber.Router, h *Handlers) {
 	userRoutes.Get("/roles", h.Roles.ListRoles)
 	userRoutes.Get("/roles/:id", h.Roles.GetRole)
 
+	// User search (for messaging — requires only auth, not manage users)
+	userRoutes.Get("/search", h.Users.Search)
+
 	// =====================
 	// ADMIN DASHBOARD ROUTES
 	// =====================

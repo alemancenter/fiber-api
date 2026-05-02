@@ -74,7 +74,9 @@ func (r *postRepository) ListPaginated(countryID database.CountryID, filter *mod
 func (r *postRepository) FindByID(countryID database.CountryID, id uint64) (*models.Post, error) {
 	db := r.getDB(countryID)
 	var post models.Post
-	err := db.Preload("Category").Preload("Author").Preload("Comments.User").
+	err := db.Preload("Category").Preload("Author").
+		Preload("Comments", "status = ?", models.CommentStatusApproved).
+		Preload("Comments.User").
 		Preload("KeywordsRel").Preload("Files").
 		Where("id = ?", id).
 		First(&post).Error
