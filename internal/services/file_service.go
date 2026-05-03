@@ -2,6 +2,7 @@ package services
 
 import (
 	"archive/zip"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -10,14 +11,12 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/alemancenter/fiber-api/internal/config"
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/gabriel-vasile/mimetype"
-	"github.com/google/uuid"
 )
 
 type UploadResponse struct {
@@ -256,11 +255,10 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 	if ext == "" {
 		ext = mtype.Extension()
 	}
-	filename := fmt.Sprintf("%s_%d%s", uuid.New().String(), time.Now().UnixNano(), ext)
+	filename := randomAlphanumeric(12) + ext
 
 	// relPath is always forward-slash (URL-safe); absPath uses OS separators for disk I/O
-	dateDir := time.Now().Format("2006/01")
-	relPath := path.Join(subdir, dateDir, filename)
+	relPath := path.Join(subdir, filename)
 	absPath := filepath.Join(s.cfg.Path, filepath.FromSlash(relPath))
 
 	if err := os.MkdirAll(filepath.Dir(absPath), 0755); err != nil {
@@ -289,7 +287,7 @@ func (s *FileService) upload(header *multipart.FileHeader, subdir string, allowe
 
 // Delete removes a file from storage
 func (s *FileService) Delete(relPath string) error {
-	absPath := filepath.Join(s.cfg.Path, relPath)
+	absPath := filepath.Join(s.cfg.Path, normalizeLegacyPath(relPath))
 	if err := os.Remove(absPath); err != nil && !os.IsNotExist(err) {
 		return MapError(err)
 	}
@@ -298,12 +296,14 @@ func (s *FileService) Delete(relPath string) error {
 
 // GetAbsPath returns the absolute path for a relative storage path
 func (s *FileService) GetAbsPath(relPath string) string {
-	return filepath.Join(s.cfg.Path, relPath)
+	return filepath.Join(s.cfg.Path, normalizeLegacyPath(relPath))
 }
 
 // SafeGetAbsPath resolves relPath within the storage root and rejects any
 // path that escapes it (path traversal). Returns an error for invalid paths.
 func (s *FileService) SafeGetAbsPath(relPath string) (string, error) {
+	// Strip legacy "storage/" prefix that old Laravel records may have in the DB
+	relPath = normalizeLegacyPath(relPath)
 	// Clean removes ".." and "." components
 	cleaned := filepath.Clean(relPath)
 	// Reject absolute paths supplied by the caller
@@ -317,6 +317,26 @@ func (s *FileService) SafeGetAbsPath(relPath string) (string, error) {
 		return "", errors.New("path traversal detected")
 	}
 	return abs, nil
+}
+
+// normalizeLegacyPath strips the leading "storage/" prefix that old Laravel
+// records may have persisted in the database (e.g. "storage/files/foo.pdf" → "files/foo.pdf").
+func normalizeLegacyPath(relPath string) string {
+	return strings.TrimPrefix(relPath, "storage/")
+}
+
+// randomAlphanumeric generates a cryptographically random lowercase alphanumeric
+// string of length n — matches the format produced by Laravel's Str::random().
+func randomAlphanumeric(n int) string {
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	for i := range b {
+		b[i] = chars[int(b[i])%len(chars)]
+	}
+	return string(b)
 }
 
 func isAllowedMime(mtype string, allowed []string) bool {
@@ -442,7 +462,7 @@ func (s *FileService) IncrementViewCount(countryID database.CountryID, id uint64
 func (s *FileService) CreateRecord(countryID database.CountryID, uploaded *UploadedFile, articleID *uint, postID *uint, fileName *string, fileCategory *string) (*models.File, error) {
 	file := &models.File{
 		FilePath:  uploaded.Path,
-		FileType:  uploaded.Ext,
+		FileType:  strings.TrimPrefix(uploaded.Ext, "."),
 		FileName:  uploaded.Name,
 		FileSize:  uploaded.Size,
 		MimeType:  uploaded.MimeType,

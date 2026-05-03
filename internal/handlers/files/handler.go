@@ -224,9 +224,9 @@ func (h *Handler) DashboardUpload(c *fiber.Ctx) error {
 	var uploaded *services.UploadedFile
 
 	// Try as document first, fallback to image
-	uploaded, err = h.svc.UploadDocument(uploadedFile, "uploads")
+	uploaded, err = h.svc.UploadDocument(uploadedFile, "files")
 	if err != nil {
-		uploaded, err = h.svc.UploadImage(uploadedFile, "uploads")
+		uploaded, err = h.svc.UploadImage(uploadedFile, "files")
 		if err != nil {
 			return utils.BadRequest(c, err.Error())
 		}

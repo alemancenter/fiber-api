@@ -285,7 +285,7 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 	if photo, err := c.FormFile("profile_photo"); err == nil {
 		fileRepo := repositories.NewFileRepository()
 		fileSvc := services.NewFileService(fileRepo)
-		uploaded, err := fileSvc.UploadImage(photo, "profile_photos")
+		uploaded, err := fileSvc.UploadImage(photo, "profiles")
 		if err != nil {
 			return utils.BadRequest(c, err.Error())
 		}
