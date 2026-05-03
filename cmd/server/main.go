@@ -135,7 +135,7 @@ func main() {
 		UnescapePath:            true,
 		BodyLimit:               100 * 1024 * 1024, // 100MB
 		ReadTimeout:             30 * time.Second,
-		WriteTimeout:            30 * time.Second,
+		WriteTimeout:            120 * time.Second, // AI generation can take up to 90s
 		IdleTimeout:             120 * time.Second,
 		ReadBufferSize:          8192,
 		WriteBufferSize:         8192,
