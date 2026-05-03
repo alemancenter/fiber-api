@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,17 +28,25 @@ type aiService struct {
 }
 
 func NewAIService() AIService {
+	// Accept both naming conventions so the key works regardless of which
+	// env file the operator uses.
+	apiKey := strings.TrimSpace(os.Getenv("TOGETHER_AI_API_KEY"))
+	if apiKey == "" {
+		apiKey = strings.TrimSpace(os.Getenv("TOGETHER_AI_KEY"))
+	}
 	return &aiService{
-		apiKey:  strings.TrimSpace(os.Getenv("TOGETHER_AI_KEY")),
-		baseURL: "https://api.together.xyz/v1",
-		model:   "google/gemma-4-31B-it",
+		apiKey: apiKey,
+		// Official Together AI base URL per docs.together.ai/intro
+		baseURL: "https://api.together.ai/v1",
+		// Primary: LLaMA-3.3 70B Turbo — fast serverless, excellent Arabic
+		model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+		// One lightweight fallback only; two 40s attempts fit inside the 90s job window
 		fallbackModels: []string{
-			"zai-org/GLM-5.1",
-			"google/gemma-3n-E4B-it",
-			"MiniMaxAI/MiniMax-M2.7",
+			"Qwen/Qwen2.5-72B-Instruct-Turbo",
 		},
+		// Per-attempt timeout: 40s. With one fallback, worst case is 80s < 90s poll window.
 		httpClient: &http.Client{
-			Timeout: 90 * time.Second,
+			Timeout: 40 * time.Second,
 		},
 	}
 }
@@ -47,15 +56,19 @@ func (s *aiService) GenerateArticleContent(title string) (string, error) {
 	if title == "" {
 		return "", errors.New("title is required")
 	}
-
 	if s.apiKey == "" {
-		return "", errors.New("Together AI API key is missing")
+		return "", errors.New("Together AI API key is missing — set TOGETHER_AI_API_KEY in .env")
 	}
 
-	return s.generateWithFallback(title, 0)
+	// Hard deadline: all attempts (primary + fallback) must finish within 75s
+	// so the frontend 90s polling window always has a margin.
+	ctx, cancel := context.WithTimeout(context.Background(), 75*time.Second)
+	defer cancel()
+
+	return s.generateWithFallback(ctx, title, 0)
 }
 
-func (s *aiService) generateWithFallback(title string, attempt int) (string, error) {
+func (s *aiService) generateWithFallback(ctx context.Context, title string, attempt int) (string, error) {
 	currentModel, err := s.resolveModel(attempt)
 	if err != nil {
 		return "", err
@@ -74,10 +87,7 @@ func (s *aiService) generateWithFallback(title string, attempt int) (string, err
 		"temperature":        0.64,
 		"top_p":              0.9,
 		"repetition_penalty": 1.12,
-		"stop": []string{
-			"<|eot_id|>",
-			"```",
-		},
+		"stop":               []string{"<|eot_id|>", "```"},
 	}
 
 	bodyBytes, err := json.Marshal(payload)
@@ -85,18 +95,23 @@ func (s *aiService) generateWithFallback(title string, attempt int) (string, err
 		return "", MapError(err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, s.baseURL+"/chat/completions", bytes.NewReader(bodyBytes))
+	// Attach the overall deadline context so the HTTP call is cancelled when
+	// the 75s hard limit is reached, regardless of the per-client timeout.
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.baseURL+"/chat/completions", bytes.NewReader(bodyBytes))
 	if err != nil {
 		return "", MapError(err)
 	}
-
 	req.Header.Set("Authorization", "Bearer "+s.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return s.tryFallbackOrError(title, attempt, fmt.Errorf("failed to call Together AI: %w", MapError(err)))
+		// If the overall context expired, don't try fallbacks — they'd fail too.
+		if ctx.Err() != nil {
+			return "", fmt.Errorf("AI generation timed out after all attempts")
+		}
+		return s.tryFallbackOrError(ctx, title, attempt, fmt.Errorf("failed to call Together AI: %w", MapError(err)))
 	}
 	defer resp.Body.Close()
 
@@ -110,21 +125,20 @@ func (s *aiService) generateWithFallback(title string, attempt int) (string, err
 		if apiErr == "" {
 			apiErr = string(responseBytes)
 		}
-
 		log.Printf("Together AI API error | model=%s | status=%d | error=%s", currentModel, resp.StatusCode, apiErr)
-		return s.tryFallbackOrError(title, attempt, fmt.Errorf("failed to generate content: %s", apiErr))
+		return s.tryFallbackOrError(ctx, title, attempt, fmt.Errorf("API error: %s", apiErr))
 	}
 
 	content, err := parseAIContent(responseBytes)
 	if err != nil {
-		return s.tryFallbackOrError(title, attempt, err)
+		return s.tryFallbackOrError(ctx, title, attempt, err)
 	}
 
 	content = cleanAIContent(content, isArabicTitle)
 
 	if err := validateGeneratedContent(content, isArabicTitle); err != nil {
 		log.Printf("Weak AI content | model=%s | error=%v", currentModel, err)
-		return s.tryFallbackOrError(title, attempt, err)
+		return s.tryFallbackOrError(ctx, title, attempt, err)
 	}
 
 	return content, nil
@@ -143,12 +157,11 @@ func (s *aiService) resolveModel(attempt int) (string, error) {
 	return "", errors.New("failed to generate content: all AI models unavailable")
 }
 
-func (s *aiService) tryFallbackOrError(title string, attempt int, err error) (string, error) {
+func (s *aiService) tryFallbackOrError(ctx context.Context, title string, attempt int, err error) (string, error) {
 	if attempt < len(s.fallbackModels) {
 		log.Printf("Trying fallback model: %s", s.fallbackModels[attempt])
-		return s.generateWithFallback(title, attempt+1)
+		return s.generateWithFallback(ctx, title, attempt+1)
 	}
-
 	return "", err
 }
 
