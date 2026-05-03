@@ -1569,10 +1569,10 @@ definitions:
     - ids
     - status
     type: object
-host: api.alemancenter.com
+host: api.alemedu.com
 info:
   contact:
-    email: support@alemancenter.com
+    email: support@alemedu.com
     name: API Support
   description: Backend API for Alemancenter Educational Platform.
   license:

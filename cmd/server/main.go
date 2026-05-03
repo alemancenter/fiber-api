@@ -36,12 +36,12 @@ import (
 // @security FrontendKeyAuth
 
 // @contact.name API Support
-// @contact.email support@alemancenter.com
+// @contact.email support@alemedu.com
 
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
 
-// @host api.alemancenter.com
+// @host api.alemedu.com
 // @BasePath /api
 // @schemes https http
 

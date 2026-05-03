@@ -12,7 +12,7 @@ const docTemplate = `{
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
             "name": "API Support",
-            "email": "support@alemancenter.com"
+            "email": "support@alemedu.com"
         },
         "license": {
             "name": "MIT",
@@ -12030,7 +12030,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "2.0.0",
-	Host:             "api.alemancenter.com",
+	Host:             "api.alemedu.com",
 	BasePath:         "/api",
 	Schemes:          []string{"https", "http"},
 	Title:            "Alemancenter API",
