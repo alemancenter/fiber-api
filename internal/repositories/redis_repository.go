@@ -8,7 +8,7 @@ import (
 )
 
 type RedisRepository interface {
-	ListKeys(ctx context.Context, pattern string) ([]string, error)
+	ListKeys(ctx context.Context, pattern string, limit, offset int) ([]string, bool, error)
 	SetKey(ctx context.Context, key string, value interface{}, ttl time.Duration) error
 	DeleteKey(ctx context.Context, key string) error
 	HealthCheck() map[string]bool
@@ -21,8 +21,8 @@ func NewRedisRepository() RedisRepository {
 	return &redisRepository{}
 }
 
-func (r *redisRepository) ListKeys(ctx context.Context, pattern string) ([]string, error) {
-	return database.Redis().ListKeys(ctx, pattern)
+func (r *redisRepository) ListKeys(ctx context.Context, pattern string, limit, offset int) ([]string, bool, error) {
+	return database.Redis().ListKeys(ctx, pattern, limit, offset)
 }
 
 func (r *redisRepository) SetKey(ctx context.Context, key string, value interface{}, ttl time.Duration) error {

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -83,7 +84,7 @@ func (s *notificationService) Create(reqType string, notifiableID uint, data str
 		Type:           reqType,
 		NotifiableType: "App\\Models\\User",
 		NotifiableID:   notifiableID,
-		Data:           data,
+		Data:           json.RawMessage(data),
 	}
 
 	err := s.repo.Create(notification)

@@ -171,22 +171,51 @@ func (r *RedisManager) SetNX(ctx context.Context, key string, value interface{},
 	return r.default_.SetNX(ctx, key, value, ttl).Result()
 }
 
-// ListKeys returns keys matching a pattern from the cache DB
-func (r *RedisManager) ListKeys(ctx context.Context, pattern string) ([]string, error) {
-	var allKeys []string
+// ListKeys returns one bounded page of keys matching a pattern from the cache DB.
+func (r *RedisManager) ListKeys(ctx context.Context, pattern string, limit, offset int) ([]string, bool, error) {
+	if pattern == "" {
+		pattern = "*"
+	}
+	if limit <= 0 {
+		limit = 25
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	result := make([]string, 0, limit)
 	var cursor uint64
+	skipped := 0
+	scanCount := int64(limit)
+	if scanCount < 100 {
+		scanCount = 100
+	}
+
 	for {
-		keys, nextCursor, err := r.cache.Scan(ctx, cursor, pattern, 100).Result()
+		keys, nextCursor, err := r.cache.Scan(ctx, cursor, pattern, scanCount).Result()
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		allKeys = append(allKeys, keys...)
+		for _, key := range keys {
+			if skipped < offset {
+				skipped++
+				continue
+			}
+			if len(result) < limit {
+				result = append(result, key)
+				continue
+			}
+			return result, true, nil
+		}
 		cursor = nextCursor
 		if cursor == 0 {
 			break
 		}
 	}
-	return allKeys, nil
+	return result, false, nil
 }
 
 // Redis is a convenience function to get the Redis manager

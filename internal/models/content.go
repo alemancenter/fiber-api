@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // SchoolClass represents a grade level
 type SchoolClass struct {
@@ -179,7 +182,7 @@ type Notification struct {
 	Type           string     `gorm:"type:varchar(255);not null" json:"type"`
 	NotifiableType string     `gorm:"type:varchar(255);not null" json:"-"`
 	NotifiableID   uint       `gorm:"not null" json:"notifiable_id"`
-	Data           string     `gorm:"type:json" json:"data"`
+	Data           json.RawMessage `gorm:"type:json" json:"data"`
 	ReadAt         *time.Time `json:"read_at,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`

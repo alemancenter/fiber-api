@@ -31,21 +31,71 @@ func New(svc services.RedisService) *Handler {
 // @Security BearerAuth
 // @Security FrontendKeyAuth
 // @Param pattern query string false "Key pattern to match (e.g. *)"
+// @Param page query int false "Page number"
+// @Param per_page query int false "Keys per page (max 100)"
 // @Success 200 {object} utils.APIResponse{data=services.RedisKeysResponse}
 // @Failure 500 {object} utils.APIResponse
 // @Router /dashboard/redis/keys [get]
 func (h *Handler) ListKeys(c *fiber.Ctx) error {
-	pattern := c.Query("pattern", "*")
+	pattern := strings.TrimSpace(c.Query("pattern", "*"))
+	if pattern == "" {
+		pattern = "*"
+	}
+	page, perPage, offset := redisKeysPagination(c)
 
-	keys, err := h.svc.ListKeys(context.Background(), pattern)
+	keys, hasMore, err := h.svc.ListKeys(context.Background(), pattern, perPage, offset)
 	if err != nil {
 		return utils.InternalError(c, "فشل الحصول على مفاتيح Redis")
 	}
 
+	total := offset + len(keys)
+	if hasMore {
+		total++
+	}
+	lastPage := total / perPage
+	if total%perPage != 0 {
+		lastPage++
+	}
+	if lastPage == 0 {
+		lastPage = 1
+	}
+	from, to := 0, 0
+	if len(keys) > 0 {
+		from = offset + 1
+		to = offset + len(keys)
+	}
+
 	return utils.Success(c, "success", services.RedisKeysResponse{
-		Keys:  keys,
-		Count: len(keys),
+		Keys:        keys,
+		Count:       len(keys),
+		CurrentPage: page,
+		PerPage:     perPage,
+		Total:       total,
+		LastPage:    lastPage,
+		From:        from,
+		To:          to,
+		HasMore:     hasMore,
 	})
+}
+
+func redisKeysPagination(c *fiber.Ctx) (page, perPage, offset int) {
+	page = c.QueryInt("page", 1)
+	perPage = c.QueryInt("per_page", 25)
+	if c.Query("per_page") == "" && c.Query("limit") != "" {
+		perPage = c.QueryInt("limit", 25)
+	}
+
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 25
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	return page, perPage, (page - 1) * perPage
 }
 
 type SetRedisKeyRequest struct {

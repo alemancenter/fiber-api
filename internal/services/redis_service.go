@@ -8,7 +8,7 @@ import (
 )
 
 type RedisService interface {
-	ListKeys(ctx context.Context, pattern string) ([]string, error)
+	ListKeys(ctx context.Context, pattern string, limit, offset int) ([]string, bool, error)
 	SetKey(ctx context.Context, key string, value interface{}, ttl time.Duration) error
 	DeleteKey(ctx context.Context, key string) error
 	CleanExpired(ctx context.Context) error
@@ -17,8 +17,15 @@ type RedisService interface {
 }
 
 type RedisKeysResponse struct {
-	Keys  []string `json:"keys"`
-	Count int      `json:"count"`
+	Keys        []string `json:"keys"`
+	Count       int      `json:"count"`
+	CurrentPage int      `json:"current_page"`
+	PerPage     int      `json:"per_page"`
+	Total       int      `json:"total"`
+	LastPage    int      `json:"last_page"`
+	From        int      `json:"from"`
+	To          int      `json:"to"`
+	HasMore     bool     `json:"has_more"`
 }
 
 type RedisInfoResponse struct {
@@ -33,8 +40,8 @@ func NewRedisService(repo repositories.RedisRepository) RedisService {
 	return &redisService{repo: repo}
 }
 
-func (s *redisService) ListKeys(ctx context.Context, pattern string) ([]string, error) {
-	return s.repo.ListKeys(ctx, pattern)
+func (s *redisService) ListKeys(ctx context.Context, pattern string, limit, offset int) ([]string, bool, error) {
+	return s.repo.ListKeys(ctx, pattern, limit, offset)
 }
 
 func (s *redisService) SetKey(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
