@@ -67,8 +67,14 @@ func (h *Handler) Logs(c *fiber.Ctx) error {
 
 	severity := c.Query("severity")
 	eventType := c.Query("event_type")
-	ip := c.Query("ip")
+	ip := strings.TrimSpace(c.Query("ip"))
+	if ip == "" {
+		ip = strings.TrimSpace(c.Query("q"))
+	}
 	resolved := c.Query("resolved")
+	if resolved == "" {
+		resolved = c.Query("is_resolved")
+	}
 
 	logs, total, err := h.svc.GetLogs(severity, eventType, ip, resolved, pag.PerPage, pag.Offset)
 	if err != nil {

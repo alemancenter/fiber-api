@@ -125,6 +125,15 @@ func main() {
 	services.StartVisitorWorker(5 * time.Second)
 	startContentAuditScheduler(cfg)
 
+	// Periodically prune expired AI generation jobs from the in-memory store.
+	go func() {
+		ticker := time.NewTicker(30 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			services.GetAIJobStore().Prune()
+		}
+	}()
+
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
 		AppName:                 cfg.App.Name + " v2.0.0",

@@ -84,9 +84,9 @@ func (r *securityRepository) GetLogs(severity, eventType, ip, resolved string, l
 	}
 
 	switch resolved {
-	case "1":
+	case "1", "true":
 		query = query.Where("is_resolved = ?", true)
-	case "0":
+	case "0", "false":
 		query = query.Where("is_resolved = ?", false)
 	}
 

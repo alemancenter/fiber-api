@@ -70,8 +70,8 @@ func (s *aiService) generateWithFallback(title string, attempt int) (string, err
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
 		},
-		"max_tokens":         1800,
-		"temperature":        0.75,
+		"max_tokens":         1000,
+		"temperature":        0.64,
 		"top_p":              0.9,
 		"repetition_penalty": 1.12,
 		"stop": []string{

@@ -64,8 +64,9 @@ func registerContentRoutes(api, public, dash fiber.Router, h *Handlers) {
 	// Secure file view
 	api.Get("/secure/view", authM, activityM, h.Files.SecureView)
 
-	// AI generation (User dashboard)
+	// AI generation (async: POST returns job_id, GET polls result)
 	api.Post("/ai/generate", authM, activityM, h.AI.Generate)
+	api.Get("/ai/status/:id", authM, activityM, h.AI.Status)
 
 	// =====================
 	// ADMIN DASHBOARD ROUTES
@@ -125,4 +126,5 @@ func registerContentRoutes(api, public, dash fiber.Router, h *Handlers) {
 
 	// AI (dashboard)
 	dash.Post("/ai/generate", middleware.Can("manage articles"), h.AI.Generate)
+	dash.Get("/ai/status/:id", middleware.Can("manage articles"), h.AI.Status)
 }
