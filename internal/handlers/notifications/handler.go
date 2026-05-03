@@ -1,6 +1,8 @@
 package notifications
 
 import (
+	"encoding/json"
+
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
@@ -128,15 +130,18 @@ func (h *Handler) MarkAllRead(c *fiber.Ctx) error {
 	return utils.Success(c, "تم تعليم جميع الإشعارات كمقروءة", nil)
 }
 
+// CreateNotificationRequest is the payload sent by the frontend dashboard.
+// notifiable_id and data are derived server-side from the JWT user and these fields.
 type CreateNotificationRequest struct {
-	Type         string `json:"type" validate:"required"`
-	NotifiableID uint   `json:"notifiable_id" validate:"required"`
-	Data         string `json:"data" validate:"required"`
+	Type      string `json:"type"       validate:"required"`
+	Title     string `json:"title"      validate:"required"`
+	Message   string `json:"message"    validate:"required"`
+	ActionURL string `json:"action_url"`
 }
 
-// Create creates a new notification
+// Create creates a notification for the authenticated user.
 // @Summary Create Notification
-// @Description Programmatically create a new notification for a user
+// @Description Create a notification for the currently authenticated user
 // @Tags Notifications
 // @Accept json
 // @Produce json
@@ -149,6 +154,11 @@ type CreateNotificationRequest struct {
 // @Failure 500 {object} utils.APIResponse
 // @Router /dashboard/notifications [post]
 func (h *Handler) Create(c *fiber.Ctx) error {
+	user, _ := c.Locals("user").(*models.User)
+	if user == nil {
+		return utils.Unauthorized(c)
+	}
+
 	var req CreateNotificationRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "بيانات غير صحيحة")
@@ -158,7 +168,17 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 		return utils.ValidationError(c, errs)
 	}
 
-	notification, err := h.svc.Create(req.Type, req.NotifiableID, req.Data)
+	// Build the JSON data blob stored in the notifications table
+	dataMap := map[string]string{
+		"title":   req.Title,
+		"message": req.Message,
+	}
+	if req.ActionURL != "" {
+		dataMap["action_url"] = req.ActionURL
+	}
+	dataJSON, _ := json.Marshal(dataMap)
+
+	notification, err := h.svc.Create(req.Type, user.ID, string(dataJSON))
 	if err != nil {
 		return utils.InternalError(c, "فشل إنشاء الإشعار")
 	}

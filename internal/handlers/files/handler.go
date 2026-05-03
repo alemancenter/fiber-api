@@ -2,6 +2,8 @@ package files
 
 import (
 	"strconv"
+	"strings"
+	"unicode"
 
 	"github.com/alemancenter/fiber-api/internal/database"
 	_ "github.com/alemancenter/fiber-api/internal/models"
@@ -9,6 +11,51 @@ import (
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
+
+// slugify converts a string to a filesystem-safe slug, preserving Unicode
+// letters and digits (including Arabic), replacing everything else with hyphens.
+func slugify(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	var b strings.Builder
+	prevHyphen := false
+	for _, r := range s {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+			prevHyphen = false
+		} else if !prevHyphen {
+			b.WriteByte('-')
+			prevHyphen = true
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
+
+// articleGradeName returns the grade_name of the school class that owns the article.
+// Returns "" if the article or class cannot be found.
+func articleGradeName(countryID database.CountryID, articleID uint) string {
+	db := database.GetManager().Get(countryID)
+	if db == nil {
+		return ""
+	}
+	var row struct {
+		GradeLevel *string `gorm:"column:grade_level"`
+	}
+	if err := db.Table("articles").Select("grade_level").
+		Where("id = ?", articleID).First(&row).Error; err != nil {
+		return ""
+	}
+	if row.GradeLevel == nil || *row.GradeLevel == "" {
+		return ""
+	}
+	var cls struct {
+		GradeName string `gorm:"column:grade_name"`
+	}
+	if err := db.Table("school_classes").Select("grade_name").
+		Where("grade_level = ?", *row.GradeLevel).First(&cls).Error; err != nil {
+		return ""
+	}
+	return cls.GradeName
+}
 
 // Handler contains file management route handlers
 type Handler struct {
@@ -221,18 +268,41 @@ func (h *Handler) DashboardUpload(c *fiber.Ctx) error {
 		return utils.BadRequest(c, "الملف مطلوب")
 	}
 
+	countryID, _ := c.Locals("country_id").(database.CountryID)
+
+	// Build the storage subdirectory to mirror the old Laravel layout:
+	//   post files  → files/posts/
+	//   article files → files/{grade-slug}/{category-slug}/
+	var subdir string
+	switch {
+	case c.FormValue("post_id") != "":
+		subdir = "files/posts"
+	case c.FormValue("article_id") != "":
+		aid, _ := strconv.ParseUint(c.FormValue("article_id"), 10, 64)
+		gradeSlug := slugify(articleGradeName(countryID, uint(aid)))
+		categorySlug := slugify(c.FormValue("file_category"))
+		switch {
+		case gradeSlug != "" && categorySlug != "":
+			subdir = "files/" + gradeSlug + "/" + categorySlug
+		case gradeSlug != "":
+			subdir = "files/" + gradeSlug
+		default:
+			subdir = "files"
+		}
+	default:
+		subdir = "files"
+	}
+
 	var uploaded *services.UploadedFile
 
 	// Try as document first, fallback to image
-	uploaded, err = h.svc.UploadDocument(uploadedFile, "files")
+	uploaded, err = h.svc.UploadDocument(uploadedFile, subdir)
 	if err != nil {
-		uploaded, err = h.svc.UploadImage(uploadedFile, "files")
+		uploaded, err = h.svc.UploadImage(uploadedFile, subdir)
 		if err != nil {
 			return utils.BadRequest(c, err.Error())
 		}
 	}
-
-	countryID, _ := c.Locals("country_id").(database.CountryID)
 
 	var articleIDPtr *uint
 	if articleID := c.FormValue("article_id"); articleID != "" {

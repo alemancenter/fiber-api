@@ -204,9 +204,11 @@ func main() {
 
 	// Serve static storage files (uploads, settings images, etc.)
 	// Next.js rewrites /storage/:path* → backend /storage/:path*
+	// STORAGE_PATH must match Laravel's storage/app/public layout so that
+	// a file stored at {STORAGE_PATH}/files/foo.doc is served at /storage/files/foo.doc
 	storageRoot := cfg.Storage.Path
 	if storageRoot == "" {
-		storageRoot = "./storage"
+		storageRoot = "./storage/app/public"
 	}
 	app.Static("/storage", storageRoot, fiber.Static{
 		Compress:  true,
