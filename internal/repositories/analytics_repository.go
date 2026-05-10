@@ -16,6 +16,7 @@ type AnalyticsRepository interface {
 	GetDailyChartData(dbCode database.CountryID, since time.Time) ([]DailyRow, error)
 	GetDeviceStats(dbCode database.CountryID, since time.Time) ([]DeviceRow, error)
 	GetTrafficSources(dbCode database.CountryID, since time.Time) ([]RefRow, error)
+	GetTrafficSourcesPrev(dbCode database.CountryID, prevSince, since time.Time) ([]RefRow, error)
 	GetPrevTotalVisits(dbCode database.CountryID, prevSince, since time.Time) int64
 	GetTotalVisitsSince(dbCode database.CountryID, since time.Time) int64
 	PruneVisitorTracking(dbCode database.CountryID, cutoff time.Time) int64
@@ -187,7 +188,18 @@ func (r *analyticsRepository) GetTrafficSources(dbCode database.CountryID, since
 	var refRows []RefRow
 	err := db.Raw(`SELECT referer, COUNT(*) AS count FROM visitors_tracking
 		        WHERE created_at >= ?
-		        GROUP BY referer ORDER BY count DESC LIMIT 50`, since).Scan(&refRows).Error
+		          AND (referer IS NULL OR referer LIKE 'http://%' OR referer LIKE 'https://%')
+		        GROUP BY referer ORDER BY count DESC LIMIT 100`, since).Scan(&refRows).Error
+	return refRows, err
+}
+
+func (r *analyticsRepository) GetTrafficSourcesPrev(dbCode database.CountryID, prevSince, since time.Time) ([]RefRow, error) {
+	db := database.DBForCountry(dbCode)
+	var refRows []RefRow
+	err := db.Raw(`SELECT referer, COUNT(*) AS count FROM visitors_tracking
+		        WHERE created_at >= ? AND created_at < ?
+		          AND (referer IS NULL OR referer LIKE 'http://%' OR referer LIKE 'https://%')
+		        GROUP BY referer ORDER BY count DESC LIMIT 100`, prevSince, since).Scan(&refRows).Error
 	return refRows, err
 }
 

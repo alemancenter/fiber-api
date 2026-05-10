@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alemancenter/fiber-api/internal/config"
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/repositories"
@@ -176,7 +177,7 @@ func (s *analyticsService) GetVisitorAnalytics(dbCode database.CountryID, days i
 	var dailyRows []repositories.DailyRow
 	var deviceRows []repositories.DeviceRow
 	var refRows []repositories.RefRow
-	var prevTotalVisits int64
+	var prevRefRows []repositories.RefRow
 
 	wg.Add(6)
 
@@ -215,7 +216,7 @@ func (s *analyticsService) GetVisitorAnalytics(dbCode database.CountryID, days i
 	go func() {
 		defer wg.Done()
 		refRows, _ = s.repo.GetTrafficSources(dbCode, since)
-		prevTotalVisits = s.repo.GetPrevTotalVisits(dbCode, prevSince, since)
+		prevRefRows, _ = s.repo.GetTrafficSourcesPrev(dbCode, prevSince, since)
 	}()
 
 	wg.Wait()
@@ -287,26 +288,47 @@ func (s *analyticsService) GetVisitorAnalytics(dbCode database.CountryID, days i
 	}
 
 	// ---- traffic_sources ----
-	srcMap := map[string]int64{}
-	for _, r := range refRows {
-		src := "Direct"
-		if r.Referer != nil && *r.Referer != "" {
-			src = extractDomain(*r.Referer)
+	// Build own-domain set from CORS origins so self-referrals count as Direct.
+	ownDomains := map[string]bool{}
+	for _, origin := range config.Get().Frontend.CORSOrigins {
+		if d := extractDomain(strings.TrimSpace(origin)); d != "" {
+			ownDomains[d] = true
+			ownDomains["www."+d] = true
+			ownDomains["api."+d] = true
 		}
-		srcMap[src] += r.Count
 	}
 
-	totalCurrent := s.repo.GetTotalVisitsSince(dbCode, since)
-	changePerSource := 0.0
-	if prevTotalVisits > 0 {
-		changePerSource = float64(totalCurrent-prevTotalVisits) / float64(prevTotalVisits) * 100
+	refDomain := func(ref *string) string {
+		if ref == nil || *ref == "" {
+			return "Direct"
+		}
+		d := extractDomain(*ref)
+		if d == "" || ownDomains[d] {
+			return "Direct"
+		}
+		return d
 	}
+
+	srcMap := map[string]int64{}
+	for _, r := range refRows {
+		srcMap[refDomain(r.Referer)] += r.Count
+	}
+	prevSrcMap := map[string]int64{}
+	for _, r := range prevRefRows {
+		prevSrcMap[refDomain(r.Referer)] += r.Count
+	}
+
 	trafficSources := make([]TrafficSourceRow, 0, len(srcMap))
 	for src, visits := range srcMap {
+		prev := prevSrcMap[src]
+		change := 0.0
+		if prev > 0 {
+			change = float64(visits-prev) / float64(prev) * 100
+		}
 		trafficSources = append(trafficSources, TrafficSourceRow{
 			Source: src,
 			Visits: visits,
-			Change: changePerSource,
+			Change: change,
 		})
 	}
 
@@ -517,19 +539,27 @@ func containsAny(s string, subs ...string) bool {
 }
 
 func extractDomain(rawURL string) string {
-	s := rawURL
-	for _, prefix := range []string{"https://", "http://"} {
-		if len(s) > len(prefix) && s[:len(prefix)] == prefix {
-			s = s[len(prefix):]
-			break
-		}
+	var rest string
+	switch {
+	case strings.HasPrefix(rawURL, "https://"):
+		rest = rawURL[8:]
+	case strings.HasPrefix(rawURL, "http://"):
+		rest = rawURL[7:]
+	default:
+		return "" // not an HTTP URL — reject garbage values
 	}
-	for i, ch := range s {
-		if ch == '/' {
-			return s[:i]
-		}
+	if i := strings.IndexByte(rest, '/'); i >= 0 {
+		rest = rest[:i]
 	}
-	return s
+	// Strip port
+	if i := strings.IndexByte(rest, ':'); i >= 0 {
+		rest = rest[:i]
+	}
+	// Must look like a real hostname (has a dot, no whitespace or braces)
+	if !strings.Contains(rest, ".") || strings.ContainsAny(rest, " \t\n{}") {
+		return ""
+	}
+	return rest
 }
 
 func trendData(prev, curr int64) TrendData {

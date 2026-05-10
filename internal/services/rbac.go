@@ -5,6 +5,9 @@ import (
 	"fmt"
 
 	"github.com/alemancenter/fiber-api/internal/database"
+	"github.com/alemancenter/fiber-api/internal/models"
+	"github.com/alemancenter/fiber-api/pkg/logger"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -77,4 +80,61 @@ func InvalidateUserCache(userID uint) {
 	ctx := context.Background()
 	rdb := database.Redis()
 	_ = rdb.Del(ctx, rdb.Key("user", fmt.Sprintf("%d", userID)))
+}
+
+// AssignDefaultRole assigns the "User" role to a user if the role exists.
+// It is idempotent (INSERT IGNORE) and silently skips when the role has not
+// been created by the admin yet.
+func AssignDefaultRole(userID uint) {
+	db := database.DB()
+	var role models.Role
+	if err := db.Where("name = ?", "User").First(&role).Error; err != nil {
+		return // "User" role not created yet — skip
+	}
+	if err := db.Exec(
+		"INSERT IGNORE INTO model_has_roles (role_id, model_type, model_id) VALUES (?, ?, ?)",
+		role.ID, modelTypeUser, userID,
+	).Error; err != nil {
+		logger.Warn("failed to assign default User role",
+			zap.Uint("user_id", userID),
+			zap.Error(err),
+		)
+		return
+	}
+	InvalidateUserCache(userID)
+}
+
+// BackfillVerifiedUserRoles assigns the "User" role to all verified users who
+// currently have no role assignment. Safe to call at startup; INSERT IGNORE
+// makes repeated runs idempotent.
+func BackfillVerifiedUserRoles() {
+	db := database.DB()
+	var role models.Role
+	if err := db.Where("name = ?", "User").First(&role).Error; err != nil {
+		return // "User" role not created yet
+	}
+
+	type userRow struct{ ID uint }
+	var users []userRow
+	db.Raw(`
+		SELECT id FROM users
+		WHERE email_verified_at IS NOT NULL
+		  AND id NOT IN (
+		    SELECT model_id FROM model_has_roles WHERE model_type = ?
+		  )
+	`, modelTypeUser).Scan(&users)
+
+	if len(users) == 0 {
+		return
+	}
+
+	for _, u := range users {
+		db.Exec(
+			"INSERT IGNORE INTO model_has_roles (role_id, model_type, model_id) VALUES (?, ?, ?)",
+			role.ID, modelTypeUser, u.ID,
+		)
+	}
+	logger.Info("backfilled User role for verified members",
+		zap.Int("count", len(users)),
+	)
 }

@@ -124,6 +124,7 @@ func main() {
 	}
 	ensurePermission("manage content audit")
 	syncMailConfigFromDB()
+	go services.BackfillVerifiedUserRoles()
 
 	// Initialize Redis
 	logger.Info("Connecting to Redis...")

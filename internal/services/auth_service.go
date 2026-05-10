@@ -134,6 +134,8 @@ func (s *authService) Register(name, email, password string) (*models.User, stri
 		return nil, "", MapError(err)
 	}
 
+	AssignDefaultRole(user.ID)
+
 	// Create a time-limited verification token and send the email before returning.
 	if err := s.sendVerificationEmail(&user); err != nil {
 		logger.Error("failed to send verification email during registration",
@@ -388,6 +390,7 @@ func (s *authService) VerifyEmail(id string, token string) error {
 		return MapError(err)
 	}
 	invalidateCachedUser(user.ID)
+	AssignDefaultRole(user.ID)
 
 	_ = rdb.Del(ctx, key)
 	_, _ = rdb.DeleteByPattern(ctx, rdb.Key("email_verify", fmt.Sprintf("%d", user.ID), "*"))
@@ -451,6 +454,7 @@ func (s *authService) LoginOrRegisterGoogleUser(info *GoogleUserInfo) (*models.U
 		if err := s.repo.Create(user); err != nil {
 			return nil, "", MapError(err)
 		}
+		AssignDefaultRole(user.ID)
 	} else if err != nil {
 		return nil, "", MapError(err)
 	} else {
