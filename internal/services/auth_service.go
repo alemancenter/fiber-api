@@ -85,6 +85,8 @@ type UserResponse struct {
 	Status           string              `json:"status"`
 	Roles            []models.Role       `json:"roles"`
 	Permissions      []models.Permission `json:"permissions"`
+	CreatedAt        time.Time           `json:"created_at"`
+	LastActivity     *time.Time          `json:"last_activity"`
 }
 
 type RegisterResponse struct {

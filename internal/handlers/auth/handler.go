@@ -677,6 +677,8 @@ func buildUserResponse(user *models.User, storageURL string) *services.UserRespo
 		Status:           user.Status,
 		Roles:            user.Roles,
 		Permissions:      user.Permissions,
+		CreatedAt:        user.CreatedAt,
+		LastActivity:     user.LastActivity,
 	}
 }
 
