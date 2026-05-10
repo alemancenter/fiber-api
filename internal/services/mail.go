@@ -35,28 +35,33 @@ func (m *MailService) Send(to, subject, body string, isHTML bool) error {
 	msg.Subject(subject)
 
 	if isHTML {
-		msg.SetBodyHTMLTemplate(nil, nil)
 		msg.SetBodyString(mail.TypeTextHTML, body)
 	} else {
 		msg.SetBodyString(mail.TypeTextPlain, body)
 	}
 
-	port := m.cfg.Port
-	var tlsMode mail.TLSPolicy
-	switch m.cfg.Encryption {
-	case "ssl", "tls":
-		tlsMode = mail.TLSMandatory
-	default:
-		tlsMode = mail.TLSOpportunistic
-	}
-
-	client, err := mail.NewClient(m.cfg.Host,
-		mail.WithPort(port),
+	opts := []mail.Option{
+		mail.WithPort(m.cfg.Port),
 		mail.WithSMTPAuth(mail.SMTPAuthPlain),
 		mail.WithUsername(m.cfg.Username),
 		mail.WithPassword(m.cfg.Password),
-		mail.WithTLSPolicy(tlsMode),
-	)
+	}
+
+	switch m.cfg.Encryption {
+	case "ssl":
+		// Implicit SSL/TLS — port 465: wrap the TCP connection in TLS immediately.
+		// WithSSLPort(false) enables SSL mode; WithPort above keeps the configured port.
+		opts = append(opts, mail.WithSSLPort(false))
+	case "tls", "starttls":
+		// STARTTLS — port 587: negotiate TLS after the plain TCP handshake.
+		opts = append(opts, mail.WithTLSPolicy(mail.TLSMandatory))
+	case "none":
+		opts = append(opts, mail.WithTLSPolicy(mail.NoTLS))
+	default:
+		opts = append(opts, mail.WithTLSPolicy(mail.TLSOpportunistic))
+	}
+
+	client, err := mail.NewClient(m.cfg.Host, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create mail client: %w", MapError(err))
 	}
