@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/alemancenter/fiber-api/internal/config"
 	mail "github.com/wneessen/go-mail"
@@ -45,6 +46,7 @@ func (m *MailService) Send(to, subject, body string, isHTML bool) error {
 		mail.WithSMTPAuth(mail.SMTPAuthPlain),
 		mail.WithUsername(m.cfg.Username),
 		mail.WithPassword(m.cfg.Password),
+		mail.WithTimeout(20 * time.Second),
 	}
 
 	switch m.cfg.Encryption {
