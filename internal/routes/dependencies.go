@@ -132,7 +132,7 @@ func NewDependencies() *Handlers {
 
 	contentAuditRepo := repositories.NewContentAuditRepository()
 	aiSvc := services.NewAIService(config.Load().AI.TogetherAPIKey)
-	contentAuditSvc := contentauditService.NewServiceWithAI(contentAuditRepo, contentauditService.Options{}, aiSvc)
+	contentAuditSvc := contentauditService.NewServiceWithAIAndNotifications(contentAuditRepo, contentauditService.Options{}, aiSvc, notificationSvc)
 
 	homeSvc := services.NewHomeService(articleRepo, postRepo, categoryRepo, gradeRepo, cacheSvc, settingSvc)
 

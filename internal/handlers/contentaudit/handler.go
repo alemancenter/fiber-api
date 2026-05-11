@@ -130,7 +130,7 @@ func (h *Handler) AnalyzeWithAI(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return utils.BadRequest(c, "invalid AI analysis payload")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	decision, err := h.svc.AnalyzeWithAI(ctx, req, currentUserID(c))
 	if err != nil {

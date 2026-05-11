@@ -252,6 +252,10 @@ func (s *Service) ApplyFix(ctx context.Context, previewID uint64, userID *uint, 
 	}
 	_, _, id := normalizeContentReference(preview.ContentID, preview.CountryCode)
 	db := database.GetManager().GetByCode(preview.CountryCode).WithContext(ctx)
+
+	var notifType, notifTitle, notifMsg, notifURL string
+	var authorID *uint
+
 	switch normalizeContentType(preview.ContentType) {
 	case "article":
 		var item models.Article
@@ -263,6 +267,11 @@ func (s *Service) ApplyFix(ctx context.Context, previewID uint64, userID *uint, 
 		if err := db.Save(&item).Error; err != nil {
 			return nil, err
 		}
+		authorID = item.AuthorID
+		notifType = `App\Notifications\ArticleFixed`
+		notifTitle = "تم تطبيق تصحيح AI على مقالة"
+		notifMsg = fmt.Sprintf("تم تحديث المقالة بنسخة محسّنة بالذكاء الاصطناعي: %s", item.Title)
+		notifURL = fmt.Sprintf("/dashboard/lesson/articles/edit/%d", item.ID)
 	case "post":
 		var item models.Post
 		if err := db.First(&item, id).Error; err != nil {
@@ -273,9 +282,15 @@ func (s *Service) ApplyFix(ctx context.Context, previewID uint64, userID *uint, 
 		if err := db.Save(&item).Error; err != nil {
 			return nil, err
 		}
+		authorID = item.AuthorID
+		notifType = `App\Notifications\PostFixed`
+		notifTitle = "تم تطبيق تصحيح AI على منشور"
+		notifMsg = fmt.Sprintf("تم تحديث المنشور بنسخة محسّنة بالذكاء الاصطناعي: %s", item.Title)
+		notifURL = fmt.Sprintf("/dashboard/posts/edit/%d", item.ID)
 	default:
 		return nil, ErrUnsupportedContentType
 	}
+
 	now := time.Now()
 	preview.Status = models.AIFixStatusApplied
 	preview.AppliedByUserID = userID
@@ -284,6 +299,21 @@ func (s *Service) ApplyFix(ctx context.Context, previewID uint64, userID *uint, 
 		return nil, err
 	}
 	_ = s.repo.CreateApprovalLog(ctx, &models.ContentAIApprovalLog{FixPreviewID: preview.ID, DecisionID: preview.DecisionID, Action: models.AIFixStatusApplied, UserID: userID, Note: note})
+
+	if s.notification != nil {
+		includeIDs := []uint{}
+		if userID != nil {
+			includeIDs = append(includeIDs, *userID)
+		}
+		if authorID != nil && (userID == nil || *authorID != *userID) {
+			includeIDs = append(includeIDs, *authorID)
+		}
+		permissions := []string{"manage content audit", "manage articles", "manage posts"}
+		go func() {
+			_ = s.notification.NotifyUsersWithPermissions(notifType, notifTitle, notifMsg, notifURL, permissions, includeIDs...)
+		}()
+	}
+
 	return preview, nil
 }
 

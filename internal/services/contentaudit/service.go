@@ -22,9 +22,10 @@ var processLock = struct {
 }{}
 
 type Service struct {
-	repo repositories.ContentAuditRepository
-	opts Options
-	ai   coreai.AIService
+	repo         repositories.ContentAuditRepository
+	opts         Options
+	ai           coreai.AIService
+	notification coreai.NotificationService
 }
 
 func NewService(repo repositories.ContentAuditRepository, opts Options) *Service {
@@ -33,6 +34,10 @@ func NewService(repo repositories.ContentAuditRepository, opts Options) *Service
 
 func NewServiceWithAI(repo repositories.ContentAuditRepository, opts Options, ai coreai.AIService) *Service {
 	return &Service{repo: repo, opts: opts.withDefaults(), ai: ai}
+}
+
+func NewServiceWithAIAndNotifications(repo repositories.ContentAuditRepository, opts Options, ai coreai.AIService, notification coreai.NotificationService) *Service {
+	return &Service{repo: repo, opts: opts.withDefaults(), ai: ai, notification: notification}
 }
 
 func (s *Service) SetAI(ai coreai.AIService) {
