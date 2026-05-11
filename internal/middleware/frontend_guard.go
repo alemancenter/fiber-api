@@ -21,6 +21,7 @@ func FrontendGuard() fiber.Handler {
 
 	// Paths excluded from frontend guard validation
 	excludedPaths := []string{
+		"/api/auth/google/redirect",
 		"/api/auth/google/callback",
 		"/api/auth/email/verify/",
 		"/api/ping",
