@@ -484,18 +484,25 @@ func (h *Handler) GoogleRedirect(c *fiber.Ctx) error {
 // GoogleCallback handles the Google OAuth callback
 // GET /api/auth/google/callback
 func (h *Handler) GoogleCallback(c *fiber.Ctx) error {
+	frontendURL := strings.TrimRight(h.cfg.Frontend.URL, "/")
+	callbackBase := frontendURL + "/auth/google/callback"
+
 	code := c.Query("code")
 	if code == "" {
-		return utils.BadRequest(c, "رمز التفويض مفقود")
+		return c.Redirect(callbackBase + "?error=missing_code")
 	}
 
-	token, userInfo, err := h.exchangeGoogleCode(code)
+	_, userInfo, err := h.exchangeGoogleCode(code)
 	if err != nil {
-		return utils.InternalError(c, "فشل التحقق من Google")
+		return c.Redirect(callbackBase + "?error=google_auth_failed")
 	}
-	_ = token
 
-	return h.loginOrRegisterGoogleUser(c, userInfo)
+	user, token, err := h.svc.LoginOrRegisterGoogleUser(userInfo)
+	if err != nil || user == nil {
+		return c.Redirect(callbackBase + "?error=login_failed")
+	}
+
+	return c.Redirect(callbackBase + "?token=" + token)
 }
 
 // TokenRequest contains the Google OAuth token
