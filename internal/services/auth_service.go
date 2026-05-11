@@ -452,6 +452,9 @@ func (s *authService) LoginOrRegisterGoogleUser(info *GoogleUserInfo) (*models.U
 			EmailVerifiedAt: &now,
 			Status:          "active",
 		}
+		if info.Picture != "" {
+			user.ProfilePhotoPath = &info.Picture
+		}
 		_ = user.HashPassword(s.jwtSvc.GenerateRandomString(32))
 		if err := s.repo.Create(user); err != nil {
 			return nil, "", MapError(err)
@@ -460,9 +463,17 @@ func (s *authService) LoginOrRegisterGoogleUser(info *GoogleUserInfo) (*models.U
 	} else if err != nil {
 		return nil, "", MapError(err)
 	} else {
-		// Update Google ID if not set
+		needsUpdate := false
 		if user.GoogleID == nil || *user.GoogleID != info.ID {
 			user.GoogleID = &info.ID
+			needsUpdate = true
+		}
+		// Sync Google photo if user has no local photo
+		if info.Picture != "" && (user.ProfilePhotoPath == nil || *user.ProfilePhotoPath == "") {
+			user.ProfilePhotoPath = &info.Picture
+			needsUpdate = true
+		}
+		if needsUpdate {
 			_ = s.repo.Update(user)
 		}
 	}

@@ -664,7 +664,13 @@ func buildUserResponse(user *models.User, storageURL string) *services.UserRespo
 
 	var photoURL *string
 	if user.ProfilePhotoPath != nil && *user.ProfilePhotoPath != "" {
-		url := storageURL + "/" + *user.ProfilePhotoPath
+		var url string
+		p := *user.ProfilePhotoPath
+		if strings.HasPrefix(p, "http://") || strings.HasPrefix(p, "https://") {
+			url = p
+		} else {
+			url = storageURL + "/" + p
+		}
 		photoURL = &url
 	}
 
