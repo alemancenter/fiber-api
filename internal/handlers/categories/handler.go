@@ -5,6 +5,7 @@ import (
 
 	"github.com/alemancenter/fiber-api/internal/database"
 	_ "github.com/alemancenter/fiber-api/internal/models"
+	"github.com/alemancenter/fiber-api/internal/repositories"
 	"github.com/alemancenter/fiber-api/internal/services"
 	"github.com/alemancenter/fiber-api/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -216,6 +217,53 @@ func (h *Handler) DashboardDelete(c *fiber.Ctx) error {
 	}
 
 	return utils.Success(c, "تم حذف التصنيف بنجاح", nil)
+}
+
+// DashboardUploadImages uploads image and/or icon_image for a category.
+// Accepts multipart/form-data with fields "image" and/or "icon_image".
+// Files are stored under category_images/ and the category record is updated.
+func (h *Handler) DashboardUploadImages(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return utils.BadRequest(c, "معرف غير صحيح")
+	}
+
+	countryID, _ := c.Locals("country_id").(database.CountryID)
+
+	fileRepo := repositories.NewFileRepository()
+	fileSvc := services.NewFileService(fileRepo)
+
+	req := &services.UpdateCategoryRequest{}
+
+	if img, err := c.FormFile("image"); err == nil {
+		uploaded, err := fileSvc.UploadImage(img, "category_images")
+		if err != nil {
+			return utils.BadRequest(c, "فشل رفع الصورة: "+err.Error())
+		}
+		req.Image = uploaded.Path
+	}
+
+	if iconImg, err := c.FormFile("icon_image"); err == nil {
+		uploaded, err := fileSvc.UploadImage(iconImg, "category_images")
+		if err != nil {
+			return utils.BadRequest(c, "فشل رفع الأيقونة: "+err.Error())
+		}
+		req.IconImage = uploaded.Path
+	}
+
+	if req.Image == "" && req.IconImage == "" {
+		return utils.BadRequest(c, "لم يتم تقديم أي صورة")
+	}
+
+	category, err := h.svc.Update(countryID, id, req)
+	if err != nil {
+		if err == services.ErrNotFound {
+			return utils.NotFound(c)
+		}
+		return utils.InternalError(c, "فشل تحديث صور الفئة")
+	}
+
+	return utils.Success(c, "تم رفع الصور بنجاح", category)
 }
 
 // DashboardToggleStatus toggles category active status

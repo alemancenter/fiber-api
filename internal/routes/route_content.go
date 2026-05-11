@@ -99,6 +99,7 @@ func registerContentRoutes(api, public, dash fiber.Router, h *Handlers) {
 	dashCategories.Post("", h.Categories.DashboardCreate)
 	dashCategories.Get("/:id", h.Categories.DashboardShow)
 	dashCategories.Put("/:id", h.Categories.DashboardUpdate)
+	dashCategories.Post("/:id/images", h.Categories.DashboardUploadImages)
 	dashCategories.Post("/:id/toggle", h.Categories.DashboardToggleStatus)
 	dashCategories.Delete("/:id", h.Categories.DashboardDelete)
 

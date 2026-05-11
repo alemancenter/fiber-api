@@ -24,18 +24,24 @@ type CategoryService interface {
 }
 
 type CreateCategoryRequest struct {
-	Name string `json:"name" validate:"required,min=2,max=255"`
-	Slug string `json:"slug"`
+	Name      string `json:"name" validate:"required,min=2,max=255"`
+	Slug      string `json:"slug"`
+	Icon      string `json:"icon"`
+	Image     string `json:"image"`
+	IconImage string `json:"icon_image"`
+	ParentID  *uint  `json:"parent_id"`
+	IsActive  *bool  `json:"is_active"`
 }
 
 type UpdateCategoryRequest struct {
-	Name     string `json:"name"`
-	Slug     string `json:"slug"`
-	IsActive *bool  `json:"is_active"`
-	ParentID *uint  `json:"parent_id"`
-	Icon     string `json:"icon"`
-	Image    string `json:"image"`
-	Depth    *int   `json:"depth"`
+	Name      string `json:"name"`
+	Slug      string `json:"slug"`
+	IsActive  *bool  `json:"is_active"`
+	ParentID  *uint  `json:"parent_id"`
+	Icon      string `json:"icon"`
+	Image     string `json:"image"`
+	IconImage string `json:"icon_image"`
+	Depth     *int   `json:"depth"`
 }
 
 type categoryService struct {
@@ -83,11 +89,28 @@ func (s *categoryService) Create(countryID database.CountryID, req *CreateCatego
 		slug = utils.GenerateSlug(req.Name)
 	}
 
+	isActive := true
+	if req.IsActive != nil {
+		isActive = *req.IsActive
+	}
+
 	category := &models.Category{
 		Name:     req.Name,
 		Slug:     slug,
-		IsActive: true,
+		IsActive: isActive,
 		Country:  database.CountryCode(countryID),
+	}
+	if req.Icon != "" {
+		category.Icon = &req.Icon
+	}
+	if req.Image != "" {
+		category.Image = &req.Image
+	}
+	if req.IconImage != "" {
+		category.IconImage = &req.IconImage
+	}
+	if req.ParentID != nil {
+		category.ParentID = req.ParentID
 	}
 
 	if err := s.repo.Create(countryID, category); err != nil {
@@ -121,6 +144,9 @@ func (s *categoryService) Update(countryID database.CountryID, id uint64, req *U
 	}
 	if req.Image != "" {
 		category.Image = &req.Image
+	}
+	if req.IconImage != "" {
+		category.IconImage = &req.IconImage
 	}
 	if req.Depth != nil {
 		category.Depth = *req.Depth
