@@ -11,7 +11,9 @@ import (
 	"github.com/alemancenter/fiber-api/internal/models"
 	auditservice "github.com/alemancenter/fiber-api/internal/services/contentaudit"
 	"github.com/alemancenter/fiber-api/internal/utils"
+	"github.com/alemancenter/fiber-api/pkg/logger"
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -137,9 +139,21 @@ func (h *Handler) AnalyzeWithAI(c *fiber.Ctx) error {
 		if errors.Is(err, auditservice.ErrUnsupportedContentType) || err == strconv.ErrSyntax {
 			return utils.BadRequest(c, err.Error())
 		}
+		if errors.Is(err, auditservice.ErrAIAnalysisInProgress) {
+			return c.Status(fiber.StatusConflict).JSON(utils.APIResponse{
+				Success: false,
+				Message: "AI analysis is already running for this content",
+			})
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return utils.NotFound(c)
 		}
+		logger.Error("failed to analyze content with AI decision engine",
+			zap.String("content_type", req.ContentType),
+			zap.String("content_id", req.ContentID),
+			zap.String("country_code", req.CountryCode),
+			zap.Error(err),
+		)
 		return utils.InternalError(c, "failed to analyze content with AI decision engine")
 	}
 	return utils.Created(c, "AI decision created", decision)

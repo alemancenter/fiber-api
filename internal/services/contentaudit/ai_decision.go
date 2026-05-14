@@ -15,11 +15,14 @@ import (
 	"github.com/alemancenter/fiber-api/internal/database"
 	"github.com/alemancenter/fiber-api/internal/models"
 	coreai "github.com/alemancenter/fiber-api/internal/services"
+	"github.com/alemancenter/fiber-api/pkg/logger"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 var ErrUnsupportedContentType = errors.New("unsupported content type")
 var ErrFixAlreadyClosed = errors.New("fix preview is already applied or rejected")
+var ErrAIAnalysisInProgress = errors.New("AI analysis is already running for this content")
 
 var fixPreviewLocks sync.Map
 
@@ -28,7 +31,11 @@ const contentIntelligencePromptVersion = "content-intelligence-v1"
 func acquireContentAILock(ctx context.Context, key string, ttl time.Duration) (func(), bool) {
 	key = database.Redis().Key("content_ai_lock", key)
 	ok, err := database.Redis().Cache().SetNX(ctx, key, "1", ttl).Result()
-	if err != nil || !ok {
+	if err != nil {
+		logger.Warn("content AI redis lock unavailable; continuing without distributed lock", zap.String("key", key), zap.Error(err))
+		return func() {}, true
+	}
+	if !ok {
 		return func() {}, false
 	}
 	return func() { _ = database.Redis().Cache().Del(context.Background(), key).Err() }, true
@@ -114,7 +121,7 @@ func (s *Service) AnalyzeWithAI(ctx context.Context, req AIAnalyzeRequest, userI
 		if existing, err := s.repo.LatestAIDecision(ctx, content.Type, fmt.Sprintf("%s:%d", content.CountryCode, content.ID), content.CountryCode); err == nil && existing != nil {
 			return existing, nil
 		}
-		return nil, fmt.Errorf("AI analysis is already running for this content")
+		return nil, ErrAIAnalysisInProgress
 	}
 	defer unlock()
 	plain := normalizePlainText(content.Content)
@@ -144,7 +151,7 @@ func (s *Service) AnalyzeWithAI(ctx context.Context, req AIAnalyzeRequest, userI
 		decision.Suggestions = append(decision.Suggestions, models.ContentAISuggestion{Type: sug.Type, Priority: sug.Priority, Message: sug.Message})
 	}
 	if err := s.repo.SaveAIDecision(ctx, decision); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("save AI decision failed: %w", err)
 	}
 	return decision, nil
 }
