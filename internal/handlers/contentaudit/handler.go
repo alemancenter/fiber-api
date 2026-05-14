@@ -194,7 +194,7 @@ func (h *Handler) CreateFixPreview(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil || req.DecisionID == 0 {
 		return utils.BadRequest(c, "invalid fix preview payload")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 360*time.Second)
 	defer cancel()
 	preview, err := h.svc.CreateFixPreview(ctx, req.DecisionID)
 	if err != nil {

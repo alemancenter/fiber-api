@@ -22,9 +22,9 @@ const (
 	siteBaseURL      = "https://alemancenter.com"
 
 	defaultAIBaseURL = "https://api.together.ai/v1"
-	defaultAIModel   = "Qwen/Qwen3-235B-A22B-Instruct-2507-tput"
+	defaultAIModel   = "Qwen/Qwen2.5-72B-Instruct-Turbo"
 
-	minSEOArticleWords = 80
+	minSEOArticleWords = 300
 	maxSEOArticleWords = 1000
 )
 
@@ -33,7 +33,7 @@ var (
 	ErrAIProviderFailed    = errors.New("ai provider failed")
 
 	defaultAIFallbackModels = []string{
-		"Qwen/Qwen3.5-397B-A17B",
+		"meta-llama/Llama-3.3-70B-Instruct-Turbo",
 	}
 )
 
@@ -259,7 +259,7 @@ func (s *aiService) runContentIntelligenceWithFallback(ctx context.Context, req 
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
 		},
-		"max_tokens":  3200,
+		"max_tokens":  2000,
 		"temperature": 0.25,
 		"top_p":       0.9,
 		"stop":        []string{"<|eot_id|>", "<|im_end|>"},
@@ -359,8 +359,8 @@ func buildContentIntelligencePrompts(req ContentIntelligenceRequest) (string, st
 	kind := "مقال طويل SEO"
 	minWords := 300
 	if req.ContentType == "post" {
-		kind = "بوست تعليمي مختصر"
-		minWords = 150
+		kind = "بوست تعليمي"
+		minWords = 300
 	}
 	system := "أنت محرر محتوى عربي محترف وخبير SEO وسياسات Google AdSense. استخدم نفس أسلوب منصة الأيمان التعليمية: لغة عربية سليمة، محتوى تعليمي آمن، بنية واضحة، قيمة تعليمية حقيقية، بدون حشو أو مبالغة. أعد Strict JSON فقط ولا تكتب أي نص خارج JSON."
 	mode := "حلل المحتوى واتخذ قرار نشر/تصحيح"
@@ -1921,8 +1921,7 @@ func looksIncomplete(s string) bool {
 		return true
 	}
 
-	// Short content (broadcasts, posts, etc.) may naturally end with a conjunction — skip the check.
-	if countWords(s) < 150 {
+	if countWords(s) < 50 {
 		return false
 	}
 

@@ -243,7 +243,9 @@ func (s *Service) CreateFixPreview(ctx context.Context, decisionID uint64) (*mod
 	}
 
 	preview := &models.ContentAIFixPreview{DecisionID: decision.ID, ContentType: normalizeContentType(decision.ContentType), ContentID: normalizedID, CountryCode: cc, OriginalTitle: content.Title, OriginalContent: content.Content, FixedTitle: fixedTitle, FixedContent: fixedContent, FixSummary: summary, Status: models.AIFixStatusPreviewed}
-	if err := s.repo.SaveFixPreview(ctx, preview); err != nil {
+	saveCtx, saveCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer saveCancel()
+	if err := s.repo.SaveFixPreview(saveCtx, preview); err != nil {
 		return nil, fmt.Errorf("save AI fix preview failed: %w", err)
 	}
 	return preview, nil
@@ -390,9 +392,6 @@ func buildDecisionReport(content *loadedContent) aiReport {
 	plain := normalizePlainText(content.Content)
 	wc := aiWordCount(plain)
 	minWords := 300
-	if content.Type == "post" {
-		minWords = 150
-	}
 	policyScore, seoScore, languageScore, linkScore, structureScore := 100, 70, 100, 100, 85
 	issues := []aiIssueDTO{}
 	suggestions := []aiSuggestionDTO{}
@@ -577,10 +576,7 @@ func isMeaningfulFix(originalHTML, fixedHTML, contentType string) bool {
 	return true
 }
 
-func minFixWords(contentType string) int {
-	if normalizeContentType(contentType) == "post" {
-		return 150
-	}
+func minFixWords(_ string) int {
 	return 300
 }
 

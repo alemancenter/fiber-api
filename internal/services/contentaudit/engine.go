@@ -20,7 +20,7 @@ import (
 
 const (
 	DefaultArticleMinWords  = 300
-	DefaultPostMinWords     = 150
+	DefaultPostMinWords     = 300
 	DefaultCommentMinWords  = 3
 	defaultBatchSize        = 250
 	defaultCommentBatchSize = 500
