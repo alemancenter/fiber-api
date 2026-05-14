@@ -3,6 +3,7 @@ package users
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 
 	"github.com/alemancenter/fiber-api/internal/models"
 	"github.com/alemancenter/fiber-api/internal/services"
@@ -19,6 +20,50 @@ type Handler struct {
 // New creates a new users Handler
 func New(svc services.UserService, notification services.NotificationService) *Handler {
 	return &Handler{svc: svc, notification: notification}
+}
+
+// Team returns the public team page — only users with admin/supervisor/moderator roles.
+// No authentication required.
+// @Summary Public Team List
+// @Tags Users
+// @Produce json
+// @Param search query string false "Search by name"
+// @Param role   query string false "Filter by role name"
+// @Success 200 {object} utils.APIResponse{data=[]models.User}
+// @Router /team [get]
+func (h *Handler) Team(c *fiber.Ctx) error {
+	search := c.Query("search")
+	role := c.Query("role")
+
+	// Fetch all matching users (no pagination — team list is small)
+	allUsers, _, err := h.svc.List(search, "", "", 500, 0)
+	if err != nil {
+		return utils.InternalError(c)
+	}
+
+	allowedRoles := map[string]bool{
+		"admin": true, "administrator": true, "super admin": true, "superadmin": true,
+		"supervisor": true, "moderator": true,
+		"مشرف": true, "مدير": true, "ادمن": true, "إدمن": true,
+	}
+
+	var team []models.User
+	for _, u := range allUsers {
+		for _, r := range u.Roles {
+			n := strings.ToLower(strings.TrimSpace(r.Name))
+			if allowedRoles[n] {
+				// Apply optional role filter from query param
+				if role == "" || strings.EqualFold(r.Name, role) {
+					team = append(team, u)
+				}
+				break
+			}
+		}
+	}
+	if team == nil {
+		team = []models.User{}
+	}
+	return utils.Success(c, "success", team)
 }
 
 // List returns a paginated list of users

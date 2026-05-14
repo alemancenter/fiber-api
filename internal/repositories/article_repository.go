@@ -27,6 +27,33 @@ type ArticleRepository interface {
 	UpdateKeywords(countryID database.CountryID, articleID uint, keywordsStr string) error
 }
 
+// fileCategoryAliases maps each canonical slug to all values that may be stored
+// in the database (new Go-dashboard values + old Laravel-migrated values).
+var fileCategoryAliases = map[string][]string{
+	"plans":   {"study_plan", "study-plan", "plan", "plans"},
+	"papers":  {"worksheet", "worksheets", "papers"},
+	"tests":   {"exam", "exams", "test", "tests"},
+	"books":   {"book", "books"},
+	"records": {"record", "records"},
+}
+
+// resolveFileCategories returns all known database values for a given slug.
+// Falls back to a slice containing the original value when the slug is unknown.
+func resolveFileCategories(slug string) []string {
+	if aliases, ok := fileCategoryAliases[slug]; ok {
+		return aliases
+	}
+	// Also check if the slug is itself a known alias (e.g. "study_plan" passed directly)
+	for _, aliases := range fileCategoryAliases {
+		for _, a := range aliases {
+			if a == slug {
+				return aliases
+			}
+		}
+	}
+	return []string{slug}
+}
+
 type articleRepository struct{}
 
 func NewArticleRepository() ArticleRepository {
@@ -52,7 +79,7 @@ func (r *articleRepository) List(countryID database.CountryID, pag utils.Paginat
 	var articles []models.Article
 	var total int64
 
-	query := db.Model(&models.Article{}).Preload("Subject").Preload("Semester")
+	query := db.Model(&models.Article{}).Preload("Subject").Preload("Semester").Preload("Files")
 
 	if filter != nil {
 		if filter.Status != nil {
@@ -69,10 +96,10 @@ func (r *articleRepository) List(countryID database.CountryID, pag utils.Paginat
 			query = query.Where("semester_id = ?", *filter.SemesterID)
 		}
 		if filter.FileCategory != "" {
-			// Restrict to articles that have at least one file with this category.
+			cats := resolveFileCategories(filter.FileCategory)
 			query = query.Where(
-				"EXISTS (SELECT 1 FROM files WHERE files.article_id = articles.id AND files.file_category = ?)",
-				filter.FileCategory,
+				"EXISTS (SELECT 1 FROM files WHERE files.article_id = articles.id AND files.file_category IN ?)",
+				cats,
 			)
 		}
 		if filter.Query != "" {

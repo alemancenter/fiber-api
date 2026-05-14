@@ -35,6 +35,9 @@ func registerAuthRoutes(api, dash fiber.Router, h *Handlers) {
 	authSecure.Post("/push-token", middleware.RequireVerifiedEmail(), h.Auth.RegisterPushToken)
 	authSecure.Delete("/push-token", middleware.RequireVerifiedEmail(), h.Auth.DeletePushToken)
 
+	// Public team page — no auth required
+	api.Get("/team", h.Users.Team)
+
 	// User Routes
 	userRoutes := api.Group("/user", middleware.Auth(), middleware.RequireVerifiedEmail(), middleware.UpdateLastActivity())
 

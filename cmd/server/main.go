@@ -90,6 +90,7 @@ func main() {
 	// Auto-migrate: add any missing columns (safe — never drops existing data)
 	migrateTargets := []interface{}{
 		&models.Article{},
+		&models.Setting{},
 		&models.BlockedIP{},
 		&models.TrustedIP{},
 		&models.SecurityLog{},

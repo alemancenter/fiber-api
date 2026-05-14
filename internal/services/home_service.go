@@ -139,7 +139,10 @@ func (s *homeService) attachSettings(ctx context.Context, countryID database.Cou
 
 	settings, err := s.settings.GetPublic(ctx, countryID)
 	if err != nil {
-		return MapError(err)
+		// Settings table may not exist yet on a fresh database — degrade gracefully
+		logger.Warn("settings unavailable, returning empty map", zap.Error(err))
+		data.Settings = map[string]string{}
+		return nil
 	}
 	data.Settings = settings
 	return nil
