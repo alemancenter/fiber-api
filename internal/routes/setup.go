@@ -24,7 +24,8 @@ func Setup(app *fiber.App) {
 	app.Use(middleware.AuthRateLimit())
 	app.Use(middleware.PrefixRateLimit(
 		middleware.RateLimitRule{Prefix: "/api/dashboard/content-audit/ai/", Max: 12, Window: 5 * time.Minute},
-		middleware.RateLimitRule{Prefix: "/api/ai/", Max: 20, Window: 5 * time.Minute},
+		middleware.RateLimitRule{Prefix: "/api/ai/status/", Max: 300, Window: 5 * time.Minute},
+		middleware.RateLimitRule{Prefix: "/api/ai/", Max: 15, Window: 5 * time.Minute},
 		middleware.RateLimitRule{Prefix: "/api/dashboard/files", Max: 60, Window: time.Minute},
 	))
 	app.Use(fiberCompress.New())

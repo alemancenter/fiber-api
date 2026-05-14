@@ -17,12 +17,12 @@ import (
 )
 
 const (
-	AIOverallTimeout = 4 * time.Minute
-	AIRequestTimeout = 90 * time.Second
+	AIOverallTimeout = 3 * time.Minute
+	AIRequestTimeout = 60 * time.Second
 	siteBaseURL      = "https://alemancenter.com"
 
 	defaultAIBaseURL = "https://api.together.ai/v1"
-	defaultAIModel   = "Qwen/Qwen2.5-72B-Instruct-Turbo"
+	defaultAIModel   = "Qwen/Qwen3.5-9B"
 
 	minSEOArticleWords = 300
 	maxSEOArticleWords = 1000
@@ -32,9 +32,7 @@ var (
 	ErrAIGenerationTimeout = errors.New("ai generation timed out")
 	ErrAIProviderFailed    = errors.New("ai provider failed")
 
-	defaultAIFallbackModels = []string{
-		"meta-llama/Llama-3.3-70B-Instruct-Turbo",
-	}
+	defaultAIFallbackModels = []string{}
 )
 
 type searchIntent string
@@ -444,63 +442,13 @@ func (s *aiService) generateSEOWithFallback(ctx context.Context, title, contentT
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
 		},
-		"max_tokens":  3200,
-		"temperature": 0.45,
+		"max_tokens":  2200,
+		"temperature": 0.46,
 		"top_p":       0.9,
 		"stop":        []string{"<|eot_id|>", "<|im_end|>"},
-		// Disable Qwen3 chain-of-thought (prevents empty content from thinking models)
-		"reasoning": map[string]interface{}{"enabled": false},
-		// Force structured JSON output — eliminates all parsing/repair issues
+		"reasoning":   map[string]interface{}{"enabled": false},
 		"response_format": map[string]interface{}{
-			"type": "json_schema",
-			"json_schema": map[string]interface{}{
-				"name":   "seo_article",
-				"strict": true,
-				"schema": map[string]interface{}{
-					"type": "object",
-					"properties": map[string]interface{}{
-						"meta_description": map[string]interface{}{
-							"type":      "string",
-							"minLength": 100,
-							"maxLength": 180,
-						},
-						"keywords": map[string]interface{}{
-							"type":     "array",
-							"minItems": 5,
-							"maxItems": 8,
-							"items":    map[string]interface{}{"type": "string"},
-						},
-						"faq": map[string]interface{}{
-							"type":     "array",
-							"minItems": 2,
-							"maxItems": 4,
-							"items": map[string]interface{}{
-								"type": "object",
-								"properties": map[string]interface{}{
-									"question": map[string]interface{}{
-										"type":      "string",
-										"minLength": 10,
-										"maxLength": 140,
-									},
-									"answer": map[string]interface{}{
-										"type":      "string",
-										"minLength": 40,
-										"maxLength": 320,
-									},
-								},
-								"required":             []string{"question", "answer"},
-								"additionalProperties": false,
-							},
-						},
-						"content": map[string]interface{}{
-							"type":      "string",
-							"minLength": 2500,
-						},
-					},
-					"required":             []string{"meta_description", "keywords", "faq", "content"},
-					"additionalProperties": false,
-				},
-			},
+			"type": "json_object",
 		},
 	}
 
@@ -787,7 +735,7 @@ func buildSEOPrompts(title string, isArabic bool, intent searchIntent) (string, 
 
 3. جودة المحتوى:
 - اكتب محتوى حقيقي مفيد وليس حشو أو جمل عامة.
-- اكتب content بطول 500 إلى 750 كلمة تقريباً.
+- اكتب content بطول 350 إلى 450 كلمة تقريباً.
 - لا تكرر نفس الفكرة بصياغات مختلفة.
 - اجعل الأسلوب عملياً وموجهاً للقارئ.
 
@@ -815,7 +763,7 @@ func buildSEOPrompts(title string, isArabic bool, intent searchIntent) (string, 
 %s
 
 الشروط الخاصة بهذا الطلب:
-- اجعل content بين 500 و750 كلمة تقريباً.
+- اجعل content بين 350 و450 كلمة تقريباً.
 - اكتب 5 إلى 8 كلمات مفتاحية دقيقة.
 - اكتب 2 إلى 4 أسئلة FAQ مفيدة مرتبطة مباشرة بالموضوع.`, title, intentHintAr(intent))
 
@@ -830,7 +778,7 @@ Rules:
 - No Markdown, no HTML, no links.
 - Multiple clear paragraphs separated by blank lines.
 - Add 2-3 short subheadings on their own lines.
-- Make content roughly 500-750 words.
+- Make content roughly 350-450 words.
 - Include 5-8 precise keywords and 2-4 useful FAQ items.
 - Do not start with "This article" or "In this article".
 - Answer the search intent directly and practically.
@@ -840,7 +788,7 @@ Rules:
 %s
 
 Request-specific requirements:
-- Keep content roughly 500-750 words.
+- Keep content roughly 350-450 words.
 - Include 5-8 precise keywords.
 - Include 2-4 FAQ items that directly answer likely reader questions.`, title, intentHintEn(intent))
 
@@ -891,6 +839,8 @@ func parseSEOArticle(rawContent string) (*SEOArticle, error) {
 	}
 
 	rawContent = rawContent[start : end+1]
+	// Small models sometimes emit an extra " before string values: ""word" → "word"
+	rawContent = regexp.MustCompile(`""\s*(\p{L})`).ReplaceAllString(rawContent, `"$1`)
 	repaired := repairJSONStrings(rawContent)
 
 	var article SEOArticle
