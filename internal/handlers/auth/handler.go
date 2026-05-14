@@ -58,6 +58,25 @@ func New(svc services.AuthService) *Handler {
 	}
 }
 
+// CheckEmail checks whether an email address is available for registration.
+func (h *Handler) CheckEmail(c *fiber.Ctx) error {
+	var req struct {
+		Email string `json:"email" validate:"required,email"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.JSON(fiber.Map{"available": false})
+	}
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+	if errs := utils.Validate(req); errs != nil {
+		return c.JSON(fiber.Map{"available": false})
+	}
+	available, err := h.svc.CheckEmailAvailable(req.Email)
+	if err != nil {
+		return c.JSON(fiber.Map{"available": false})
+	}
+	return c.JSON(fiber.Map{"available": available})
+}
+
 // Register handles user registration
 // @Summary Register User
 // @Description Register a new user account

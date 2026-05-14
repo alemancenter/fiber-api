@@ -67,6 +67,7 @@ type AuthService interface {
 	LoginOrRegisterGoogleUser(info *GoogleUserInfo) (*models.User, string, error)
 	UpsertPushToken(userID uint, token, platform string) error
 	DeletePushToken(userID uint, token string) error
+	CheckEmailAvailable(email string) (bool, error)
 }
 
 type UserResponse struct {
@@ -111,6 +112,14 @@ func NewAuthService(repo repositories.UserRepository, jwtSvc *JWTService, mailSv
 		mailSvc: mailSvc,
 		cfg:     config.Get(),
 	}
+}
+
+func (s *authService) CheckEmailAvailable(email string) (bool, error) {
+	count, err := s.repo.CountByEmail(strings.ToLower(strings.TrimSpace(email)))
+	if err != nil {
+		return false, MapError(err)
+	}
+	return count == 0, nil
 }
 
 func (s *authService) Register(name, email, password string) (*models.User, string, error) {
