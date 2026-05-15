@@ -65,6 +65,7 @@ func registerSystemRoutes(api, _, dash fiber.Router, h *Handlers) {
 	dashSettings.Post("/email-verification/send-reminders", h.EmailVerify.SendReminders)
 	dashSettings.Post("/email-verification/mark-invalid", h.EmailVerify.MarkInvalid)
 	dashSettings.Post("/email-verification/clear-status", h.EmailVerify.ClearStatus)
+	dashSettings.Post("/email-verification/delete-filtered", h.EmailVerify.DeleteFiltered)
 	dashSettings.Post("/email-verification/delete-users", h.EmailVerify.DeleteUsers)
 	dashSettings.Get("", h.Settings.GetAll)
 	dashSettings.Post("", h.Settings.Update)

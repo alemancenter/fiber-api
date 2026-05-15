@@ -40,6 +40,7 @@ type EmailVerificationReminderService interface {
 	MarkInvalid(ids []uint, reason string) (int, error)
 	ClearStatus(ids []uint) (int, error)
 	DeleteUsers(ids []uint, callerID uint) (int, error)
+	DeleteFiltered(req EmailReminderListRequest, callerID uint) (int, error)
 	SendDueReminders(limit int) (*EmailReminderSendResponse, error)
 }
 
@@ -292,6 +293,47 @@ func (s *emailVerificationReminderService) DeleteUsers(ids []uint, callerID uint
 	return len(filtered), nil
 }
 
+func (s *emailVerificationReminderService) DeleteFiltered(req EmailReminderListRequest, callerID uint) (int, error) {
+	query := s.listQuery(req)
+	if callerID > 0 {
+		query = query.Where("users.id <> ?", callerID)
+	}
+
+	var ids []uint
+	if err := query.Select("users.id").Pluck("users.id", &ids).Error; err != nil {
+		return 0, MapError(err)
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	deleted := 0
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		const chunkSize = 500
+		for start := 0; start < len(ids); start += chunkSize {
+			end := start + chunkSize
+			if end > len(ids) {
+				end = len(ids)
+			}
+			chunk := ids[start:end]
+			result := tx.Where("id IN ? AND email_verified_at IS NULL", chunk).Delete(&models.User{})
+			if result.Error != nil {
+				return result.Error
+			}
+			deleted += int(result.RowsAffected)
+			if err := tx.Where("user_id IN ?", chunk).Delete(&models.EmailVerificationReminder{}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, MapError(err)
+	}
+
+	return deleted, nil
+}
+
 func (s *emailVerificationReminderService) listQuery(req EmailReminderListRequest) *gorm.DB {
 	query := s.db.Table("users").
 		Joins("LEFT JOIN email_verification_reminders evr ON evr.user_id = users.id").
@@ -411,9 +453,24 @@ func (s *emailVerificationReminderService) upsertState(userID uint, updates map[
 	if userID == 0 {
 		return nil
 	}
-	if _, err := s.getOrCreateState(userID); err != nil {
+
+	result := s.db.Model(&models.EmailVerificationReminder{}).Where("user_id = ?", userID).Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected > 0 {
+		return nil
+	}
+
+	initial := &models.EmailVerificationReminder{
+		UserID:        userID,
+		EmailStatus:   EmailStatusPending,
+		ReminderCount: 0,
+	}
+	if err := s.db.Create(initial).Error; err != nil {
 		return err
 	}
+
 	return s.db.Model(&models.EmailVerificationReminder{}).Where("user_id = ?", userID).Updates(updates).Error
 }
 
