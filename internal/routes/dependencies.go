@@ -12,6 +12,7 @@ import (
 	"github.com/alemancenter/fiber-api/internal/handlers/comments"
 	contentauditHandler "github.com/alemancenter/fiber-api/internal/handlers/contentaudit"
 	"github.com/alemancenter/fiber-api/internal/handlers/dashboard"
+	"github.com/alemancenter/fiber-api/internal/handlers/emailverification"
 	"github.com/alemancenter/fiber-api/internal/handlers/files"
 	"github.com/alemancenter/fiber-api/internal/handlers/grades"
 	"github.com/alemancenter/fiber-api/internal/handlers/health"
@@ -55,6 +56,7 @@ type Handlers struct {
 	Keywords      *keywords.Handler
 	AI            *ai.Handler
 	ContentAudit  *contentauditHandler.Handler
+	EmailVerify   *emailverification.Handler
 }
 
 func NewDependencies() *Handlers {
@@ -71,6 +73,7 @@ func NewDependencies() *Handlers {
 	jwtSvc := services.NewJWTService()
 	mailSvc := services.NewMailService()
 	authSvc := services.NewAuthService(userRepo, jwtSvc, mailSvc)
+	emailVerifySvc := services.NewEmailVerificationReminderService(mailSvc, jwtSvc)
 	var userSvc services.UserService
 
 	categoryRepo := repositories.NewCategoryRepository()
@@ -160,5 +163,6 @@ func NewDependencies() *Handlers {
 		Keywords:      keywords.New(keywordSvc),
 		AI:            ai.New(aiSvc),
 		ContentAudit:  contentauditHandler.New(contentAuditSvc),
+		EmailVerify:   emailverification.New(emailVerifySvc),
 	}
 }

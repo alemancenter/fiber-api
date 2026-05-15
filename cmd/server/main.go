@@ -106,6 +106,7 @@ func main() {
 		&models.ContentAIFixPreview{},
 		&models.ContentAIApprovalLog{},
 		&models.PushToken{},
+		&models.EmailVerificationReminder{},
 	}
 	seen := make(map[*gorm.DB]bool)
 	for _, id := range []database.CountryID{database.CountryJordan, database.CountrySaudi, database.CountryEgypt, database.CountryPalestine} {
@@ -135,6 +136,7 @@ func main() {
 	services.StartViewSyncWorker(1 * time.Minute)
 	services.StartVisitorWorker(5 * time.Second)
 	startContentAuditScheduler(cfg)
+	services.StartEmailVerificationReminderScheduler(services.NewEmailVerificationReminderService(services.NewMailService(), services.NewJWTService()))
 
 	// Periodically prune expired AI generation jobs from the in-memory store.
 	go func() {
