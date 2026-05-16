@@ -263,6 +263,34 @@ func (h *Handler) RejectFix(c *fiber.Ctx) error {
 	return utils.Success(c, "AI fix rejected", preview)
 }
 
+// PublicAdStatus returns ad eligibility for a content item.
+// Intended for public article pages — returns only adsense_risk and eligible fields.
+// No full decision data is exposed.
+func (h *Handler) PublicAdStatus(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return utils.BadRequest(c, "invalid id")
+	}
+	countryCode := c.Get("X-Country-Code", c.Query("country", "jo"))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	decision, err := h.svc.LatestAIDecision(ctx, "article", strconv.FormatUint(id, 10), countryCode)
+	if err != nil {
+		// No decision found → default to eligible (ads shown until audit flags it)
+		return utils.Success(c, "success", fiber.Map{"eligible": true, "adsense_risk": "none"})
+	}
+
+	eligible := decision.AdSenseRisk != "high" &&
+		decision.Decision != models.AIDecisionRejected &&
+		decision.Decision != models.AIDecisionRestrictedAds
+
+	return utils.Success(c, "success", fiber.Map{
+		"eligible":     eligible,
+		"adsense_risk": decision.AdSenseRisk,
+	})
+}
+
 func currentUserID(c *fiber.Ctx) *uint {
 	if user, ok := c.Locals("user").(*models.User); ok && user != nil {
 		id := user.ID

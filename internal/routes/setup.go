@@ -9,8 +9,10 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/etag"
 )
 
-// Setup registers all API routes on the given Fiber app
-func Setup(app *fiber.App) {
+// Setup registers all API routes on the given Fiber app and returns the
+// initialized handler dependencies so callers can access shared instances
+// (e.g. BounceReader for the IMAP scheduler).
+func Setup(app *fiber.App) *Handlers {
 	// Initialize Dependencies
 	deps := NewDependencies()
 
@@ -61,4 +63,6 @@ func Setup(app *fiber.App) {
 	registerCommunicationRoutes(public, dash, deps)
 	registerSystemRoutes(api, public, dash, deps)
 	registerAnalyticsRoutes(public, dash, deps)
+
+	return deps
 }

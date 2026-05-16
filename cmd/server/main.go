@@ -107,6 +107,7 @@ func main() {
 		&models.ContentAIApprovalLog{},
 		&models.PushToken{},
 		&models.EmailVerificationReminder{},
+		&models.EmailBounceEvent{},
 	}
 	seen := make(map[*gorm.DB]bool)
 	for _, id := range []database.CountryID{database.CountryJordan, database.CountrySaudi, database.CountryEgypt, database.CountryPalestine} {
@@ -239,8 +240,11 @@ func main() {
 		MaxAge:    31536000,
 	})
 
-	// Register all routes
-	routes.Setup(app)
+	// Register all routes — returns the shared handler deps so the scheduler
+	// and the HTTP handler use the exact same BounceIMAPReader instance.
+	// TriggerNow() from the dashboard then reaches the running scheduler goroutine.
+	deps := routes.Setup(app)
+	services.StartBounceIMAPScheduler(deps.BounceReader)
 
 	// Setup Swagger UI route
 	app.Get("/swagger/*", swagger.HandlerDefault)
@@ -412,6 +416,45 @@ func syncMailConfigFromDB() {
 	if updated {
 		config.UpdateMailConfig(cur)
 		logger.Info("mail config synced from database settings")
+	}
+
+	// Sync bounce mailbox IMAP settings.
+	bounceCur := config.Get().Mail.Bounce
+	bounceUpdated := false
+	if v, ok := settings["bounce_imap_host"]; ok && v != "" {
+		bounceCur.Host = v
+		bounceUpdated = true
+	}
+	if v, ok := settings["bounce_imap_port"]; ok && v != "" {
+		if p, err := strconv.Atoi(v); err == nil {
+			bounceCur.Port = p
+			bounceUpdated = true
+		}
+	}
+	if v, ok := settings["bounce_imap_username"]; ok && v != "" {
+		bounceCur.Username = v
+		bounceUpdated = true
+	}
+	if v, ok := settings["bounce_imap_password"]; ok && v != "" {
+		bounceCur.Password = v
+		bounceUpdated = true
+	}
+	if v, ok := settings["bounce_imap_tls"]; ok && v != "" {
+		bounceCur.TLS = v == "true" || v == "1"
+		bounceUpdated = true
+	}
+	if v, ok := settings["bounce_processor_enabled"]; ok && v != "" {
+		bounceCur.Enabled = v == "true" || v == "1"
+		bounceUpdated = true
+	}
+	if v, ok := settings["mail_bounce_address"]; ok && v != "" {
+		cur2 := config.Get().Mail
+		cur2.BounceAddress = v
+		config.UpdateMailConfig(cur2)
+	}
+	if bounceUpdated {
+		config.UpdateBounceConfig(bounceCur)
+		logger.Info("bounce IMAP config synced from database settings")
 	}
 
 	gCur := config.Get().Google

@@ -22,6 +22,10 @@ type User struct {
 	SocialLinks            *string    `gorm:"type:json" json:"social_links,omitempty"`
 	ProfilePhotoPath       *string    `gorm:"type:varchar(500)" json:"profile_photo_path,omitempty"`
 	Status                 string     `gorm:"type:enum('active','inactive','banned');default:'active'" json:"status"`
+	EmailBounceStatus      string     `gorm:"type:varchar(30);not null;default:'active'" json:"email_bounce_status"`
+	EmailBounceCount       int        `gorm:"not null;default:0" json:"email_bounce_count"`
+	EmailLastBounceAt      *time.Time `json:"email_last_bounce_at,omitempty"`
+	EmailBounceReason      *string    `gorm:"type:text" json:"email_bounce_reason,omitempty"`
 	LastActivity           *time.Time `json:"last_activity,omitempty"`
 	LastSeen               *time.Time `json:"last_seen,omitempty"`
 	RememberToken          *string    `gorm:"type:varchar(100)" json:"-"`
@@ -67,6 +71,16 @@ func (u *User) IsAdmin() bool {
 // IsActive checks if user account is active
 func (u *User) IsActive() bool {
 	return u.Status != "inactive" && u.Status != "banned"
+}
+
+// CanReceiveEmail returns false when the address is permanently blocked from receiving mail.
+func (u *User) CanReceiveEmail() bool {
+	switch u.EmailBounceStatus {
+	case "hard_bounce", "invalid_email", "unsubscribed":
+		return false
+	default:
+		return true
+	}
 }
 
 // IsVerified checks if email is verified

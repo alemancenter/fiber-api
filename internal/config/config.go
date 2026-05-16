@@ -24,6 +24,24 @@ func UpdateMailConfig(mailCfg MailConfig) {
 	}
 }
 
+// UpdateBounceConfig replaces the in-memory bounce mailbox configuration at runtime.
+func UpdateBounceConfig(bounceCfg BounceMboxConfig) {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+	if cfg != nil {
+		cfg.Mail.Bounce = bounceCfg
+	}
+}
+
+// UpdateBounceAddress replaces only the bounce address inside MailConfig at runtime.
+func UpdateBounceAddress(addr string) {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+	if cfg != nil {
+		cfg.Mail.BounceAddress = addr
+	}
+}
+
 // UpdateGoogleConfig replaces the in-memory Google OAuth configuration at runtime.
 func UpdateGoogleConfig(googleCfg GoogleConfig) {
 	cfgMu.Lock()
@@ -111,13 +129,25 @@ type RedisConfig struct {
 }
 
 type MailConfig struct {
-	Host        string
-	Port        int
-	Username    string
-	Password    string
-	Encryption  string
-	FromAddress string
-	FromName    string
+	Host          string
+	Port          int
+	Username      string
+	Password      string
+	Encryption    string
+	FromAddress   string
+	FromName      string
+	BounceAddress string
+	Bounce        BounceMboxConfig
+}
+
+// BounceMboxConfig holds IMAP credentials for the bounce mailbox (e.g. bounce@example.com).
+type BounceMboxConfig struct {
+	Enabled  bool
+	Host     string
+	Port     int
+	Username string
+	Password string
+	TLS      bool
 }
 
 type GoogleConfig struct {
@@ -207,6 +237,9 @@ func Load() *Config {
 		v.SetDefault("SSR_RATE_LIMIT_MAX", 2000)
 		v.SetDefault("MAIL_PORT", 587)
 		v.SetDefault("MAIL_ENCRYPTION", "tls")
+		v.SetDefault("BOUNCE_IMAP_PORT", 993)
+		v.SetDefault("BOUNCE_IMAP_TLS", true)
+		v.SetDefault("BOUNCE_PROCESSOR_ENABLED", false)
 		v.SetDefault("STORAGE_DRIVER", "local")
 		v.SetDefault("STORAGE_PATH", "./storage/uploads")
 		v.SetDefault("APP_ADD_HSTS", true)
@@ -333,13 +366,22 @@ func Load() *Config {
 				Prefix:   v.GetString("REDIS_PREFIX"),
 			},
 			Mail: MailConfig{
-				Host:        v.GetString("MAIL_HOST"),
-				Port:        v.GetInt("MAIL_PORT"),
-				Username:    v.GetString("MAIL_USERNAME"),
-				Password:    v.GetString("MAIL_PASSWORD"),
-				Encryption:  v.GetString("MAIL_ENCRYPTION"),
-				FromAddress: v.GetString("MAIL_FROM_ADDRESS"),
-				FromName:    v.GetString("MAIL_FROM_NAME"),
+				Host:          v.GetString("MAIL_HOST"),
+				Port:          v.GetInt("MAIL_PORT"),
+				Username:      v.GetString("MAIL_USERNAME"),
+				Password:      v.GetString("MAIL_PASSWORD"),
+				Encryption:    v.GetString("MAIL_ENCRYPTION"),
+				FromAddress:   v.GetString("MAIL_FROM_ADDRESS"),
+				FromName:      v.GetString("MAIL_FROM_NAME"),
+				BounceAddress: v.GetString("MAIL_BOUNCE_ADDRESS"),
+				Bounce: BounceMboxConfig{
+					Enabled:  v.GetBool("BOUNCE_PROCESSOR_ENABLED"),
+					Host:     v.GetString("BOUNCE_IMAP_HOST"),
+					Port:     v.GetInt("BOUNCE_IMAP_PORT"),
+					Username: v.GetString("BOUNCE_IMAP_USERNAME"),
+					Password: v.GetString("BOUNCE_IMAP_PASSWORD"),
+					TLS:      v.GetBool("BOUNCE_IMAP_TLS"),
+				},
 			},
 			Google: GoogleConfig{
 				ClientID:     v.GetString("GOOGLE_CLIENT_ID"),

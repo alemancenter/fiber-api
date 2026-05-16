@@ -12,6 +12,7 @@ import (
 	"github.com/alemancenter/fiber-api/internal/handlers/comments"
 	contentauditHandler "github.com/alemancenter/fiber-api/internal/handlers/contentaudit"
 	"github.com/alemancenter/fiber-api/internal/handlers/dashboard"
+	"github.com/alemancenter/fiber-api/internal/handlers/emailbounce"
 	"github.com/alemancenter/fiber-api/internal/handlers/emailverification"
 	"github.com/alemancenter/fiber-api/internal/handlers/files"
 	"github.com/alemancenter/fiber-api/internal/handlers/grades"
@@ -57,6 +58,8 @@ type Handlers struct {
 	AI            *ai.Handler
 	ContentAudit  *contentauditHandler.Handler
 	EmailVerify   *emailverification.Handler
+	EmailBounce   *emailbounce.Handler
+	BounceReader  *services.BounceIMAPReader
 }
 
 func NewDependencies() *Handlers {
@@ -139,6 +142,8 @@ func NewDependencies() *Handlers {
 
 	homeSvc := services.NewHomeService(articleRepo, postRepo, categoryRepo, gradeRepo, cacheSvc, settingSvc)
 
+	bounceReader := services.NewBounceIMAPReader(services.NewBounceProcessorService())
+
 	return &Handlers{
 		Dashboard:     dashboard.New(dashboardSvc),
 		Auth:          auth.New(authSvc),
@@ -164,5 +169,7 @@ func NewDependencies() *Handlers {
 		AI:            ai.New(aiSvc),
 		ContentAudit:  contentauditHandler.New(contentAuditSvc),
 		EmailVerify:   emailverification.New(emailVerifySvc),
+		EmailBounce:  emailbounce.New(bounceReader),
+		BounceReader: bounceReader,
 	}
 }

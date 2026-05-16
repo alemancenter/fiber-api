@@ -41,6 +41,20 @@ func (m *MailService) Send(to, subject, body string, isHTML bool) error {
 		return fmt.Errorf("invalid from address: %w", MapError(err))
 	}
 
+	// Set SMTP envelope sender (MAIL FROM) to the bounce mailbox so delivery-failure
+	// notifications (DSN) are routed to bounce@... and not to the From address.
+	// We always read from the live global config (not m.cfg) so a dashboard update
+	// takes effect on the next send without requiring a server restart.
+	liveBounce := strings.TrimSpace(config.Get().Mail.BounceAddress)
+	if liveBounce == "" {
+		liveBounce = strings.TrimSpace(m.cfg.BounceAddress)
+	}
+	if liveBounce != "" {
+		if err := msg.EnvelopeFrom(liveBounce); err != nil {
+			return fmt.Errorf("invalid bounce address: %w", MapError(err))
+		}
+	}
+
 	if err := msg.To(to); err != nil {
 		return fmt.Errorf("invalid to address: %w", MapError(err))
 	}

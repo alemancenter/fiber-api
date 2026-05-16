@@ -72,6 +72,14 @@ var envKeyMap = map[string]string{
 	"google_client_id":     "GOOGLE_CLIENT_ID",
 	"google_client_secret": "GOOGLE_CLIENT_SECRET",
 	"google_redirect_uri":  "GOOGLE_REDIRECT_URI",
+	// Bounce mailbox settings
+	"mail_bounce_address":       "MAIL_BOUNCE_ADDRESS",
+	"bounce_processor_enabled":  "BOUNCE_PROCESSOR_ENABLED",
+	"bounce_imap_host":          "BOUNCE_IMAP_HOST",
+	"bounce_imap_port":          "BOUNCE_IMAP_PORT",
+	"bounce_imap_username":      "BOUNCE_IMAP_USERNAME",
+	"bounce_imap_password":      "BOUNCE_IMAP_PASSWORD",
+	"bounce_imap_tls":           "BOUNCE_IMAP_TLS",
 }
 
 // applyEnvAndConfigUpdates writes changed env-backed settings to .env and syncs in-memory configs.
@@ -117,7 +125,44 @@ func applyEnvAndConfigUpdates(updates map[string]string) {
 	if v, ok := updates["mail_from_name"]; ok {
 		cur.FromName = v
 	}
+	if v, ok := updates["mail_bounce_address"]; ok {
+		cur.BounceAddress = v
+		config.UpdateBounceAddress(v)
+	}
 	config.UpdateMailConfig(cur)
+
+	// Sync in-memory bounce mailbox config.
+	bCur := config.Get().Mail.Bounce
+	changed := false
+	if v, ok := updates["bounce_processor_enabled"]; ok {
+		bCur.Enabled = v == "true" || v == "1"
+		changed = true
+	}
+	if v, ok := updates["bounce_imap_host"]; ok {
+		bCur.Host = v
+		changed = true
+	}
+	if v, ok := updates["bounce_imap_port"]; ok {
+		if p, err := strconv.Atoi(v); err == nil {
+			bCur.Port = p
+		}
+		changed = true
+	}
+	if v, ok := updates["bounce_imap_username"]; ok {
+		bCur.Username = v
+		changed = true
+	}
+	if v, ok := updates["bounce_imap_password"]; ok {
+		bCur.Password = v
+		changed = true
+	}
+	if v, ok := updates["bounce_imap_tls"]; ok {
+		bCur.TLS = v == "true" || v == "1"
+		changed = true
+	}
+	if changed {
+		config.UpdateBounceConfig(bCur)
+	}
 
 	// Sync in-memory Google config.
 	gCur := config.Get().Google
@@ -221,6 +266,15 @@ func (h *Handler) GetAll(c *fiber.Ctx) error {
 	// the admin has saved them through the dashboard for the first time.
 	mailCfg := config.Get().Mail
 	googleCfg := config.Get().Google
+	bounceCfg := mailCfg.Bounce
+	bounceEnabled := "false"
+	if bounceCfg.Enabled {
+		bounceEnabled = "true"
+	}
+	bounceTLS := "true"
+	if !bounceCfg.TLS {
+		bounceTLS = "false"
+	}
 	envDefaults := map[string]string{
 		"mail_host":            mailCfg.Host,
 		"mail_port":            strconv.Itoa(mailCfg.Port),
@@ -232,6 +286,14 @@ func (h *Handler) GetAll(c *fiber.Ctx) error {
 		"google_client_id":     googleCfg.ClientID,
 		"google_client_secret": googleCfg.ClientSecret,
 		"google_redirect_uri":  googleCfg.RedirectURI,
+		// Bounce mailbox
+		"mail_bounce_address":      mailCfg.BounceAddress,
+		"bounce_processor_enabled": bounceEnabled,
+		"bounce_imap_host":         bounceCfg.Host,
+		"bounce_imap_port":         strconv.Itoa(bounceCfg.Port),
+		"bounce_imap_username":     bounceCfg.Username,
+		"bounce_imap_password":     bounceCfg.Password,
+		"bounce_imap_tls":          bounceTLS,
 	}
 	for k, v := range envDefaults {
 		if existing, ok := m[k]; !ok || existing == "" {
