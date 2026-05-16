@@ -138,6 +138,12 @@ func TestAuthService_UpdateProfile_UsesPartialUpdate(t *testing.T) {
 }
 
 func TestAuthService_Register(t *testing.T) {
+	oldAssignDefaultRole := assignDefaultRole
+	assignDefaultRole = func(uint) {}
+	t.Cleanup(func() {
+		assignDefaultRole = oldAssignDefaultRole
+	})
+
 	mockRepo := &MockUserRepository{}
 	svc := setupTestAuthService(t, mockRepo)
 
@@ -150,13 +156,14 @@ func TestAuthService_Register(t *testing.T) {
 			return nil
 		}
 
-		user, token, err := svc.Register("Test User", "test@example.com", "password123")
+		user, token, verificationSent, err := svc.Register("Test User", "test@example.com", "password123")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, user)
 		assert.Equal(t, "Test User", user.Name)
 		assert.Equal(t, "test@example.com", user.Email)
 		assert.NotEmpty(t, token)
+		assert.False(t, verificationSent)
 	})
 
 	t.Run("Email Already Exists", func(t *testing.T) {
@@ -164,12 +171,13 @@ func TestAuthService_Register(t *testing.T) {
 			return 1, nil // Email exists
 		}
 
-		user, token, err := svc.Register("Test User", "test2@example.com", "password123")
+		user, token, verificationSent, err := svc.Register("Test User", "test2@example.com", "password123")
 
 		assert.Error(t, err)
 		assert.Equal(t, ErrEmailAlreadyExists, err)
 		assert.Nil(t, user)
 		assert.Empty(t, token)
+		assert.False(t, verificationSent)
 	})
 }
 

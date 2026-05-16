@@ -30,6 +30,12 @@ var (
 )
 
 var invalidateCachedUser = InvalidateUserCache
+var assignDefaultRole = AssignDefaultRole
+
+var (
+	ErrEmailNotDeliverable     = errors.New("email address cannot receive verification messages")
+	ErrVerificationRateLimited = errors.New("verification email resend limit exceeded")
+)
 
 type GoogleUserInfo struct {
 	ID            string `json:"id"`
@@ -52,7 +58,7 @@ type UpdateProfileInput struct {
 
 // AuthService handles business logic for authentication
 type AuthService interface {
-	Register(name, email, password string) (*models.User, string, error)
+	Register(name, email, password string) (*models.User, string, bool, error)
 	Login(email, password, ip, userAgent, method, path string) (*models.User, string, error)
 	Logout(tokenStr string, user *models.User) error
 	RefreshToken(refreshTokenStr string) (accessToken, newRefreshToken string, err error)
@@ -62,6 +68,8 @@ type AuthService interface {
 	ResetPassword(token, email, newPassword string) error
 	VerifyEmail(id string, hash string) error
 	ResendVerification(user *models.User) error
+	CheckEmailPreflight(email string) (*EmailPreflightResult, error)
+	ChangeUnverifiedEmail(user *models.User, email string) (*models.User, bool, error)
 	DeleteAccount(user *models.User, password string) error
 	GetGoogleOAuthConfig() *oauth2.Config
 	LoginOrRegisterGoogleUser(info *GoogleUserInfo) (*models.User, string, error)
@@ -91,10 +99,20 @@ type UserResponse struct {
 }
 
 type RegisterResponse struct {
-	Success bool          `json:"success"`
-	Message string        `json:"message"`
-	Token   string        `json:"token"`
-	User    *UserResponse `json:"user"`
+	Success               bool          `json:"success"`
+	Message               string        `json:"message"`
+	Token                 string        `json:"token"`
+	User                  *UserResponse `json:"user"`
+	VerificationEmailSent bool          `json:"verification_email_sent"`
+}
+
+type EmailPreflightResult struct {
+	Email       string `json:"email"`
+	Available   bool   `json:"available"`
+	Deliverable bool   `json:"deliverable"`
+	CanRegister bool   `json:"can_register"`
+	Reason      string `json:"reason,omitempty"`
+	Suggestion  string `json:"suggestion,omitempty"`
 }
 
 type authService struct {
@@ -114,21 +132,82 @@ func NewAuthService(repo repositories.UserRepository, jwtSvc *JWTService, mailSv
 	}
 }
 
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
 func (s *authService) CheckEmailAvailable(email string) (bool, error) {
-	count, err := s.repo.CountByEmail(strings.ToLower(strings.TrimSpace(email)))
+	count, err := s.repo.CountByEmail(normalizeEmail(email))
 	if err != nil {
 		return false, MapError(err)
 	}
 	return count == 0, nil
 }
 
-func (s *authService) Register(name, email, password string) (*models.User, string, error) {
+func (s *authService) CheckEmailPreflight(email string) (*EmailPreflightResult, error) {
+	email = normalizeEmail(email)
+	result := &EmailPreflightResult{Email: email}
+
+	if email == "" {
+		result.Reason = "email_required"
+		return result, nil
+	}
+
+	available, err := s.CheckEmailAvailable(email)
+	if err != nil {
+		return nil, err
+	}
+	result.Available = available
+	if !available {
+		result.Reason = "already_used"
+		result.Suggestion = suggestEmailDomain(email)
+		return result, nil
+	}
+
+	if isDisposableEmailDomain(email) {
+		result.Reason = "disposable_email"
+		result.Suggestion = suggestEmailDomain(email)
+		return result, nil
+	}
+
+	if isTrustedEmailDomain(email) {
+		result.Deliverable = true
+		result.CanRegister = true
+		result.Suggestion = suggestEmailDomain(email)
+		return result, nil
+	}
+
+	if status, validationErr := validateDeliverableEmail(email); validationErr != nil {
+		result.Reason = status
+		result.Suggestion = suggestEmailDomain(email)
+		return result, nil
+	}
+
+	result.Deliverable = true
+	result.CanRegister = true
+	result.Suggestion = suggestEmailDomain(email)
+	return result, nil
+}
+
+func (s *authService) Register(name, email, password string) (*models.User, string, bool, error) {
+	email = normalizeEmail(email)
+	preflight, err := s.CheckEmailPreflight(email)
+	if err != nil {
+		return nil, "", false, err
+	}
+	if !preflight.Available {
+		return nil, "", false, ErrEmailAlreadyExists
+	}
+	if !preflight.CanRegister {
+		return nil, "", false, ErrEmailNotDeliverable
+	}
+
 	count, err := s.repo.CountByEmail(email)
 	if err != nil {
-		return nil, "", MapError(err)
+		return nil, "", false, MapError(err)
 	}
 	if count > 0 {
-		return nil, "", ErrEmailAlreadyExists
+		return nil, "", false, ErrEmailAlreadyExists
 	}
 
 	user := models.User{
@@ -138,31 +217,31 @@ func (s *authService) Register(name, email, password string) (*models.User, stri
 	}
 
 	if err := user.HashPassword(password); err != nil {
-		return nil, "", MapError(err)
+		return nil, "", false, MapError(err)
 	}
 
 	if err := s.repo.Create(&user); err != nil {
-		return nil, "", MapError(err)
+		return nil, "", false, MapError(err)
 	}
 
-	AssignDefaultRole(user.ID)
+	assignDefaultRole(user.ID)
 
-	// Create a time-limited verification token and send the email before returning.
+	verificationSent := true
 	if err := s.sendVerificationEmail(&user); err != nil {
+		verificationSent = false
 		logger.Error("failed to send verification email during registration",
 			zap.Uint("user_id", user.ID),
 			zap.String("email", user.Email),
 			zap.Error(err),
 		)
-		return nil, "", ErrVerificationEmailFailed
 	}
 
 	token, err := s.jwtSvc.GenerateToken(user.ID, user.Email)
 	if err != nil {
-		return nil, "", MapError(err)
+		return nil, "", verificationSent, MapError(err)
 	}
 
-	return &user, token, nil
+	return &user, token, verificationSent, nil
 }
 
 func (s *authService) Login(email, password, ip, userAgent, method, path string) (*models.User, string, error) {
@@ -401,7 +480,7 @@ func (s *authService) VerifyEmail(id string, token string) error {
 		return MapError(err)
 	}
 	invalidateCachedUser(user.ID)
-	AssignDefaultRole(user.ID)
+	assignDefaultRole(user.ID)
 
 	_ = rdb.Del(ctx, key)
 	_, _ = rdb.DeleteByPattern(ctx, rdb.Key("email_verify", fmt.Sprintf("%d", user.ID), "*"))
@@ -411,6 +490,12 @@ func (s *authService) VerifyEmail(id string, token string) error {
 func (s *authService) ResendVerification(user *models.User) error {
 	if user.IsVerified() {
 		return ErrAlreadyVerified
+	}
+	if !user.CanReceiveEmail() {
+		return ErrEmailNotDeliverable
+	}
+	if err := s.ensureResendAllowed(user.ID); err != nil {
+		return err
 	}
 
 	if err := s.sendVerificationEmail(user); err != nil {
@@ -422,6 +507,58 @@ func (s *authService) ResendVerification(user *models.User) error {
 		return ErrVerificationEmailFailed
 	}
 	return nil
+}
+
+func (s *authService) ChangeUnverifiedEmail(user *models.User, email string) (*models.User, bool, error) {
+	if user.IsVerified() {
+		return nil, false, ErrAlreadyVerified
+	}
+
+	email = normalizeEmail(email)
+	if email == "" {
+		return nil, false, ErrEmailNotDeliverable
+	}
+
+	if email != normalizeEmail(user.Email) {
+		preflight, err := s.CheckEmailPreflight(email)
+		if err != nil {
+			return nil, false, err
+		}
+		if !preflight.Available {
+			return nil, false, ErrEmailAlreadyExists
+		}
+		if !preflight.CanRegister {
+			return nil, false, ErrEmailNotDeliverable
+		}
+
+		if err := s.repo.UpdateFields(user.ID, map[string]interface{}{
+			"email":                email,
+			"email_bounce_status":  "active",
+			"email_bounce_count":   0,
+			"email_last_bounce_at": nil,
+			"email_bounce_reason":  nil,
+		}); err != nil {
+			return nil, false, MapError(err)
+		}
+		invalidateCachedUser(user.ID)
+	}
+
+	updated, err := s.repo.FindByID(uint64(user.ID))
+	if err != nil {
+		return nil, false, MapError(err)
+	}
+
+	verificationSent := true
+	if err := s.sendVerificationEmail(updated); err != nil {
+		verificationSent = false
+		logger.Error("failed to send verification email after email change",
+			zap.Uint("user_id", updated.ID),
+			zap.String("email", updated.Email),
+			zap.Error(err),
+		)
+	}
+
+	return updated, verificationSent, nil
 }
 
 func (s *authService) DeleteAccount(user *models.User, password string) error {
@@ -468,7 +605,7 @@ func (s *authService) LoginOrRegisterGoogleUser(info *GoogleUserInfo) (*models.U
 		if err := s.repo.Create(user); err != nil {
 			return nil, "", MapError(err)
 		}
-		AssignDefaultRole(user.ID)
+		assignDefaultRole(user.ID)
 	} else if err != nil {
 		return nil, "", MapError(err)
 	} else {
@@ -510,7 +647,46 @@ func (s *authService) DeletePushToken(userID uint, token string) error {
 
 // --- Helper functions ---
 
-const emailVerificationTTL = 60 * time.Minute
+const emailVerificationTTL = 24 * time.Hour
+
+var typoDomainSuggestions = map[string]string{
+	"gamil.com":   "gmail.com",
+	"gmial.com":   "gmail.com",
+	"gmail.co":    "gmail.com",
+	"gmail.con":   "gmail.com",
+	"hotmial.com": "hotmail.com",
+	"hotmai.com":  "hotmail.com",
+	"outlok.com":  "outlook.com",
+	"outlook.co":  "outlook.com",
+	"yaho.com":    "yahoo.com",
+	"yahoo.co":    "yahoo.com",
+	"icloud.co":   "icloud.com",
+}
+
+var disposableEmailDomains = map[string]bool{
+	"10minutemail.com":  true,
+	"guerrillamail.com": true,
+	"mailinator.com":    true,
+	"tempmail.com":      true,
+	"temp-mail.org":     true,
+	"yopmail.com":       true,
+	"throwawaymail.com": true,
+	"trashmail.com":     true,
+}
+
+var trustedEmailDomains = map[string]bool{
+	"gmail.com":      true,
+	"googlemail.com": true,
+	"hotmail.com":    true,
+	"outlook.com":    true,
+	"live.com":       true,
+	"msn.com":        true,
+	"yahoo.com":      true,
+	"icloud.com":     true,
+	"me.com":         true,
+	"proton.me":      true,
+	"protonmail.com": true,
+}
 
 func hashVerificationToken(token string) string {
 	sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
@@ -519,6 +695,57 @@ func hashVerificationToken(token string) string {
 
 func emailVerificationKey(rdb *database.RedisManager, userID uint, tokenHash string) string {
 	return rdb.Key("email_verify", fmt.Sprintf("%d", userID), tokenHash)
+}
+
+func emailDomain(email string) string {
+	parts := strings.Split(normalizeEmail(email), "@")
+	if len(parts) != 2 {
+		return ""
+	}
+	return strings.TrimSpace(parts[1])
+}
+
+func isDisposableEmailDomain(email string) bool {
+	return disposableEmailDomains[emailDomain(email)]
+}
+
+func isTrustedEmailDomain(email string) bool {
+	return trustedEmailDomains[emailDomain(email)]
+}
+
+func suggestEmailDomain(email string) string {
+	email = normalizeEmail(email)
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 || parts[0] == "" {
+		return ""
+	}
+	if suggestion := typoDomainSuggestions[parts[1]]; suggestion != "" {
+		return parts[0] + "@" + suggestion
+	}
+	return ""
+}
+
+func (s *authService) ensureResendAllowed(userID uint) error {
+	rdb := database.Redis()
+	ctx := context.Background()
+	minuteKey := rdb.Key("email_verify_resend_minute", fmt.Sprintf("%d", userID))
+	if exists, _ := rdb.Exists(ctx, minuteKey); exists {
+		return ErrVerificationRateLimited
+	}
+
+	hourKey := rdb.Key("email_verify_resend_hour", fmt.Sprintf("%d", userID))
+	current, _ := rdb.Get(ctx, hourKey)
+	count := 0
+	if current != "" {
+		_, _ = fmt.Sscanf(current, "%d", &count)
+	}
+	if count >= 5 {
+		return ErrVerificationRateLimited
+	}
+
+	_ = rdb.Set(ctx, minuteKey, "1", time.Minute)
+	_ = rdb.Set(ctx, hourKey, fmt.Sprintf("%d", count+1), time.Hour)
+	return nil
 }
 
 func (s *authService) verificationFrontendURL(user *models.User, token string) string {

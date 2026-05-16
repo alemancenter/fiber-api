@@ -8,6 +8,10 @@ import (
 // registerContentRoutes handles all routes related to core content:
 // Articles, Posts, Categories, Comments, Files, Keywords, and AI.
 func registerContentRoutes(api, public, dash fiber.Router, h *Handlers) {
+	authM := middleware.Auth()
+	verifiedM := middleware.RequireVerifiedEmail()
+	activityM := middleware.UpdateLastActivity()
+
 	// =====================
 	// PUBLIC ROUTES
 	// =====================
@@ -18,8 +22,8 @@ func registerContentRoutes(api, public, dash fiber.Router, h *Handlers) {
 	public.Get("/articles/download", h.Articles.DownloadFileSigned)
 	public.Get("/articles/by-class/:grade_level", h.Articles.ByClass)
 	public.Get("/articles/by-keyword/:keyword", h.Articles.ByKeyword)
-	public.Get("/articles/file/:id/download", h.Articles.DownloadFile)
-	public.Get("/articles/file/:id/download-url", h.Articles.GetDownloadToken)
+	public.Get("/articles/file/:id/download", authM, verifiedM, activityM, h.Articles.DownloadFile)
+	public.Get("/articles/file/:id/download-url", authM, verifiedM, activityM, h.Articles.GetDownloadToken)
 	public.Get("/articles/:id", h.Articles.Show)
 	public.Get("/articles/:id/ad-status", h.ContentAudit.PublicAdStatus)
 
@@ -49,9 +53,6 @@ func registerContentRoutes(api, public, dash fiber.Router, h *Handlers) {
 	// NOTE: Do NOT use api.Group("", Auth, ...) — in Fiber v2, an empty-prefix Group
 	// adds its middleware as global USE middleware for ALL /api/* routes, breaking public endpoints.
 	// Use per-route inline middleware instead.
-	authM := middleware.Auth()
-	activityM := middleware.UpdateLastActivity()
-
 	// Reactions (Comments)
 	api.Post("/comments/:database", authM, activityM, h.Comments.Create)
 	api.Post("/reactions", authM, activityM, h.Comments.CreateReaction)

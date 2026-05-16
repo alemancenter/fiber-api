@@ -15,6 +15,7 @@ func registerAuthRoutes(api, dash fiber.Router, h *Handlers) {
 
 	// Brute-force-sensitive endpoints get a dedicated per-IP rate limiter
 	authGroup.Post("/check-email", h.Auth.CheckEmail)
+	authGroup.Post("/email/preflight", h.Auth.EmailPreflight)
 	authGroup.Post("/register", middleware.AuthRateLimit(), h.Auth.Register)
 	authGroup.Post("/login", middleware.AuthRateLimit(), h.Auth.Login)
 	authGroup.Post("/refresh", middleware.AuthRateLimit(), h.Auth.RefreshToken)
@@ -32,6 +33,7 @@ func registerAuthRoutes(api, dash fiber.Router, h *Handlers) {
 	authSecure.Get("/user", h.Auth.Me)
 	authSecure.Put("/profile", middleware.RequireVerifiedEmail(), h.Auth.UpdateProfile)
 	authSecure.Post("/email/resend", h.Auth.ResendVerification)
+	authSecure.Post("/email/change", h.Auth.ChangeUnverifiedEmail)
 	authSecure.Post("/account/delete", middleware.RequireVerifiedEmail(), h.Auth.DeleteAccount)
 	authSecure.Post("/push-token", middleware.RequireVerifiedEmail(), h.Auth.RegisterPushToken)
 	authSecure.Delete("/push-token", middleware.RequireVerifiedEmail(), h.Auth.DeletePushToken)

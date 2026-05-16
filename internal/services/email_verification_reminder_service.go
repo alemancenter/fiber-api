@@ -513,6 +513,9 @@ func validateDeliverableEmail(email string) (string, error) {
 		return EmailStatusInvalidFormat, errors.New("invalid email domain")
 	}
 	domain := strings.ToLower(strings.TrimSpace(parts[1]))
+	if trustedEmailDomains[domain] {
+		return EmailStatusDeliverable, nil
+	}
 	mx, mxErr := net.LookupMX(domain)
 	if mxErr == nil && len(mx) > 0 {
 		return EmailStatusDeliverable, nil

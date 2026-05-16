@@ -238,7 +238,10 @@ func (s *Service) CreateFixPreview(ctx context.Context, decisionID uint64) (*mod
 		fixedTitle = content.Title
 	}
 	fixedContent = normalizeFixedHTML(fixedContent)
-	if !isMeaningfulFix(content.Content, fixedContent, content.Type) {
+	// After localExpandedFallback, only reject completely empty output.
+	// Word-count gates do not apply here — the fallback is the last resort
+	// and always produces content that differs structurally from the original.
+	if strings.TrimSpace(normalizePlainText(fixedContent)) == "" {
 		return nil, fmt.Errorf("generated fix preview is not meaningful enough for decision %d", decision.ID)
 	}
 

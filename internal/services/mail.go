@@ -111,15 +111,15 @@ func (m *MailService) SendVerificationEmail(to, name, verificationURL string) er
 
 	body := buildArabicEmailTemplate(emailTemplateData{
 		BrandName:    brandName,
-		Preheader:   "تأكيد البريد الإلكتروني",
-		Greeting:    fmt.Sprintf("مرحباً %s،", sanitizeText(name, "عزيزي المستخدم")),
-		Title:       "أهلاً بك في منصتنا",
-		Message:     "يسعدنا انضمامك إلينا. تم إنشاء حسابك بنجاح، ولم يتبقَّ سوى تأكيد بريدك الإلكتروني لتفعيل الحساب والاستفادة من خدمات الموقع بشكل كامل وآمن.",
-		ButtonText:  "تأكيد البريد الإلكتروني",
-		ActionURL:   verificationURL,
-		ExpiryNote:  "هذا الرابط صالح لمدة 60 دقيقة فقط. إذا انتهت صلاحية الرابط، يمكنك طلب رابط جديد من صفحة تسجيل الدخول.",
+		Preheader:    "تأكيد البريد الإلكتروني",
+		Greeting:     fmt.Sprintf("مرحباً %s،", sanitizeText(name, "عزيزي المستخدم")),
+		Title:        "أهلاً بك في منصتنا",
+		Message:      "يسعدنا انضمامك إلينا. تم إنشاء حسابك بنجاح، ولم يتبقَّ سوى تأكيد بريدك الإلكتروني لتفعيل الحساب والاستفادة من خدمات الموقع بشكل كامل وآمن.",
+		ButtonText:   "تأكيد البريد الإلكتروني",
+		ActionURL:    verificationURL,
+		ExpiryNote:   "هذا الرابط صالح لمدة 24 ساعة. إذا انتهت صلاحية الرابط، يمكنك طلب رابط جديد من صفحة تسجيل الدخول.",
 		SecurityNote: "إذا لم تقم بإنشاء حساب لدينا، يمكنك تجاهل هذه الرسالة بأمان.",
-		FooterNote:  "نحن نهتم بحماية حسابك وتقديم تجربة موثوقة وآمنة.",
+		FooterNote:   "نحن نهتم بحماية حسابك وتقديم تجربة موثوقة وآمنة.",
 	})
 
 	return m.Send(to, subject, body, true)
@@ -133,15 +133,15 @@ func (m *MailService) SendPasswordResetEmail(to, name, resetURL string) error {
 
 	body := buildArabicEmailTemplate(emailTemplateData{
 		BrandName:    brandName,
-		Preheader:   "إعادة تعيين كلمة المرور",
-		Greeting:    fmt.Sprintf("مرحباً %s،", sanitizeText(name, "عزيزي المستخدم")),
-		Title:       "طلب إعادة تعيين كلمة المرور",
-		Message:     "تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك. للحفاظ على أمان حسابك، يرجى استخدام الزر أدناه لإتمام العملية من خلال الرابط الآمن.",
-		ButtonText:  "إعادة تعيين كلمة المرور",
-		ActionURL:   resetURL,
-		ExpiryNote:  "هذا الرابط صالح لمدة 60 دقيقة فقط. بعد انتهاء المدة، ستحتاج إلى طلب رابط جديد.",
+		Preheader:    "إعادة تعيين كلمة المرور",
+		Greeting:     fmt.Sprintf("مرحباً %s،", sanitizeText(name, "عزيزي المستخدم")),
+		Title:        "طلب إعادة تعيين كلمة المرور",
+		Message:      "تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك. للحفاظ على أمان حسابك، يرجى استخدام الزر أدناه لإتمام العملية من خلال الرابط الآمن.",
+		ButtonText:   "إعادة تعيين كلمة المرور",
+		ActionURL:    resetURL,
+		ExpiryNote:   "هذا الرابط صالح لمدة 60 دقيقة فقط. بعد انتهاء المدة، ستحتاج إلى طلب رابط جديد.",
 		SecurityNote: "إذا لم تطلب إعادة تعيين كلمة المرور، يرجى تجاهل هذه الرسالة. سيبقى حسابك آمناً ولن يتم تغيير كلمة المرور.",
-		FooterNote:  "تم إرسال هذه الرسالة لحماية حسابك من أي وصول غير مصرح به.",
+		FooterNote:   "تم إرسال هذه الرسالة لحماية حسابك من أي وصول غير مصرح به.",
 	})
 
 	return m.Send(to, subject, body, true)
@@ -177,15 +177,15 @@ func (m *MailService) brandName() string {
 
 type emailTemplateData struct {
 	BrandName    string
-	Preheader   string
-	Greeting    string
-	Title       string
-	Message     string
-	ButtonText  string
-	ActionURL   string
-	ExpiryNote  string
+	Preheader    string
+	Greeting     string
+	Title        string
+	Message      string
+	ButtonText   string
+	ActionURL    string
+	ExpiryNote   string
 	SecurityNote string
-	FooterNote  string
+	FooterNote   string
 }
 
 func buildArabicEmailTemplate(data emailTemplateData) string {

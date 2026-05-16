@@ -25,10 +25,14 @@ func Setup(app *fiber.App) *Handlers {
 	app.Use(middleware.RequestLogger())
 	app.Use(middleware.AuthRateLimit())
 	app.Use(middleware.PrefixRateLimit(
-		middleware.RateLimitRule{Prefix: "/api/dashboard/content-audit/ai/", Max: 12, Window: 5 * time.Minute},
+		middleware.RateLimitRule{Prefix: "/api/dashboard/content-audit/ai/", Max: 60, Window: 5 * time.Minute},
+		middleware.RateLimitRule{Prefix: "/backend-api/dashboard/content-audit/ai/", Max: 60, Window: 5 * time.Minute},
 		middleware.RateLimitRule{Prefix: "/api/ai/status/", Max: 300, Window: 5 * time.Minute},
-		middleware.RateLimitRule{Prefix: "/api/ai/", Max: 15, Window: 5 * time.Minute},
+		middleware.RateLimitRule{Prefix: "/backend-api/ai/status/", Max: 300, Window: 5 * time.Minute},
+		middleware.RateLimitRule{Prefix: "/api/ai/", Max: 60, Window: 5 * time.Minute},
+		middleware.RateLimitRule{Prefix: "/backend-api/ai/", Max: 60, Window: 5 * time.Minute},
 		middleware.RateLimitRule{Prefix: "/api/dashboard/files", Max: 60, Window: time.Minute},
+		middleware.RateLimitRule{Prefix: "/backend-api/dashboard/files", Max: 60, Window: time.Minute},
 	))
 	app.Use(fiberCompress.New())
 	app.Use(etag.New())

@@ -31,6 +31,14 @@ type LoginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
+type EmailPreflightRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+type ChangeEmailRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
 // ForgotPasswordRequest contains the email for password reset
 type ForgotPasswordRequest struct {
 	Email string `json:"email" validate:"required,email"`
@@ -77,6 +85,28 @@ func (h *Handler) CheckEmail(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"available": available})
 }
 
+func (h *Handler) EmailPreflight(c *fiber.Ctx) error {
+	var req EmailPreflightRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.BadRequest(c, "invalid request")
+	}
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+	if errs := utils.Validate(req); errs != nil {
+		return utils.ValidationError(c, errs)
+	}
+	result, err := h.svc.CheckEmailPreflight(req.Email)
+	if err != nil {
+		if err == services.ErrEmailNotDeliverable {
+			return utils.BadRequest(c, "email cannot receive verification messages")
+		}
+		if err == services.ErrVerificationRateLimited {
+			return utils.TooManyRequests(c)
+		}
+		return utils.InternalError(c)
+	}
+	return utils.Success(c, "email checked", result)
+}
+
 // Register handles user registration
 // @Summary Register User
 // @Description Register a new user account
@@ -97,7 +127,7 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 
 	// Sanitize inputs
 	req.Name = utils.SanitizeInput(req.Name)
-	req.Email = utils.SanitizeInput(req.Email)
+	req.Email = strings.ToLower(strings.TrimSpace(utils.SanitizeInput(req.Email)))
 
 	// Validate
 	if errs := utils.Validate(req); errs != nil {
@@ -110,11 +140,16 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		})
 	}
 
-	user, token, err := h.svc.Register(req.Name, req.Email, req.Password)
+	user, token, verificationSent, err := h.svc.Register(req.Name, req.Email, req.Password)
 	if err != nil {
 		if err == services.ErrEmailAlreadyExists {
 			return utils.ValidationError(c, map[string]string{
 				"email": "البريد الإلكتروني مستخدم بالفعل",
+			})
+		}
+		if err == services.ErrEmailNotDeliverable {
+			return utils.ValidationError(c, map[string]string{
+				"email": "email cannot receive verification messages",
 			})
 		}
 		if err == services.ErrVerificationEmailFailed {
@@ -124,10 +159,11 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(services.RegisterResponse{
-		Success: true,
-		Message: "تم إنشاء الحساب بنجاح. يرجى التحقق من بريدك الإلكتروني.",
-		Token:   token,
-		User:    buildUserResponse(user, h.cfg.Storage.URL),
+		Success:               true,
+		Message:               "تم إنشاء الحساب بنجاح. يرجى التحقق من بريدك الإلكتروني.",
+		Token:                 token,
+		User:                  buildUserResponse(user, h.cfg.Storage.URL),
+		VerificationEmailSent: verificationSent,
 	})
 }
 
@@ -445,6 +481,12 @@ func (h *Handler) ResendVerification(c *fiber.Ctx) error {
 		if err == services.ErrAlreadyVerified {
 			return utils.BadRequest(c, err.Error())
 		}
+		if err == services.ErrEmailNotDeliverable {
+			return utils.BadRequest(c, "email cannot receive verification messages")
+		}
+		if err == services.ErrVerificationRateLimited {
+			return utils.TooManyRequests(c)
+		}
 		if err == services.ErrVerificationEmailFailed {
 			return utils.InternalError(c, "تعذر إرسال رسالة التفعيل. تحقق من إعدادات البريد وحاول مرة أخرى.")
 		}
@@ -452,6 +494,37 @@ func (h *Handler) ResendVerification(c *fiber.Ctx) error {
 	}
 
 	return utils.Success(c, "تم إرسال رسالة التحقق", nil)
+}
+
+func (h *Handler) ChangeUnverifiedEmail(c *fiber.Ctx) error {
+	user := c.Locals("user").(*models.User)
+	var req ChangeEmailRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.BadRequest(c, "invalid request")
+	}
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+	if errs := utils.Validate(req); errs != nil {
+		return utils.ValidationError(c, errs)
+	}
+
+	updated, verificationSent, err := h.svc.ChangeUnverifiedEmail(user, req.Email)
+	if err != nil {
+		if err == services.ErrAlreadyVerified {
+			return utils.BadRequest(c, err.Error())
+		}
+		if err == services.ErrEmailAlreadyExists {
+			return utils.ValidationError(c, map[string]string{"email": "email already exists"})
+		}
+		if err == services.ErrEmailNotDeliverable {
+			return utils.ValidationError(c, map[string]string{"email": "email cannot receive verification messages"})
+		}
+		return utils.InternalError(c)
+	}
+
+	return utils.Success(c, "email updated", fiber.Map{
+		"user":                    buildUserResponse(updated, h.cfg.Storage.URL),
+		"verification_email_sent": verificationSent,
+	})
 }
 
 // DeleteRequest contains the password for account deletion
