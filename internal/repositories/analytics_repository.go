@@ -1,4 +1,4 @@
-package repositories
+﻿package repositories
 
 import (
 	"context"
@@ -42,7 +42,7 @@ func NewAnalyticsRepository() AnalyticsRepository {
 	return &analyticsRepository{}
 }
 
-// ─── Structs for raw scans ──────────────────────────────────────────────────
+// â”€â”€â”€ Structs for raw scans â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type ActiveRow struct {
 	IPAddress string  `gorm:"column:ip_address"`
@@ -105,7 +105,7 @@ type PostView struct {
 	Views int    `json:"views"`
 }
 
-// ─── Implementations ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Implementations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 func (r *analyticsRepository) GetVisitorStats(dbCode database.CountryID, activeWindow, todayStart, yesterdayStart time.Time) (currentActive, currentMembers, currentGuests, totalToday, totalYesterday int64) {
 	db := database.DBForCountry(dbCode)
@@ -165,12 +165,12 @@ func (r *analyticsRepository) GetCountryStats(dbCode database.CountryID, since t
 func (r *analyticsRepository) GetDailyChartData(dbCode database.CountryID, since time.Time) ([]DailyRow, error) {
 	db := database.DBForCountry(dbCode)
 	var dailyRows []DailyRow
-	err := db.Raw(`SELECT DATE(created_at) AS date,
+	err := db.Raw(`SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS date,
 		               COUNT(DISTINCT ip_address) AS visitors,
 		               COUNT(*) AS page_views
 		        FROM visitors_tracking
 		        WHERE created_at >= ?
-		        GROUP BY DATE(created_at) ORDER BY date ASC`, since).Scan(&dailyRows).Error
+		        GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d') ORDER BY date ASC`, since).Scan(&dailyRows).Error
 	return dailyRows, err
 }
 
@@ -271,7 +271,7 @@ func (r *analyticsRepository) GetRecentActivities() ([]ActivityRow, error) {
 	var rawActivities []ActivityRow
 	err := mainDB.Raw(`
 		SELECT al.id, al.description, al.subject_type, al.created_at,
-		       COALESCE(u.name, 'مستخدم') AS causer_name
+		       COALESCE(u.name, 'Ù…Ø³ØªØ®Ø¯Ù…') AS causer_name
 		FROM activity_log al
 		LEFT JOIN users u ON u.id = al.causer_id
 		ORDER BY al.created_at DESC

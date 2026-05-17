@@ -1,4 +1,4 @@
-package services
+﻿package services
 
 import (
 	"runtime"
@@ -255,7 +255,11 @@ func (s *analyticsService) GetVisitorAnalytics(dbCode database.CountryID, days i
 	// ---- chart_data ----
 	chartData := make([]ChartDataRow, 0, len(dailyRows))
 	for _, r := range dailyRows {
-		t, _ := time.Parse("2006-01-02", r.Date)
+		dateStr := r.Date
+		if len(dateStr) > 10 {
+			dateStr = dateStr[:10]
+		}
+		t, _ := time.Parse("2006-01-02", dateStr)
 		chartData = append(chartData, ChartDataRow{
 			Name:      t.Format("02 Jan"),
 			FullDate:  r.Date,
@@ -546,7 +550,7 @@ func extractDomain(rawURL string) string {
 	case strings.HasPrefix(rawURL, "http://"):
 		rest = rawURL[7:]
 	default:
-		return "" // not an HTTP URL — reject garbage values
+		return "" // not an HTTP URL â€” reject garbage values
 	}
 	if i := strings.IndexByte(rest, '/'); i >= 0 {
 		rest = rest[:i]

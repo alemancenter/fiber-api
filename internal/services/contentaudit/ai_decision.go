@@ -296,7 +296,7 @@ func (s *Service) ApplyFix(ctx context.Context, previewID uint64, userID *uint, 
 		}
 		authorID = item.AuthorID
 		notifType = `App\Notifications\PostFixed`
-		notifTitle = "تم تطبيق تصحيح AI على منشور"
+		notifTitle = "تم تطبيق تصحيح على منشور"
 		notifMsg = fmt.Sprintf("تم تحديث المنشور بنسخة محسّنة بالذكاء الاصطناعي: %s", item.Title)
 		notifURL = fmt.Sprintf("/dashboard/posts/edit/%d", item.ID)
 	default:

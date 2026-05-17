@@ -40,6 +40,13 @@ func registerCommunicationRoutes(public, dash fiber.Router, h *Handlers) {
 	dashMessages.Post("/:id/important", h.Messages.ToggleImportant)
 	dashMessages.Delete("/:id", h.Messages.Delete)
 
+	// Contact form messages (submitted via the public contact form)
+	dashContactMessages := dash.Group("/contact-messages")
+	dashContactMessages.Get("", h.ContactMessages.List)
+	dashContactMessages.Get("/:id", h.ContactMessages.Get)
+	dashContactMessages.Post("/:id/read", h.ContactMessages.MarkAsRead)
+	dashContactMessages.Delete("/:id", h.ContactMessages.Delete)
+
 	// Notifications
 	dashNotifications := dash.Group("/notifications")
 	dashNotifications.Get("/latest", h.Notifications.Latest)

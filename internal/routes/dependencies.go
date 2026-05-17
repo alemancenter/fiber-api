@@ -10,6 +10,7 @@ import (
 	"github.com/alemancenter/fiber-api/internal/handlers/calendar"
 	"github.com/alemancenter/fiber-api/internal/handlers/categories"
 	"github.com/alemancenter/fiber-api/internal/handlers/comments"
+	contactmsgHandler "github.com/alemancenter/fiber-api/internal/handlers/contact_messages"
 	contentauditHandler "github.com/alemancenter/fiber-api/internal/handlers/contentaudit"
 	"github.com/alemancenter/fiber-api/internal/handlers/dashboard"
 	"github.com/alemancenter/fiber-api/internal/handlers/emailbounce"
@@ -34,32 +35,33 @@ import (
 )
 
 type Handlers struct {
-	Dashboard     *dashboard.Handler
-	Auth          *auth.Handler
-	Articles      *articles.Handler
-	Posts         *posts.Handler
-	Users         *users.Handler
-	Files         *files.Handler
-	Comments      *comments.Handler
-	Categories    *categories.Handler
-	Grades        *grades.Handler
-	Calendar      *calendar.Handler
-	Notifications *notifications.Handler
-	Messages      *messages.Handler
-	Security      *security.Handler
-	Settings      *settings.Handler
-	Sitemap       *sitemap.Handler
-	Analytics     *analytics.Handler
-	Roles         *roles.Handler
-	Redis         *redisHandler.Handler
-	Health        *health.Handler
-	Home          *home.Handler
-	Keywords      *keywords.Handler
-	AI            *ai.Handler
-	ContentAudit  *contentauditHandler.Handler
-	EmailVerify   *emailverification.Handler
-	EmailBounce   *emailbounce.Handler
-	BounceReader  *services.BounceIMAPReader
+	Dashboard       *dashboard.Handler
+	Auth            *auth.Handler
+	Articles        *articles.Handler
+	Posts           *posts.Handler
+	Users           *users.Handler
+	Files           *files.Handler
+	Comments        *comments.Handler
+	Categories      *categories.Handler
+	Grades          *grades.Handler
+	Calendar        *calendar.Handler
+	Notifications   *notifications.Handler
+	Messages        *messages.Handler
+	ContactMessages *contactmsgHandler.Handler
+	Security        *security.Handler
+	Settings        *settings.Handler
+	Sitemap         *sitemap.Handler
+	Analytics       *analytics.Handler
+	Roles           *roles.Handler
+	Redis           *redisHandler.Handler
+	Health          *health.Handler
+	Home            *home.Handler
+	Keywords        *keywords.Handler
+	AI              *ai.Handler
+	ContentAudit    *contentauditHandler.Handler
+	EmailVerify     *emailverification.Handler
+	EmailBounce     *emailbounce.Handler
+	BounceReader    *services.BounceIMAPReader
 }
 
 func NewDependencies() *Handlers {
@@ -101,6 +103,9 @@ func NewDependencies() *Handlers {
 
 	messageRepo := repositories.NewMessageRepository()
 	messageSvc := services.NewMessageService(messageRepo)
+
+	contactMsgRepo := repositories.NewContactMessageRepository()
+	contactMsgSvc := services.NewContactMessageService(contactMsgRepo)
 
 	notificationRepo := repositories.NewNotificationRepository()
 	cfg := config.Load()
@@ -156,7 +161,8 @@ func NewDependencies() *Handlers {
 		Grades:        grades.New(gradeSvc, fileSvc),
 		Calendar:      calendar.New(calendarSvc),
 		Notifications: notifications.New(notificationSvc),
-		Messages:      messages.New(messageSvc, notificationSvc),
+		Messages:        messages.New(messageSvc, notificationSvc),
+		ContactMessages: contactmsgHandler.New(contactMsgSvc),
 		Security:      security.New(securitySvc),
 		Settings:      settings.New(settingSvc, notificationSvc),
 		Sitemap:       sitemap.New(sitemapSvc),

@@ -568,13 +568,24 @@ func (h *Handler) Contact(c *fiber.Ctx) error {
 		return utils.InternalError(c, "failed to send contact message")
 	}
 
+	// Persist to DB so the dashboard inbox can display it
+	contactMsg := &models.ContactMessage{
+		Name:    req.Name,
+		Email:   req.Email,
+		Phone:   req.Phone,
+		Subject: req.Subject,
+		Message: req.Message,
+		PageURL: req.PageURL,
+	}
+	_ = repositories.NewContactMessageRepository().Create(contactMsg)
+
 	if h.notification != nil {
 		go func() {
 			_ = h.notification.NotifyUsersWithPermissions(
 				"App\\Notifications\\ContactMessageReceived",
 				"رسالة تواصل جديدة",
 				fmt.Sprintf("رسالة جديدة من %s: %s", req.Name, req.Subject),
-				"/dashboard/messages",
+				"/dashboard/contact-messages",
 				[]string{"manage messages", "manage notifications"},
 			)
 		}()

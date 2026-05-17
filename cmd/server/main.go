@@ -108,6 +108,7 @@ func main() {
 		&models.PushToken{},
 		&models.EmailVerificationReminder{},
 		&models.EmailBounceEvent{},
+		&models.ContactMessage{},
 	}
 	seen := make(map[*gorm.DB]bool)
 	for _, id := range []database.CountryID{database.CountryJordan, database.CountrySaudi, database.CountryEgypt, database.CountryPalestine} {
